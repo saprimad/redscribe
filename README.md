@@ -1,12 +1,12 @@
 # RedScribe
 
-RedScribe is a desktop application for research speech transcription. Version 2.0 uses Faster-Whisper for transcription and optionally uses pyannote.audio to distinguish speakers. It exports a structured Excel workbook for researcher-led checking and qualitative analysis.
+RedScribe is a desktop application for transcribing research interviews and other recorded speech. Version 2.0 uses Faster-Whisper for transcription and can optionally use pyannote.audio to distinguish between speakers. It exports a structured Excel workbook for researcher-led verification and qualitative analysis.
 
 ## Current release
 
 **Version 2.0.0**
 
-The primary application is [`redscribe_gpu.py`](redscribe_gpu.py). The older Qwen/Ollama prototype is retained as [`whisper_gui.py`](whisper_gui.py) for reference, but it is not the current supported workflow.
+The primary application is [`redscribe_gpu.py`](redscribe_gpu.py). The earlier Qwen/Ollama prototype, [`whisper_gui.py`](whisper_gui.py), is deprecated and retained only for historical reference. It is not supported or recommended for research use.
 
 ## Features
 
@@ -19,6 +19,10 @@ The primary application is [`redscribe_gpu.py`](redscribe_gpu.py). The older Qwe
 - Excel export with study metadata, a verification worksheet, speaker counts, speech/silence summary, timeline density and token frequency
 
 RedScribe produces an automated draft. Researchers remain responsible for checking the transcript, speaker labels and analytical outputs against the original recording.
+
+## Workflow
+
+Audio or video → Faster-Whisper transcription → optional speaker diarisation → structured Excel export → researcher verification
 
 ## Requirements
 
@@ -104,7 +108,7 @@ RedScribe attempts to load Whisper with CUDA and `float16`. If that fails, it fa
 ## Repository files
 
 - `redscribe_gpu.py` — current RedScribe v2 application
-- `whisper_gui.py` — legacy Qwen/Ollama prototype
+- `whisper_gui.py` — deprecated Qwen/Ollama prototype retained for historical reference
 - `requirements.txt` — Python dependencies
 - `CITATION.cff` — software citation metadata
 - `CHANGELOG.md` — release history
