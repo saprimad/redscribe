@@ -21,21 +21,20 @@ from openpyxl.chart.label import DataLabelList
 # =========================
 MODEL_SIZE = "large-v3"
 
-# Whisper priority:
-# cuba GPU dulu, kalau fail baru fallback CPU
+# Whisper device priority: try the GPU first, then fall back to the CPU.
 WHISPER_DEVICE_PRIORITY = ["cuda", "cpu"]
 
-# compute type ikut device
+# Compute type selected for each device.
 WHISPER_COMPUTE_TYPE = {
-    "cuda": "float16",   # laju untuk GPU NVIDIA
-    "cpu": "int8"        # ringan untuk CPU
+    "cuda": "float16",   # Fast and efficient on supported NVIDIA GPUs.
+    "cpu": "int8"        # Reduces memory and processing requirements on CPUs.
 }
 
-# Diarization model.
-# Nota:
+# Speaker diarisation model.
+# Notes:
 # 1. Install: pip install pyannote.audio
-# 2. Login Hugging Face atau letak token dalam GUI / environment variable HF_TOKEN.
-# 3. Accept model terms dekat Hugging Face kalau diminta.
+# 2. Sign in to Hugging Face, or provide a token through the GUI or HF_TOKEN.
+# 3. Accept the model conditions on Hugging Face when required.
 DIARIZATION_MODEL = "pyannote/speaker-diarization-community-1"
 
 APP_VERSION = "2.0.0"
@@ -157,8 +156,8 @@ def open_folder(path: str):
 
 def create_whisper_model():
     """
-    Cuba load whisper guna GPU dulu.
-    Kalau gagal, fallback ke CPU.
+    Load Whisper on the GPU when possible, with an automatic CPU fallback.
+
     Return:
         model, actual_device, actual_compute_type
     """
@@ -172,7 +171,7 @@ def create_whisper_model():
         except Exception as e:
             last_error = e
 
-    raise RuntimeError(f"Gagal load Whisper model pada semua device. Error terakhir: {last_error}")
+    raise RuntimeError(f"Unable to load the Whisper model on any available device. Last error: {last_error}")
 
 
 
@@ -208,20 +207,20 @@ def load_audio_for_pyannote(audio_path: str):
             subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True, text=True)
         except FileNotFoundError:
             raise RuntimeError(
-                "FFmpeg tidak dijumpai dalam PATH. Install FFmpeg dulu, kemudian buka semula PowerShell. "
-                "Contoh: winget install Gyan.FFmpeg"
+                "FFmpeg was not found in PATH. Install FFmpeg, then close and reopen PowerShell. "
+                "Example: winget install Gyan.FFmpeg"
             )
         except subprocess.CalledProcessError as e:
             err = (e.stderr or e.stdout or "").strip()
-            raise RuntimeError(f"FFmpeg gagal convert audio untuk diarization. Error: {err}")
+            raise RuntimeError(f"FFmpeg could not convert the audio for speaker diarisation. Error: {err}")
 
         try:
             import soundfile as sf
             import torch
         except Exception as e:
             raise RuntimeError(
-                "Package audio loader belum lengkap. Install dulu dengan: pip install soundfile\n\n"
-                f"Error asal: {e}"
+                "The audio-loading dependencies are incomplete. Install SoundFile with: pip install soundfile\n\n"
+                f"Original error: {e}"
             )
 
         data, sample_rate = sf.read(wav_path, dtype="float32", always_2d=False)
@@ -240,16 +239,18 @@ def load_audio_for_pyannote(audio_path: str):
 
 def create_diarization_pipeline(hf_token: str | None, preferred_device: str = "cpu"):
     """
-    Load pyannote diarization pipeline.
-    Function ni lazy import supaya app masih boleh buka walaupun pyannote.audio belum install.
+    Load the pyannote speaker diarisation pipeline.
+
+    The lazy import allows the application to open even when pyannote.audio is
+    not installed. Transcription can therefore continue without diarisation.
     """
     try:
         from pyannote.audio import Pipeline
     except Exception as e:
         raise RuntimeError(
-            "pyannote.audio belum dipasang. Install dulu dengan:\n"
+            "pyannote.audio is not installed. Install it with:\n"
             "pip install pyannote.audio\n\n"
-            f"Error asal: {e}"
+            f"Original error: {e}"
         )
 
     token = (
@@ -263,10 +264,10 @@ def create_diarization_pipeline(hf_token: str | None, preferred_device: str = "c
         if token:
             pipeline = Pipeline.from_pretrained(DIARIZATION_MODEL, token=token)
         else:
-            # token=True cuba guna cached login daripada huggingface-cli login
+            # Use the cached Hugging Face login when no token is entered.
             pipeline = Pipeline.from_pretrained(DIARIZATION_MODEL, token=True)
     except TypeError:
-        # fallback untuk versi lama pyannote / huggingface_hub
+        # Compatibility fallback for older pyannote/huggingface_hub releases.
         if token:
             pipeline = Pipeline.from_pretrained(DIARIZATION_MODEL, use_auth_token=token)
         else:
@@ -274,11 +275,11 @@ def create_diarization_pipeline(hf_token: str | None, preferred_device: str = "c
 
     if pipeline is None:
         raise RuntimeError(
-            "Diarization model gagal dimuatkan. Pastikan Hugging Face token betul "
-            "dan model terms sudah diterima di Hugging Face."
+            "The speaker diarisation model could not be loaded. Confirm that the Hugging Face token "
+            "is valid and that the model conditions have been accepted."
         )
 
-    # Hantar pyannote ke GPU jika ada dan Whisper berjaya guna CUDA.
+    # Use the GPU for pyannote when CUDA is available and Whisper loaded on CUDA.
     if preferred_device == "cuda":
         try:
             import torch
@@ -328,9 +329,9 @@ def run_diarization(audio_path: str, hf_token: str | None, preferred_device: str
 
     if not hasattr(diarization_annotation, "itertracks"):
         raise RuntimeError(
-            "Pyannote output tidak mempunyai itertracks(). "
+            "The pyannote output does not provide itertracks(). "
             f"Output type: {type(diarization_output).__name__}. "
-            "Sila pastikan pyannote.audio versi terbaru dan guna model community-1."
+            "Install a current pyannote.audio release and use the community-1 model."
         )
 
     turns = []
@@ -351,8 +352,9 @@ def overlap_seconds(a_start: float, a_end: float, b_start: float, b_end: float) 
 
 def assign_speaker(start: float, end: float, diarization_turns: list[dict]) -> str:
     """
-    Assign speaker based on maximum overlap between Whisper timestamp and pyannote diarization turns.
-    Kalau tiada overlap, guna midpoint fallback.
+    Assign the speaker with the greatest overlap with a Whisper timestamp.
+
+    When no overlap exists, use the segment midpoint as a fallback.
     """
     if not diarization_turns:
         return "UNKNOWN"
@@ -416,9 +418,9 @@ def save_xlsx_with_early_report(
         ("Audio Duration", sec_to_hms(audio_duration_s)),
         ("Language (Detected/Selected)", detected_language or "Auto detect"),
         ("Model & Mode", f"{MODEL_SIZE} ({actual_device.upper()} | {actual_compute_type})"),
-        ("Diarization", "Enabled" if diarization_enabled else "Disabled"),
-        ("Diarization Status", diarization_status),
-        ("Diarization Model", diarization_model if diarization_enabled else "Not used"),
+        ("Speaker Diarisation", "Enabled" if diarization_enabled else "Disabled"),
+        ("Diarisation Status", diarization_status),
+        ("Diarisation Model", diarization_model if diarization_enabled else "Not used"),
         ("Speakers Detected", speakers_detected),
         ("Processing Time", f"{processing_minutes} minutes"),
         ("Generated On", time.strftime("%Y-%m-%d %H:%M:%S")),
@@ -649,12 +651,12 @@ class RedScribeApp:
 
         tk.Label(top, text="Supported formats: mp3, wav, m4a, mp4", fg="gray").pack(anchor="w", pady=(2, 6))
 
-        diar_fr = tk.LabelFrame(top, text="Speaker Diarization")
+        diar_fr = tk.LabelFrame(top, text="Speaker Diarisation")
         diar_fr.pack(fill="x", pady=(4, 6))
 
         tk.Checkbutton(
             diar_fr,
-            text="Enable speaker diarization",
+            text="Enable speaker diarisation",
             variable=self.diarization_enabled
         ).pack(anchor="w", padx=6, pady=(4, 2))
 
@@ -665,11 +667,11 @@ class RedScribeApp:
 
         speaker_fr = tk.Frame(diar_fr)
         speaker_fr.pack(fill="x", padx=6, pady=(2, 6))
-        tk.Label(speaker_fr, text="Expected Speakers (optional)", width=28, anchor="w").pack(side="left")
+        tk.Label(speaker_fr, text="Expected Number of Speakers", width=28, anchor="w").pack(side="left")
         tk.Entry(speaker_fr, textvariable=self.speaker_count, width=8).pack(side="left")
         tk.Label(
             speaker_fr,
-            text="Contoh: 2 untuk interview dua orang. Kosongkan untuk auto detect.",
+            text="Example: enter 2 for a two-person interview, or leave blank for automatic detection.",
             fg="gray"
         ).pack(side="left", padx=8)
 
@@ -865,7 +867,7 @@ class RedScribeApp:
         except Exception as e:
             self.root.after(
                 0,
-                lambda: messagebox.showerror("Whisper Error", f"Gagal load model Whisper.\n\n{e}")
+                lambda: messagebox.showerror("Whisper Error", f"The Whisper model could not be loaded.\n\n{e}")
             )
             self.root.after(0, self.status.set, "Failed to load model")
             self.root.after(0, lambda: self.start_btn.config(state="normal"))
@@ -876,7 +878,7 @@ class RedScribeApp:
         diarization_status = "Disabled"
 
         if diarization_enabled:
-            self.root.after(0, self.status.set, "Running speaker diarization...")
+            self.root.after(0, self.status.set, "Running speaker diarisation...")
             try:
                 diarization_turns = run_diarization(
                     audio_path=audio_path,
@@ -891,7 +893,7 @@ class RedScribeApp:
                 self.root.after(
                     0,
                     self.log_warning,
-                    "Diarization skipped. Transcription will continue without speaker labels.\n"
+                    "Speaker diarisation was skipped. Transcription will continue without speaker labels.\n"
                     f"Reason: {e}\n"
                 )
                 diarization_turns = []
@@ -912,7 +914,7 @@ class RedScribeApp:
         except Exception as e:
             self.root.after(
                 0,
-                lambda: messagebox.showerror("Transcription Error", f"Gagal transcribe audio.\n\n{e}")
+                lambda: messagebox.showerror("Transcription Error", f"The audio could not be transcribed.\n\n{e}")
             )
             self.root.after(0, self.status.set, "Transcription failed")
             self.root.after(0, lambda: self.start_btn.config(state="normal"))
@@ -998,7 +1000,7 @@ class RedScribeApp:
         except Exception as e:
             self.root.after(
                 0,
-                lambda: messagebox.showerror("Excel Error", f"Gagal simpan fail Excel.\n\n{e}")
+                lambda: messagebox.showerror("Excel Error", f"The Excel workbook could not be saved.\n\n{e}")
             )
             self.root.after(0, self.status.set, "Excel save failed")
             self.root.after(0, lambda: self.start_btn.config(state="normal"))
@@ -1013,7 +1015,7 @@ class RedScribeApp:
                 "Transcription Completed Successfully",
                 f"This transcription was completed by RedScribe – Research Speech Transcription System in {elapsed_min} minutes.\n\n"
                 f"Whisper device used: {actual_device.upper()} ({actual_compute_type})\n"
-                f"Diarization: {diarization_status}\n\n"
+                f"Speaker diarisation: {diarization_status}\n\n"
                 "The generated output is ready for researcher-led review and verification.\n\n"
                 "Feedback and suggestions for improvement are welcome at\n"
                 "saprimad@moh.gov.my\n\n"
