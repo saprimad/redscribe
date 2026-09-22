@@ -1,0 +1,5 @@
+faster-whisper
+openpyxl
+pyannote.audio
+soundfile
+torch

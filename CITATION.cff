@@ -1,0 +1,23 @@
+cff-version: 1.2.0
+message: "If you use RedScribe in your research, please cite the software."
+title: "RedScribe: Research Speech Transcription System"
+type: software
+authors:
+  - family-names: Tumiran
+    given-names: Mad Sapri
+    email: saprimad@moh.gov.my
+version: 2.0.0
+date-released: 2026-09-22
+repository-code: "https://github.com/saprimad/redscribe"
+url: "https://github.com/saprimad/redscribe"
+abstract: >-
+  A desktop research transcription application using Faster-Whisper with
+  optional pyannote.audio speaker diarisation and structured Excel export for
+  researcher-led verification and qualitative analysis.
+keywords:
+  - speech transcription
+  - qualitative research
+  - speaker diarisation
+  - Faster-Whisper
+  - pyannote.audio
+  - research software
