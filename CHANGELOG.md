@@ -18,6 +18,7 @@ All notable changes to RedScribe are documented in this file.
 - Updated the Whisper model from `medium` to `large-v3`.
 - Replaced the Qwen/Ollama coding workflow in the primary application with transcription and speaker diarisation.
 - Clarified that all generated content requires researcher verification.
+- Standardised the v2 interface, status messages, errors, comments and documentation in professional British English.
 
 ### Security
 
@@ -25,4 +26,4 @@ All notable changes to RedScribe are documented in this file.
 
 ## Earlier prototype
 
-The initial repository contained Whisper transcription and experimental Qwen/Ollama-assisted coding. That prototype remains available in `whisper_gui.py` for reference.
+The initial repository contained Whisper transcription and experimental Qwen/Ollama-assisted coding. That unstable prototype remains in `whisper_gui.py` for historical reference but is deprecated and unsupported.
