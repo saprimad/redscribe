@@ -5,8 +5,10 @@ import threading
 import time
 import os
 import re
+import shutil
+import subprocess
+import tempfile
 from collections import Counter
-import ollama
 
 from openpyxl import Workbook
 from openpyxl.utils import get_column_letter
@@ -17,7 +19,7 @@ from openpyxl.chart.label import DataLabelList
 # =========================
 # CONFIG
 # =========================
-MODEL_SIZE = "medium"
+MODEL_SIZE = "large-v3"
 
 # Whisper priority:
 # cuba GPU dulu, kalau fail baru fallback CPU
@@ -29,15 +31,15 @@ WHISPER_COMPUTE_TYPE = {
     "cpu": "int8"        # ringan untuk CPU
 }
 
-# letak nama model ollama yang memang dah ada dalam PC kau
-# contoh:
-# "qwen2.5:7b"
-# "qwen2.5:14b"
-# "qwen3:8b"
-# "llama3.1:8b"
-QWEN_MODEL = "qwen3.5"
+# Diarization model.
+# Nota:
+# 1. Install: pip install pyannote.audio
+# 2. Login Hugging Face atau letak token dalam GUI / environment variable HF_TOKEN.
+# 3. Accept model terms dekat Hugging Face kalau diminta.
+DIARIZATION_MODEL = "pyannote/speaker-diarization-community-1"
 
-APP_TITLE = "RedScribe – Research Speech Transcription System"
+APP_VERSION = "2.0.0"
+APP_TITLE = f"RedScribe v{APP_VERSION} – Research Speech Transcription System"
 
 
 # =========================
@@ -110,6 +112,14 @@ def compute_timeline_density(utterance_rows: list[dict], audio_duration_s: float
     return rows
 
 
+def compute_speaker_summary(utterance_rows: list[dict]) -> list[tuple[str, int]]:
+    speaker_counts = Counter()
+    for row in utterance_rows:
+        speaker = (row.get("speaker") or "UNKNOWN").strip()
+        speaker_counts[speaker] += 1
+    return speaker_counts.most_common()
+
+
 def sanitize_part(s: str) -> str:
     s = (s or "").strip()
     if not s:
@@ -165,6 +175,208 @@ def create_whisper_model():
     raise RuntimeError(f"Gagal load Whisper model pada semua device. Error terakhir: {last_error}")
 
 
+
+def load_audio_for_pyannote(audio_path: str):
+    """
+    Load audio as an in-memory waveform for pyannote.
+
+    Why this exists:
+    Some Windows setups fail inside pyannote/torchcodec with:
+    "name 'AudioDecoder' is not defined".
+    Passing an already-loaded waveform avoids pyannote's built-in AudioDecoder path.
+
+    Requires:
+        pip install soundfile
+        ffmpeg available in PATH
+    """
+    tmp_dir = tempfile.mkdtemp(prefix="redscribe_diarization_")
+    wav_path = os.path.join(tmp_dir, "audio_16k_mono.wav")
+
+    try:
+        cmd = [
+            "ffmpeg",
+            "-y",
+            "-hide_banner",
+            "-loglevel", "error",
+            "-i", audio_path,
+            "-vn",
+            "-ac", "1",
+            "-ar", "16000",
+            wav_path,
+        ]
+        try:
+            subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True, text=True)
+        except FileNotFoundError:
+            raise RuntimeError(
+                "FFmpeg tidak dijumpai dalam PATH. Install FFmpeg dulu, kemudian buka semula PowerShell. "
+                "Contoh: winget install Gyan.FFmpeg"
+            )
+        except subprocess.CalledProcessError as e:
+            err = (e.stderr or e.stdout or "").strip()
+            raise RuntimeError(f"FFmpeg gagal convert audio untuk diarization. Error: {err}")
+
+        try:
+            import soundfile as sf
+            import torch
+        except Exception as e:
+            raise RuntimeError(
+                "Package audio loader belum lengkap. Install dulu dengan: pip install soundfile\n\n"
+                f"Error asal: {e}"
+            )
+
+        data, sample_rate = sf.read(wav_path, dtype="float32", always_2d=False)
+        if getattr(data, "ndim", 1) > 1:
+            data = data.mean(axis=1)
+
+        waveform = torch.from_numpy(data).float().unsqueeze(0)
+        return {"waveform": waveform, "sample_rate": int(sample_rate)}
+
+    finally:
+        try:
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+        except Exception:
+            pass
+
+
+def create_diarization_pipeline(hf_token: str | None, preferred_device: str = "cpu"):
+    """
+    Load pyannote diarization pipeline.
+    Function ni lazy import supaya app masih boleh buka walaupun pyannote.audio belum install.
+    """
+    try:
+        from pyannote.audio import Pipeline
+    except Exception as e:
+        raise RuntimeError(
+            "pyannote.audio belum dipasang. Install dulu dengan:\n"
+            "pip install pyannote.audio\n\n"
+            f"Error asal: {e}"
+        )
+
+    token = (
+        (hf_token or "").strip()
+        or os.environ.get("HF_TOKEN")
+        or os.environ.get("HUGGINGFACE_HUB_TOKEN")
+        or None
+    )
+
+    try:
+        if token:
+            pipeline = Pipeline.from_pretrained(DIARIZATION_MODEL, token=token)
+        else:
+            # token=True cuba guna cached login daripada huggingface-cli login
+            pipeline = Pipeline.from_pretrained(DIARIZATION_MODEL, token=True)
+    except TypeError:
+        # fallback untuk versi lama pyannote / huggingface_hub
+        if token:
+            pipeline = Pipeline.from_pretrained(DIARIZATION_MODEL, use_auth_token=token)
+        else:
+            pipeline = Pipeline.from_pretrained(DIARIZATION_MODEL, use_auth_token=True)
+
+    if pipeline is None:
+        raise RuntimeError(
+            "Diarization model gagal dimuatkan. Pastikan Hugging Face token betul "
+            "dan model terms sudah diterima di Hugging Face."
+        )
+
+    # Hantar pyannote ke GPU jika ada dan Whisper berjaya guna CUDA.
+    if preferred_device == "cuda":
+        try:
+            import torch
+            if torch.cuda.is_available():
+                pipeline.to(torch.device("cuda"))
+        except Exception:
+            pass
+
+    return pipeline
+
+
+def run_diarization(audio_path: str, hf_token: str | None, preferred_device: str, speaker_count_text: str = "") -> list[dict]:
+    """
+    Return list:
+    [
+        {"start": 0.0, "end": 3.2, "speaker": "SPEAKER_00"},
+        ...
+    ]
+    """
+    pipeline = create_diarization_pipeline(hf_token, preferred_device)
+
+    kwargs = {}
+    speaker_count_text = (speaker_count_text or "").strip()
+    if speaker_count_text:
+        try:
+            n_speakers = int(speaker_count_text)
+            if n_speakers > 0:
+                kwargs["num_speakers"] = n_speakers
+        except ValueError:
+            pass
+
+    diarization_input = load_audio_for_pyannote(audio_path)
+    diarization_output = pipeline(diarization_input, **kwargs)
+
+    # pyannote/speaker-diarization-community-1 returns a DiarizeOutput object.
+    # The actual Annotation is inside .exclusive_speaker_diarization or .speaker_diarization.
+    # Older pyannote pipelines may return the Annotation directly.
+    diarization_annotation = None
+    for attr_name in ("exclusive_speaker_diarization", "speaker_diarization"):
+        if hasattr(diarization_output, attr_name):
+            diarization_annotation = getattr(diarization_output, attr_name)
+            if diarization_annotation is not None:
+                break
+
+    if diarization_annotation is None:
+        diarization_annotation = diarization_output
+
+    if not hasattr(diarization_annotation, "itertracks"):
+        raise RuntimeError(
+            "Pyannote output tidak mempunyai itertracks(). "
+            f"Output type: {type(diarization_output).__name__}. "
+            "Sila pastikan pyannote.audio versi terbaru dan guna model community-1."
+        )
+
+    turns = []
+    for turn, _, speaker in diarization_annotation.itertracks(yield_label=True):
+        turns.append({
+            "start": float(turn.start),
+            "end": float(turn.end),
+            "speaker": str(speaker)
+        })
+
+    turns.sort(key=lambda x: (x["start"], x["end"]))
+    return turns
+
+
+def overlap_seconds(a_start: float, a_end: float, b_start: float, b_end: float) -> float:
+    return max(0.0, min(a_end, b_end) - max(a_start, b_start))
+
+
+def assign_speaker(start: float, end: float, diarization_turns: list[dict]) -> str:
+    """
+    Assign speaker based on maximum overlap between Whisper timestamp and pyannote diarization turns.
+    Kalau tiada overlap, guna midpoint fallback.
+    """
+    if not diarization_turns:
+        return "UNKNOWN"
+
+    best_speaker = "UNKNOWN"
+    best_overlap = 0.0
+
+    for turn in diarization_turns:
+        ov = overlap_seconds(start, end, turn["start"], turn["end"])
+        if ov > best_overlap:
+            best_overlap = ov
+            best_speaker = turn["speaker"]
+
+    if best_overlap > 0:
+        return best_speaker
+
+    midpoint = (start + end) / 2.0
+    for turn in diarization_turns:
+        if turn["start"] <= midpoint <= turn["end"]:
+            return turn["speaker"]
+
+    return "UNKNOWN"
+
+
 # =========================
 # EXCEL WRITER
 # =========================
@@ -178,7 +390,10 @@ def save_xlsx_with_early_report(
     detected_language: str | None,
     meta_from_gui: dict,
     actual_device: str,
-    actual_compute_type: str
+    actual_compute_type: str,
+    diarization_enabled: bool,
+    diarization_status: str,
+    diarization_model: str
 ):
     wb = Workbook()
 
@@ -188,8 +403,11 @@ def save_xlsx_with_early_report(
     ws1["A1"] = "Study & Processing Metadata"
     ws1["A1"].font = ws1["A1"].font.copy(bold=True)
 
+    speaker_summary = compute_speaker_summary(utterance_rows)
+    speakers_detected = ", ".join([speaker for speaker, _ in speaker_summary]) if speaker_summary else "None"
+
     meta = [
-        ("Application", "RedScribe – Research Speech Transcription System"),
+        ("Application", f"RedScribe v{APP_VERSION} – Research Speech Transcription System"),
         ("Project / Study", meta_from_gui.get("project", "")),
         ("Researcher", meta_from_gui.get("researcher", "")),
         ("Interview / Audio Label", meta_from_gui.get("label", "")),
@@ -198,6 +416,10 @@ def save_xlsx_with_early_report(
         ("Audio Duration", sec_to_hms(audio_duration_s)),
         ("Language (Detected/Selected)", detected_language or "Auto detect"),
         ("Model & Mode", f"{MODEL_SIZE} ({actual_device.upper()} | {actual_compute_type})"),
+        ("Diarization", "Enabled" if diarization_enabled else "Disabled"),
+        ("Diarization Status", diarization_status),
+        ("Diarization Model", diarization_model if diarization_enabled else "Not used"),
+        ("Speakers Detected", speakers_detected),
         ("Processing Time", f"{processing_minutes} minutes"),
         ("Generated On", time.strftime("%Y-%m-%d %H:%M:%S")),
         ("Copyright", "© Mad Sapri Tumiran"),
@@ -235,6 +457,7 @@ def save_xlsx_with_early_report(
         ("Average Tokens per Utterance", avg_tokens),
         ("Speech Duration", sec_to_hms(speech_s)),
         ("Silence Duration", sec_to_hms(silence_s)),
+        ("Total Speakers Detected", len([s for s, _ in speaker_summary if s != "UNKNOWN"])),
     ]
 
     r2 = r + 3
@@ -243,7 +466,19 @@ def save_xlsx_with_early_report(
         ws1[f"B{r2}"] = v
         r2 += 1
 
-    r3 = r2 + 2
+    r_spk = r2 + 2
+    ws1[f"A{r_spk}"] = "Speaker Utterance Count"
+    ws1[f"A{r_spk}"].font = ws1[f"A{r_spk}"].font.copy(bold=True)
+    ws1[f"A{r_spk+2}"] = "Speaker"
+    ws1[f"B{r_spk+2}"] = "Utterances"
+
+    rr_spk = r_spk + 3
+    for speaker, count in speaker_summary:
+        ws1[f"A{rr_spk}"] = speaker
+        ws1[f"B{rr_spk}"] = count
+        rr_spk += 1
+
+    r3 = max(rr_spk + 2, r2 + 5)
     ws1[f"A{r3}"] = "Speech vs Silence Distribution"
     ws1[f"A{r3}"].font = ws1[f"A{r3}"].font.copy(bold=True)
 
@@ -328,6 +563,7 @@ def save_xlsx_with_early_report(
     ws2 = wb.create_sheet("Transcription")
     headers = [
         "Utterance No.",
+        "Speaker",
         "Start Time (hh:mm:ss)",
         "End Time (hh:mm:ss)",
         "Auto Transcript (RedScribe)",
@@ -339,6 +575,7 @@ def save_xlsx_with_early_report(
     for i, rrow in enumerate(utterance_rows, start=1):
         ws2.append([
             i,
+            rrow.get("speaker", "UNKNOWN"),
             sec_to_hms(rrow["start_s"]),
             sec_to_hms(rrow["end_s"]),
             rrow["text"],
@@ -346,7 +583,7 @@ def save_xlsx_with_early_report(
             ""
         ])
 
-    widths = [14, 20, 18, 70, 40, 25]
+    widths = [14, 18, 20, 18, 70, 40, 25]
     for col_idx, w in enumerate(widths, start=1):
         ws2.column_dimensions[get_column_letter(col_idx)].width = w
 
@@ -360,13 +597,17 @@ class RedScribeApp:
     def __init__(self, root):
         self.root = root
         self.root.title(APP_TITLE)
-        self.root.geometry("1280x780")
+        self.root.geometry("1280x760")
 
         self.project = tk.StringVar()
         self.researcher = tk.StringVar()
         self.label = tk.StringVar()
         self.period = tk.StringVar(value=time.strftime("%Y-%m"))
         self.audio_path = tk.StringVar()
+
+        self.diarization_enabled = tk.BooleanVar(value=True)
+        self.hf_token = tk.StringVar()
+        self.speaker_count = tk.StringVar()
 
         self.base_output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "output")
         self.last_output_folder = None
@@ -376,7 +617,6 @@ class RedScribeApp:
         self.actual_whisper_compute_type = "unknown"
 
         self.build_ui()
-        self.load_default_prompt()
 
     def build_ui(self):
         top = tk.Frame(self.root)
@@ -384,11 +624,11 @@ class RedScribeApp:
 
         tk.Label(top, text="Project & File Information", font=("Segoe UI", 10, "bold")).pack(anchor="w")
 
-        def row_entry(parent, label, var):
+        def row_entry(parent, label, var, show=None):
             fr = tk.Frame(parent)
             fr.pack(fill="x", pady=2)
-            tk.Label(fr, text=label, width=24, anchor="w").pack(side="left")
-            tk.Entry(fr, textvariable=var).pack(side="left", fill="x", expand=True)
+            tk.Label(fr, text=label, width=28, anchor="w").pack(side="left")
+            tk.Entry(fr, textvariable=var, show=show).pack(side="left", fill="x", expand=True)
             return fr
 
         row_entry(top, "Project / Study Name", self.project)
@@ -397,46 +637,53 @@ class RedScribeApp:
 
         period_fr = tk.Frame(top)
         period_fr.pack(fill="x", pady=2)
-        tk.Label(period_fr, text="Month / Period (YYYY-MM)", width=24, anchor="w").pack(side="left")
+        tk.Label(period_fr, text="Month / Period (YYYY-MM)", width=28, anchor="w").pack(side="left")
         tk.Entry(period_fr, textvariable=self.period, width=12).pack(side="left")
         tk.Button(period_fr, text="Pick…", command=self.pick_period).pack(side="left", padx=6)
 
         file_fr = tk.Frame(top)
         file_fr.pack(fill="x", pady=2)
-        tk.Label(file_fr, text="Audio File", width=24, anchor="w").pack(side="left")
+        tk.Label(file_fr, text="Audio File", width=28, anchor="w").pack(side="left")
         tk.Entry(file_fr, textvariable=self.audio_path).pack(side="left", padx=4, fill="x", expand=True)
         tk.Button(file_fr, text="Browse…", command=self.browse_file).pack(side="left")
 
         tk.Label(top, text="Supported formats: mp3, wav, m4a, mp4", fg="gray").pack(anchor="w", pady=(2, 6))
 
-        prompt_header = tk.Frame(top)
-        prompt_header.pack(fill="x", pady=(4, 2))
+        diar_fr = tk.LabelFrame(top, text="Speaker Diarization")
+        diar_fr.pack(fill="x", pady=(4, 6))
 
-        tk.Label(prompt_header, text="AI Instruction / Prompt", font=("Segoe UI", 10, "bold")).pack(side="left")
-        tk.Button(prompt_header, text="Reset AI Prompt", command=self.load_default_prompt).pack(side="right")
+        tk.Checkbutton(
+            diar_fr,
+            text="Enable speaker diarization",
+            variable=self.diarization_enabled
+        ).pack(anchor="w", padx=6, pady=(4, 2))
 
-        self.prompt_box = scrolledtext.ScrolledText(top, height=6, wrap="word")
-        self.prompt_box.pack(fill="x", pady=(0, 6))
+        token_fr = tk.Frame(diar_fr)
+        token_fr.pack(fill="x", padx=6, pady=2)
+        tk.Label(token_fr, text="Hugging Face Token", width=28, anchor="w").pack(side="left")
+        tk.Entry(token_fr, textvariable=self.hf_token, show="*").pack(side="left", fill="x", expand=True)
+
+        speaker_fr = tk.Frame(diar_fr)
+        speaker_fr.pack(fill="x", padx=6, pady=(2, 6))
+        tk.Label(speaker_fr, text="Expected Speakers (optional)", width=28, anchor="w").pack(side="left")
+        tk.Entry(speaker_fr, textvariable=self.speaker_count, width=8).pack(side="left")
+        tk.Label(
+            speaker_fr,
+            text="Contoh: 2 untuk interview dua orang. Kosongkan untuk auto detect.",
+            fg="gray"
+        ).pack(side="left", padx=8)
 
         main_panel = tk.Frame(self.root)
         main_panel.pack(fill="both", expand=True, padx=10, pady=5)
 
-        left_panel = tk.Frame(main_panel)
-        left_panel.pack(side="left", fill="both", expand=True, padx=(0, 5))
-
-        tk.Label(left_panel, text="Live Transcript", font=("Segoe UI", 10, "bold")).pack(anchor="w")
-        self.live_box = scrolledtext.ScrolledText(left_panel, height=20, state="disabled", wrap="word")
+        tk.Label(main_panel, text="Live Transcript", font=("Segoe UI", 10, "bold")).pack(anchor="w")
+        self.live_box = scrolledtext.ScrolledText(main_panel, height=24, state="disabled", wrap="word")
         self.live_box.pack(fill="both", expand=True)
 
-        right_panel = tk.Frame(main_panel)
-        right_panel.pack(side="left", fill="both", expand=True, padx=(5, 0))
-
-        tk.Label(right_panel, text="AI Meaning & Coding", font=("Segoe UI", 10, "bold")).pack(anchor="w")
-        self.qwen_box = scrolledtext.ScrolledText(right_panel, height=20, state="disabled", wrap="word")
-        self.qwen_box.pack(fill="both", expand=True)
-
         self.live_box.tag_configure("ts", foreground="blue")
+        self.live_box.tag_configure("speaker", foreground="purple")
         self.live_box.tag_configure("txt", foreground="black")
+        self.live_box.tag_configure("warn", foreground="red")
 
         status_row = tk.Frame(self.root)
         status_row.pack(fill="x", padx=10, pady=(0, 6))
@@ -485,24 +732,10 @@ class RedScribeApp:
         footer.pack(side="bottom", pady=3)
         footer.bind("<Button-1>", self.show_support)
 
-    def load_default_prompt(self):
-        default_prompt = (
-            "You are a qualitative research assistant using Social Judgment Theory "
-            "(Agree, Neutral, Disagree) and BPSS framework "
-            "(Biological, Psychological, Social, Spiritual, Legal). "
-            "Provide short structured output exactly in this format:\n"
-            "Meaning:\n"
-            "Code:\n"
-            "Category:\n"
-            "SJT:"
-        )
-        self.prompt_box.delete("1.0", "end")
-        self.prompt_box.insert("1.0", default_prompt)
-
     def show_support(self, _event=None):
         messagebox.showinfo(
             "About RedScribe",
-            "RedScribe\n"
+            f"RedScribe v{APP_VERSION}\n"
             "Research Speech Transcription System\n\n"
             "© Mad Sapri Tumiran\n\n"
             "Support:\n"
@@ -546,7 +779,7 @@ class RedScribeApp:
 
     def browse_file(self):
         path = filedialog.askopenfilename(
-            filetypes=[("Audio files", "*.mp3 *.wav *.m4a *.mp4")]
+            filetypes=[("Audio/video files", "*.mp3 *.wav *.m4a *.mp4")]
         )
         if path:
             self.audio_path.set(path)
@@ -558,66 +791,57 @@ class RedScribeApp:
             ensure_dir(self.base_output_dir)
             open_folder(self.base_output_dir)
 
-    def log_live_segment(self, ts: str, text: str):
+    def log_live_segment(self, ts: str, speaker: str, text: str):
         self.live_box.configure(state="normal")
         self.live_box.insert("end", f"[{ts}] ", ("ts",))
+        self.live_box.insert("end", f"{speaker}: ", ("speaker",))
         self.live_box.insert("end", f"{text}\n", ("txt",))
         self.live_box.see("end")
         self.live_box.configure(state="disabled")
 
-    def log_qwen_result(self, text: str):
-        self.qwen_box.configure(state="normal")
-        self.qwen_box.insert("end", f"{text}\n\n")
-        self.qwen_box.see("end")
-        self.qwen_box.configure(state="disabled")
-
-    def ask_qwen(self, text):
-        try:
-            custom_prompt = self.prompt_box.get("1.0", "end").strip()
-
-            response = ollama.chat(
-                model=QWEN_MODEL,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": custom_prompt
-                    },
-                    {
-                        "role": "user",
-                        "content": text
-                    }
-                ]
-            )
-            return response["message"]["content"]
-        except Exception as e:
-            return f"Qwen error: {e}"
+    def log_warning(self, text: str):
+        self.live_box.configure(state="normal")
+        self.live_box.insert("end", f"{text}\n", ("warn",))
+        self.live_box.see("end")
+        self.live_box.configure(state="disabled")
 
     def start(self):
-        if not self.audio_path.get():
+        inputs = {
+            "audio_path": self.audio_path.get().strip(),
+            "project": self.project.get().strip(),
+            "researcher": self.researcher.get().strip(),
+            "label": self.label.get().strip(),
+            "period": self.period.get().strip(),
+            "diarization_enabled": bool(self.diarization_enabled.get()),
+            "hf_token": self.hf_token.get().strip(),
+            "speaker_count": self.speaker_count.get().strip(),
+        }
+
+        if not inputs["audio_path"]:
             messagebox.showwarning("Missing file", "Please select an audio file.")
+            return
+
+        if not os.path.isfile(inputs["audio_path"]):
+            messagebox.showwarning("File not found", "The selected audio file no longer exists.")
             return
 
         self.live_box.configure(state="normal")
         self.live_box.delete("1.0", "end")
         self.live_box.configure(state="disabled")
 
-        self.qwen_box.configure(state="normal")
-        self.qwen_box.delete("1.0", "end")
-        self.qwen_box.configure(state="disabled")
-
         self.progress_var.set(0.0)
         self.status.set("Loading model...")
         self.start_btn.config(state="disabled")
 
-        threading.Thread(target=self.run_whisper, daemon=True).start()
+        threading.Thread(target=self.run_whisper, args=(inputs,), daemon=True).start()
 
-    def run_whisper(self):
+    def run_whisper(self, inputs: dict):
         start_clock = time.time()
 
-        audio_path = self.audio_path.get()
+        audio_path = inputs["audio_path"]
         audio_base = os.path.splitext(os.path.basename(audio_path))[0]
 
-        period = (self.period.get() or time.strftime("%Y-%m")).strip()
+        period = inputs["period"] or time.strftime("%Y-%m")
         if not re.match(r"^\d{4}-\d{2}$", period):
             period = time.strftime("%Y-%m")
 
@@ -626,10 +850,10 @@ class RedScribeApp:
         self.last_output_folder = out_folder
 
         filename_base = build_output_name(
-            project=self.project.get(),
+            project=inputs["project"],
             period=period,
-            label=self.label.get(),
-            researcher=self.researcher.get(),
+            label=inputs["label"],
+            researcher=inputs["researcher"],
             audio_base=audio_base
         )
         xlsx_path = os.path.join(out_folder, f"{filename_base}.xlsx")
@@ -646,6 +870,31 @@ class RedScribeApp:
             self.root.after(0, self.status.set, "Failed to load model")
             self.root.after(0, lambda: self.start_btn.config(state="normal"))
             return
+
+        diarization_enabled = inputs["diarization_enabled"]
+        diarization_turns = []
+        diarization_status = "Disabled"
+
+        if diarization_enabled:
+            self.root.after(0, self.status.set, "Running speaker diarization...")
+            try:
+                diarization_turns = run_diarization(
+                    audio_path=audio_path,
+                    hf_token=inputs["hf_token"],
+                    preferred_device=actual_device,
+                    speaker_count_text=inputs["speaker_count"]
+                )
+                speakers = sorted({t["speaker"] for t in diarization_turns})
+                diarization_status = f"Completed ({len(speakers)} speaker label(s))"
+            except Exception as e:
+                diarization_status = f"Skipped / failed: {e}"
+                self.root.after(
+                    0,
+                    self.log_warning,
+                    "Diarization skipped. Transcription will continue without speaker labels.\n"
+                    f"Reason: {e}\n"
+                )
+                diarization_turns = []
 
         self.root.after(
             0,
@@ -687,19 +936,20 @@ class RedScribeApp:
 
             if seg_text:
                 ts = sec_to_hms(st)
-                self.root.after(0, self.log_live_segment, ts, seg_text)
-
-                def run_qwen(seg_text_local=seg_text, ts_local=ts):
-                    result = self.ask_qwen(seg_text_local)
-                    self.root.after(0, self.log_qwen_result, f"[{ts_local}]\n{result}")
-
-                threading.Thread(target=run_qwen, daemon=True).start()
+                segment_speaker = assign_speaker(st, en, diarization_turns)
+                self.root.after(0, self.log_live_segment, ts, segment_speaker, seg_text)
 
                 sents = split_sentences_universal(seg_text)
                 for ust, uen, s in distribute_times(st, en, sents):
                     s_clean = (s or "").strip()
                     if s_clean:
-                        utterance_rows.append({"start_s": ust, "end_s": uen, "text": s_clean})
+                        utterance_speaker = assign_speaker(ust, uen, diarization_turns)
+                        utterance_rows.append({
+                            "speaker": utterance_speaker,
+                            "start_s": ust,
+                            "end_s": uen,
+                            "text": s_clean
+                        })
 
             if duration_s > 0:
                 progress = min(100.0, (en / duration_s) * 100.0)
@@ -723,9 +973,9 @@ class RedScribeApp:
         elapsed_min = round((time.time() - start_clock) / 60, 2)
 
         meta_from_gui = {
-            "project": self.project.get().strip(),
-            "researcher": self.researcher.get().strip(),
-            "label": self.label.get().strip(),
+            "project": inputs["project"],
+            "researcher": inputs["researcher"],
+            "label": inputs["label"],
             "period": period,
         }
 
@@ -740,7 +990,10 @@ class RedScribeApp:
                 detected_language=getattr(info, "language", None),
                 meta_from_gui=meta_from_gui,
                 actual_device=actual_device,
-                actual_compute_type=actual_compute_type
+                actual_compute_type=actual_compute_type,
+                diarization_enabled=diarization_enabled,
+                diarization_status=diarization_status,
+                diarization_model=DIARIZATION_MODEL
             )
         except Exception as e:
             self.root.after(
@@ -760,7 +1013,7 @@ class RedScribeApp:
                 "Transcription Completed Successfully",
                 f"This transcription was completed by RedScribe – Research Speech Transcription System in {elapsed_min} minutes.\n\n"
                 f"Whisper device used: {actual_device.upper()} ({actual_compute_type})\n"
-                f"Ollama model used: {QWEN_MODEL}\n\n"
+                f"Diarization: {diarization_status}\n\n"
                 "The generated output is ready for researcher-led review and verification.\n\n"
                 "Feedback and suggestions for improvement are welcome at\n"
                 "saprimad@moh.gov.my\n\n"
