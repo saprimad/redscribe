@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Local configuration and credentials
+.env
+.env.*
+config.ini
+secrets.*
+*.token
+
+# RedScribe outputs and sensitive research material
+output/
+data/
+transcripts/
+*.xlsx
+*.xls
+*.csv
+*.tsv
+*.mp3
+*.wav
+*.m4a
+*.mp4
+*.flac
+*.aac
+*.ogg
+
+# Editors and operating systems
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
