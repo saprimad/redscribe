@@ -818,6 +818,7 @@ class RedScribeApp:
 
         self.diarization_enabled = tk.BooleanVar(value=True)
         self.hf_token = tk.StringVar()
+        self.token_status = tk.StringVar(value="Token status: not checked")
         self.speaker_count = tk.StringVar()
 
         self.base_output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "output")
@@ -881,6 +882,11 @@ class RedScribeApp:
         token_fr.pack(fill="x", padx=6, pady=2)
         tk.Label(token_fr, text="Hugging Face Token", width=28, anchor="w").pack(side="left")
         tk.Entry(token_fr, textvariable=self.hf_token, show="*").pack(side="left", fill="x", expand=True)
+        tk.Button(token_fr, text="Check Token", command=self.check_hf_token).pack(side="left", padx=(6, 0))
+        token_status_fr = tk.Frame(diar_fr)
+        token_status_fr.pack(fill="x", padx=6, pady=(0, 2))
+        tk.Label(token_status_fr, width=28).pack(side="left")
+        tk.Label(token_status_fr, textvariable=self.token_status, fg="#28613B", anchor="w").pack(side="left")
 
         speaker_fr = tk.Frame(diar_fr)
         speaker_fr.pack(fill="x", padx=6, pady=(2, 6))
@@ -964,6 +970,24 @@ class RedScribeApp:
             "Support:\n"
             "saprimad@moh.gov.my"
         )
+
+    def check_hf_token(self):
+        """Check for a locally available token without displaying or uploading it."""
+        if self.hf_token.get().strip():
+            self.token_status.set("Token status: entered in app (current session)")
+        elif os.environ.get("HF_TOKEN") or os.environ.get("HUGGINGFACE_HUB_TOKEN"):
+            self.token_status.set("Token status: found in environment")
+        else:
+            try:
+                from huggingface_hub import get_token
+                found = bool(get_token())
+            except Exception:
+                self.token_status.set("Token status: could not check saved login")
+                return
+            self.token_status.set(
+                "Token status: saved Hugging Face login found" if found
+                else "Token status: no token found; see README setup"
+            )
 
     def pick_period(self):
         win = tk.Toplevel(self.root)
