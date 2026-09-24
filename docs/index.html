@@ -28,6 +28,9 @@
     h2 { font-size:clamp(2rem,3vw,3rem); line-height:1.16; letter-spacing:-.045em; margin:10px 0 18px; }
     h3 { font-size:1.16rem; line-height:1.3; margin:0 0 9px; }
     .lead { font-size:1.18rem; color:var(--muted); max-width:610px; }
+    .badges { display:flex; flex-wrap:wrap; gap:8px; margin:20px 0 0; }
+    .badge { display:inline-flex; align-items:center; min-height:28px; padding:4px 10px; border:1px solid #e4d7d2; border-radius:999px; background:#fff; color:#7f2636; font-size:.75rem; font-weight:750; line-height:1.25; text-decoration:none; }
+    a.badge:hover { border-color:var(--red); background:#fff8f7; }
     .actions { display:flex; flex-wrap:wrap; gap:12px; margin:30px 0 24px; }
     .button { display:inline-flex; align-items:center; justify-content:center; text-align:center; min-height:46px; padding:10px 20px; border-radius:8px; background:var(--red); color:#fff; text-decoration:none; font-weight:750; border:1px solid var(--red); }
     .button:hover { background:var(--red-dark); }
@@ -75,11 +78,12 @@
     footer { padding:34px 0; background:#161e29; color:#c9d0d8; font-size:.85rem; }
     footer .wrap { display:flex; justify-content:space-between; gap:20px; flex-wrap:wrap; }
     footer a { color:#fff; }
-    .sample-actions .button { width:270px; }
+    .sample-actions .button { width:235px; }
+    .sample-meta { color:var(--muted); font-size:.85rem; margin:14px 0 -12px; }
     .footer-authors { margin-bottom:8px; }
     .footer-tests { color:#aeb8c4; font-size:.74rem; line-height:1.5; }
     @media(max-width:850px) { .hero-grid { grid-template-columns:1fr; gap:40px; } .mock { max-width:580px; transform:none; } .grid { grid-template-columns:repeat(2,1fr); } .steps { grid-template-columns:repeat(2,1fr); } }
-    @media(max-width:600px) { nav { align-items:flex-start; flex-direction:column; padding:15px 0; gap:8px; } .navlinks { gap:13px; } .hero { padding:60px 0; } section { padding:60px 0; } .grid,.output-grid,.steps { grid-template-columns:1fr; } .mock-body { padding:18px; } .mock-row { display:block; } .mock-field { margin-top:4px; } }
+    @media(max-width:600px) { nav { align-items:flex-start; flex-direction:column; padding:15px 0; gap:8px; } .navlinks { gap:13px; } .hero { padding:60px 0; } section { padding:60px 0; } .grid,.output-grid,.steps { grid-template-columns:1fr; } .mock-body { padding:18px; } .mock-row { display:block; } .mock-field { margin-top:4px; } .sample-actions .button { width:100%; max-width:270px; } }
   </style>
 </head>
 <body>
@@ -92,6 +96,7 @@
       <div><div class="eyebrow">Research speech transcription · v2.0.0</div>
         <h1>From recording to a reviewable transcript.</h1>
         <p class="lead">RedScribe transcribes research speech locally on Windows and macOS and prepares an Excel verification workbook and an editable Word report.</p>
+        <div class="badges" aria-label="RedScribe platform and release information"><span class="badge">v2.0.0</span><span class="badge">Windows 10/11</span><span class="badge">macOS · Apple Silicon</span><span class="badge">Local processing</span><a class="badge" href="https://doi.org/10.5281/zenodo.22941754">Zenodo DOI</a></div>
         <div class="actions"><a class="button" href="https://github.com/saprimad/redscribe">View source on GitHub</a><a class="button secondary" href="#outputs">Explore the outputs</a></div>
         <p class="note">Source code is available under PolyForm Noncommercial 1.0.0. Python setup is required; this is not a one-click installer.</p>
       </div>
@@ -154,7 +159,8 @@
         <li><a href="https://www.youtube.com/watch?v=pukKRkLyQ-0">Medical Apartheid: IK Book Discussion</a></li>
         <li><a href="https://www.youtube.com/watch?v=HUOOhOW2LwE">சாமிகளின் பிறப்பும் இறப்பும் - காந்தாரா</a></li>
       </ul></details>
-      <div class="actions sample-actions"><a class="button" href="https://raw.githubusercontent.com/saprimad/redscribe/main/REDSCRIBE%20OUTPUT%20SAMPLE.zip">Download sample outputs · ZIP</a><a class="button" href="https://buymeacoffee.com/saprimad" target="_blank" rel="noopener noreferrer">Buy Me a Coffee ☕</a></div>
+      <p class="sample-meta">1.0 MB · Includes sample Word (.docx) and Excel (.xlsx) outputs.</p>
+      <div class="actions sample-actions"><a class="button" href="https://raw.githubusercontent.com/saprimad/redscribe/main/REDSCRIBE%20OUTPUT%20SAMPLE.zip">Download Sample ZIP</a><a class="button" href="https://buymeacoffee.com/saprimad" target="_blank" rel="noopener noreferrer">Buy Me a Coffee ☕</a></div>
       <p class="note">Sample .xlsx and .docx files are automated drafts and may contain errors. Support is voluntary and does not grant a commercial licence or priority technical assistance.</p>
     </div></section>
   </main>
