@@ -13,6 +13,7 @@ authors:
   - family-names: Othman
     given-names: Nursyuhadah
 version: 2.0.0
+doi: 10.5281/zenodo.22941754
 repository-code: "https://github.com/saprimad/redscribe"
 url: "https://github.com/saprimad/redscribe"
 abstract: >-
