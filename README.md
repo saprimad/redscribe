@@ -138,7 +138,9 @@ If RedScribe supports a study, cite the software using the metadata in `CITATION
 
 ## Author
 
-Mad Sapri Tumiran<br>
+Copyright notification owner: Mad Sapri bin Tumiran<br>
+Authors: Mad Sapri bin Tumiran; Mohd Shahezwan bin Abd Wahab; Janattul Ain binti Jamal; Nursyuhadah binti Othman<br>
+Malaysia copyright notification: CRDV2026W02110<br>
 Faculty of Pharmacy, Universiti Teknologi MARA (UiTM), Malaysia<br>
 Support: saprimad@moh.gov.my
 
