@@ -1010,7 +1010,7 @@ class RedScribeApp:
 
         footer = tk.Label(
             bottom_panel,
-            text="© Mad Sapri Tumiran | CRDV2026W02110 | Authors & Support",
+            text="RedScribe | CRDV2026W02110 | Authors & Support",
             fg="gray",
             cursor="hand2"
         )
@@ -1035,7 +1035,6 @@ class RedScribeApp:
             "About RedScribe",
             f"RedScribe v{APP_VERSION}\n"
             "Research Speech Transcription System\n\n"
-            "Owner: Mad Sapri bin Tumiran\n\n"
             "Authors:\n"
             "Mad Sapri bin Tumiran\n"
             "Mohd Shahezwan bin Abd Wahab\n"
