@@ -11,6 +11,7 @@ All notable changes to RedScribe are documented in this file.
 
 ### Changed
 
+- Preserve previous Excel/Word output pairs by numbering filenames on repeated runs; show the original error when export fails.
 - Grouped adjacent utterances from the same speaker into one paragraph in the Word transcript.
 - Kept the status and action buttons visible while the transcript panel resizes to fit the window.
 - Sized the initial window to the available screen area.
