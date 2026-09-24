@@ -87,6 +87,8 @@ python redscribe_gpu.py
 
 Select an audio or video file, complete the optional study metadata, choose whether to enable speaker diarisation, and start transcription. Matching `.xlsx` and `.docx` files are written to `output/YYYY-MM/`. The Word file begins with the Excel `Early_Report` information and charts, followed by a transcript that combines adjacent utterances from the same speaker into one editable paragraph, labelled with the first start and last end time. The Excel workbook retains each utterance separately, along with verification columns.
 
+Repeated runs with the same study details receive numbered filenames (for example, `_2.xlsx` and `_2.docx`) so an earlier report is preserved even while it is open.
+
 Supported input formats shown in the interface are MP3, WAV, M4A and MP4. FFmpeg may support additional formats, but they are not currently exposed by the file picker.
 
 ## Processing and privacy
