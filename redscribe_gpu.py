@@ -8,6 +8,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+from io import BytesIO
 from collections import Counter
 
 from openpyxl import Workbook
@@ -15,6 +16,8 @@ from openpyxl.utils import get_column_letter
 from openpyxl.chart import BarChart, Reference
 from openpyxl.chart.label import DataLabelList
 from docx import Document
+from docx.shared import Inches
+from matplotlib.figure import Figure
 
 
 # =========================
@@ -615,42 +618,130 @@ def group_consecutive_speaker_turns(utterance_rows: list[dict]) -> list[dict]:
     return turns
 
 
+def add_report_table(document, rows: list[tuple[str, object]]):
+    table = document.add_table(rows=0, cols=2)
+    table.style = "Light Shading Accent 1"
+    for label, value in rows:
+        cells = table.add_row().cells
+        cells[0].text = str(label)
+        cells[1].text = str(value)
+    return table
+
+
+def add_bar_chart(document, labels: list[str], values: list[float], ylabel: str):
+    """Add a self-contained chart image without writing temporary files."""
+    figure = Figure(figsize=(6.2, 2.5), dpi=150)
+    axis = figure.subplots()
+    bars = axis.bar(labels, values, color="#4f81bd")
+    axis.set_ylabel(ylabel)
+    axis.grid(axis="y", alpha=0.25)
+    axis.set_axisbelow(True)
+    axis.bar_label(bars, padding=3, fmt="%g")
+    figure.tight_layout()
+    image = BytesIO()
+    figure.savefig(image, format="png")
+    image.seek(0)
+    document.add_picture(image, width=Inches(5.8))
+
+
 def save_docx_transcript(
     docx_path: str,
     utterance_rows: list[dict],
+    segment_ranges: list[tuple[float, float]],
     audio_path: str,
     audio_duration_s: float,
+    processing_minutes: float,
     detected_language: str | None,
     meta_from_gui: dict,
-    diarization_status: str
+    actual_device: str,
+    actual_compute_type: str,
+    diarization_enabled: bool,
+    diarization_status: str,
+    diarization_model: str
 ):
-    """Save an editable research transcript alongside the Excel workbook."""
+    """Save the Excel early report and grouped transcript in an editable Word file."""
     document = Document()
-    document.add_heading("RedScribe Transcript", 0)
+    document.add_heading("RedScribe Research Report", 0)
+
+    speaker_summary = compute_speaker_summary(utterance_rows)
+    speakers_detected = ", ".join(s for s, _ in speaker_summary) if speaker_summary else "None"
 
     metadata = [
+        ("Application", f"RedScribe v{APP_VERSION} – Research Speech Transcription System"),
         ("Project / Study", meta_from_gui.get("project", "")),
         ("Researcher", meta_from_gui.get("researcher", "")),
         ("Interview / Audio Label", meta_from_gui.get("label", "")),
         ("Processing Period", meta_from_gui.get("period", "")),
         ("Audio File", os.path.basename(audio_path)),
         ("Audio Duration", sec_to_hms(audio_duration_s)),
-        ("Detected Language", detected_language or "Auto detect"),
-        ("Speaker Diarisation", diarization_status),
-        ("Transcription Model", MODEL_SIZE),
+        ("Language (Detected/Selected)", detected_language or "Auto detect"),
+        ("Model & Mode", f"{MODEL_SIZE} ({actual_device.upper()} | {actual_compute_type})"),
+        ("Speaker Diarisation", "Enabled" if diarization_enabled else "Disabled"),
+        ("Diarisation Status", diarization_status),
+        ("Diarisation Model", diarization_model if diarization_enabled else "Not used"),
+        ("Speakers Detected", speakers_detected),
+        ("Processing Time", f"{processing_minutes} minutes"),
+        ("Generated On", time.strftime("%Y-%m-%d %H:%M:%S")),
+        ("Copyright", "© Mad Sapri Tumiran"),
+        ("Support", "saprimad@moh.gov.my"),
     ]
-    table = document.add_table(rows=0, cols=2)
-    table.style = "Light Shading Accent 1"
-    for label, value in metadata:
-        cells = table.add_row().cells
-        cells[0].text = label
-        cells[1].text = str(value)
+    document.add_heading("Study & Processing Metadata", level=1)
+    add_report_table(document, metadata)
+
+    all_text = " ".join(row["text"] for row in utterance_rows)
+    tokens = basic_tokenize(all_text)
+    total_utterances = len(utterance_rows)
+    speech_s = sum(max(0.0, end - start) for start, end in segment_ranges)
+    speech_s = max(0.0, min(speech_s, audio_duration_s))
+    silence_s = max(0.0, audio_duration_s - speech_s)
+    summary = [
+        ("Total Segments Detected", len(segment_ranges)),
+        ("Total Utterances", total_utterances),
+        ("Total Words/Tokens", len(tokens)),
+        ("Average Tokens per Utterance", round(len(tokens) / total_utterances, 2) if total_utterances else 0.0),
+        ("Speech Duration", sec_to_hms(speech_s)),
+        ("Silence Duration", sec_to_hms(silence_s)),
+        ("Total Speakers Detected", len([s for s, _ in speaker_summary if s != "UNKNOWN"])),
+    ]
+    document.add_heading("Transcription Summary", level=1)
+    add_report_table(document, summary)
+
+    document.add_heading("Speaker Utterance Count", level=1)
+    add_report_table(document, [("Speaker", "Utterances"), *speaker_summary])
+
+    speech_minutes = round(speech_s / 60.0, 3)
+    silence_minutes = round(silence_s / 60.0, 3)
+    document.add_heading("Speech vs Silence Distribution", level=1)
+    add_report_table(document, [
+        ("Category", "Duration (minutes)"),
+        ("Speech", speech_minutes),
+        ("Silence", silence_minutes),
+    ])
+    add_bar_chart(document, ["Speech", "Silence"], [speech_minutes, silence_minutes], "Duration (minutes)")
+
+    density_rows = compute_timeline_density(utterance_rows, audio_duration_s, interval_sec=300)
+    document.add_heading("Timeline Density (5-minute intervals)", level=1)
+    add_report_table(document, [("Interval (min)", "Utterances"), *density_rows])
+    add_bar_chart(document, [label for label, _ in density_rows],
+                  [count for _, count in density_rows], "Utterance count")
+
+    document.add_heading("Top 20 Keywords (Frequency)", level=1)
+    keyword_table = document.add_table(rows=1, cols=3)
+    keyword_table.style = "Light Shading Accent 1"
+    for cell, heading in zip(keyword_table.rows[0].cells, ("Rank", "Keyword", "Frequency")):
+        cell.text = heading
+    for rank, (keyword, count) in enumerate(Counter(tokens).most_common(20), start=1):
+        cells = keyword_table.add_row().cells
+        cells[0].text = str(rank)
+        cells[1].text = keyword
+        cells[2].text = str(count)
 
     document.add_paragraph(
         "Automated draft generated by RedScribe v"
         f"{APP_VERSION}. Verify the wording, timestamps and speaker labels "
         "against the original recording before use."
     )
+    document.add_page_break()
     document.add_heading("Transcript", level=1)
 
     for row in group_consecutive_speaker_turns(utterance_rows):
@@ -1091,11 +1182,17 @@ class RedScribeApp:
             save_docx_transcript(
                 docx_path=docx_path,
                 utterance_rows=utterance_rows,
+                segment_ranges=segment_ranges,
                 audio_path=audio_path,
                 audio_duration_s=audio_duration_s,
+                processing_minutes=elapsed_min,
                 detected_language=getattr(info, "language", None),
                 meta_from_gui=meta_from_gui,
-                diarization_status=diarization_status
+                actual_device=actual_device,
+                actual_compute_type=actual_compute_type,
+                diarization_enabled=diarization_enabled,
+                diarization_status=diarization_status,
+                diarization_model=DIARIZATION_MODEL
             )
         except Exception as exc:
             word_error = str(exc)
