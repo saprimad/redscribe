@@ -147,6 +147,18 @@ def build_output_name(project: str, period: str, label: str, researcher: str, au
     return "_".join(parts)
 
 
+def available_output_paths(folder: str, filename_base: str) -> tuple[str, str]:
+    """Keep a Word/Excel pair together without overwriting a previous run."""
+    suffix = 1
+    while True:
+        stem = filename_base if suffix == 1 else f"{filename_base}_{suffix}"
+        xlsx_path = os.path.join(folder, f"{stem}.xlsx")
+        docx_path = os.path.join(folder, f"{stem}.docx")
+        if not os.path.exists(xlsx_path) and not os.path.exists(docx_path):
+            return xlsx_path, docx_path
+        suffix += 1
+
+
 def ensure_dir(path: str):
     os.makedirs(path, exist_ok=True)
 
@@ -1028,17 +1040,17 @@ class RedScribeApp:
             researcher=inputs["researcher"],
             audio_base=audio_base
         )
-        xlsx_path = os.path.join(out_folder, f"{filename_base}.xlsx")
-        docx_path = os.path.join(out_folder, f"{filename_base}.docx")
+        xlsx_path, docx_path = available_output_paths(out_folder, filename_base)
 
         try:
             model, actual_device, actual_compute_type = create_whisper_model()
             self.actual_whisper_device = actual_device
             self.actual_whisper_compute_type = actual_compute_type
         except Exception as e:
+            error_text = str(e)
             self.root.after(
                 0,
-                lambda: messagebox.showerror("Whisper Error", f"The Whisper model could not be loaded.\n\n{e}")
+                lambda error_text=error_text: messagebox.showerror("Whisper Error", f"The Whisper model could not be loaded.\n\n{error_text}")
             )
             self.root.after(0, self.status.set, "Failed to load model")
             self.root.after(0, lambda: self.start_btn.config(state="normal"))
@@ -1083,9 +1095,10 @@ class RedScribeApp:
                 beam_size=5
             )
         except Exception as e:
+            error_text = str(e)
             self.root.after(
                 0,
-                lambda: messagebox.showerror("Transcription Error", f"The audio could not be transcribed.\n\n{e}")
+                lambda error_text=error_text: messagebox.showerror("Transcription Error", f"The audio could not be transcribed.\n\n{error_text}")
             )
             self.root.after(0, self.status.set, "Transcription failed")
             self.root.after(0, lambda: self.start_btn.config(state="normal"))
@@ -1169,9 +1182,10 @@ class RedScribeApp:
                 diarization_model=DIARIZATION_MODEL
             )
         except Exception as e:
+            error_text = str(e)
             self.root.after(
                 0,
-                lambda: messagebox.showerror("Excel Error", f"The Excel workbook could not be saved.\n\n{e}")
+                lambda error_text=error_text: messagebox.showerror("Excel Error", f"The Excel workbook could not be saved.\n\n{error_text}")
             )
             self.root.after(0, self.status.set, "Excel save failed")
             self.root.after(0, lambda: self.start_btn.config(state="normal"))
