@@ -10,6 +10,7 @@ import subprocess
 import tempfile
 import gc
 import traceback
+import json
 from io import BytesIO
 from collections import Counter
 
@@ -25,7 +26,8 @@ from matplotlib.figure import Figure
 # =========================
 # CONFIG
 # =========================
-MODEL_SIZE = "large-v3"
+DEFAULT_MODEL_SIZE = "large-v3"
+WHISPER_MODELS = ("large-v3", "turbo", "medium", "small", "base")
 
 # Whisper device priority: try the GPU first, then fall back to the CPU.
 WHISPER_DEVICE_PRIORITY = ["cuda", "cpu"]
@@ -46,6 +48,32 @@ DIARIZATION_MODEL = "pyannote/speaker-diarization-community-1"
 APP_VERSION = "2.0.0"
 APP_TITLE = f"RedScribe v{APP_VERSION} – Research Speech Transcription System"
 TRANSCRIPTION_LANGUAGES = {"Auto detect": None, "Bahasa Melayu": "ms", "English": "en"}
+
+
+def model_settings_path() -> str:
+    config_root = os.environ.get("APPDATA") or os.path.join(os.path.expanduser("~"), ".config")
+    return os.path.join(config_root, "RedScribe", "settings.json")
+
+
+def load_model_preference() -> str:
+    try:
+        with open(model_settings_path(), encoding="utf-8") as settings_file:
+            selected = json.load(settings_file).get("whisper_model")
+        if selected in WHISPER_MODELS:
+            return selected
+    except (OSError, ValueError, AttributeError):
+        pass
+    return DEFAULT_MODEL_SIZE
+
+
+def save_model_preference(selected: str) -> None:
+    if selected not in WHISPER_MODELS:
+        raise ValueError("Unsupported Whisper model")
+    path = model_settings_path()
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    # No token or study details are stored in this file.
+    with open(path, "w", encoding="utf-8") as settings_file:
+        json.dump({"whisper_model": selected}, settings_file)
 
 
 # =========================
@@ -185,7 +213,7 @@ def open_folder(path: str):
         pass
 
 
-def create_whisper_model():
+def create_whisper_model(model_size: str):
     """
     Load Whisper on the GPU when possible, with an automatic CPU fallback.
 
@@ -197,7 +225,7 @@ def create_whisper_model():
     for device in WHISPER_DEVICE_PRIORITY:
         compute_type = WHISPER_COMPUTE_TYPE.get(device, "int8")
         try:
-            model = WhisperModel(MODEL_SIZE, device=device, compute_type=compute_type)
+            model = WhisperModel(model_size, device=device, compute_type=compute_type)
             return model, device, compute_type
         except Exception as e:
             last_error = e
@@ -439,6 +467,7 @@ def save_xlsx_with_early_report(
     meta_from_gui: dict,
     actual_device: str,
     actual_compute_type: str,
+    whisper_model: str,
     diarization_enabled: bool,
     diarization_status: str,
     diarization_model: str
@@ -463,7 +492,7 @@ def save_xlsx_with_early_report(
         ("Audio File", os.path.basename(audio_path)),
         ("Audio Duration", sec_to_hms(audio_duration_s)),
         ("Language (Detected/Selected)", detected_language or "Auto detect"),
-        ("Model & Mode", f"{MODEL_SIZE} ({actual_device.upper()} | {actual_compute_type})"),
+        ("Model & Mode", f"{whisper_model} ({actual_device.upper()} | {actual_compute_type})"),
         ("Speaker Diarisation", "Enabled" if diarization_enabled else "Disabled"),
         ("Diarisation Status", diarization_status),
         ("Diarisation Model", diarization_model if diarization_enabled else "Not used"),
@@ -697,6 +726,7 @@ def save_docx_transcript(
     meta_from_gui: dict,
     actual_device: str,
     actual_compute_type: str,
+    whisper_model: str,
     diarization_enabled: bool,
     diarization_status: str,
     diarization_model: str
@@ -717,7 +747,7 @@ def save_docx_transcript(
         ("Audio File", os.path.basename(audio_path)),
         ("Audio Duration", sec_to_hms(audio_duration_s)),
         ("Language (Detected/Selected)", detected_language or "Auto detect"),
-        ("Model & Mode", f"{MODEL_SIZE} ({actual_device.upper()} | {actual_compute_type})"),
+        ("Model & Mode", f"{whisper_model} ({actual_device.upper()} | {actual_compute_type})"),
         ("Speaker Diarisation", "Enabled" if diarization_enabled else "Disabled"),
         ("Diarisation Status", diarization_status),
         ("Diarisation Model", diarization_model if diarization_enabled else "Not used"),
@@ -815,6 +845,7 @@ class RedScribeApp:
         self.period = tk.StringVar(value=time.strftime("%Y-%m"))
         self.audio_path = tk.StringVar()
         self.transcription_language = tk.StringVar(value="Auto detect")
+        self.whisper_model = tk.StringVar(value=load_model_preference())
 
         self.diarization_enabled = tk.BooleanVar(value=True)
         self.hf_token = tk.StringVar()
@@ -867,6 +898,16 @@ class RedScribeApp:
         ttk.Combobox(language_fr, textvariable=self.transcription_language,
                      values=list(TRANSCRIPTION_LANGUAGES), state="readonly", width=20).pack(side="left")
         tk.Label(language_fr, text="Select the spoken language if auto detection is inaccurate.",
+                 fg="gray").pack(side="left", padx=8)
+
+        model_fr = tk.Frame(top)
+        model_fr.pack(fill="x", pady=2)
+        tk.Label(model_fr, text="Whisper Model", width=28, anchor="w").pack(side="left")
+        model_choice = ttk.Combobox(model_fr, textvariable=self.whisper_model,
+                                    values=WHISPER_MODELS, state="readonly", width=20)
+        model_choice.pack(side="left")
+        model_choice.bind("<<ComboboxSelected>>", self.save_selected_model)
+        tk.Label(model_fr, text="Large-v3 is the default; small/base suit CPU-only laptops.",
                  fg="gray").pack(side="left", padx=8)
 
         diar_fr = tk.LabelFrame(top, text="Speaker Diarisation")
@@ -989,6 +1030,12 @@ class RedScribeApp:
                 else "Token status: no token found; see README setup"
             )
 
+    def save_selected_model(self, _event=None):
+        try:
+            save_model_preference(self.whisper_model.get())
+        except OSError as exc:
+            messagebox.showwarning("Whisper Model", f"The model choice could not be saved for next time.\n\n{exc}")
+
     def pick_period(self):
         win = tk.Toplevel(self.root)
         win.title("Select Month / Period")
@@ -1063,6 +1110,7 @@ class RedScribeApp:
             "hf_token": self.hf_token.get().strip(),
             "speaker_count": self.speaker_count.get().strip(),
             "language": TRANSCRIPTION_LANGUAGES[self.transcription_language.get()],
+            "whisper_model": self.whisper_model.get(),
         }
 
         if not inputs["audio_path"]:
@@ -1078,7 +1126,7 @@ class RedScribeApp:
         self.live_box.configure(state="disabled")
 
         self.progress_var.set(0.0)
-        self.status.set("Loading model...")
+        self.status.set(f"Loading {inputs['whisper_model']} model...")
         self.start_btn.config(state="disabled")
 
         threading.Thread(target=self.run_whisper, args=(inputs,), daemon=True).start()
@@ -1124,7 +1172,7 @@ class RedScribeApp:
         xlsx_path, docx_path = available_output_paths(out_folder, filename_base)
 
         try:
-            model, actual_device, actual_compute_type = create_whisper_model()
+            model, actual_device, actual_compute_type = create_whisper_model(inputs["whisper_model"])
             self.actual_whisper_device = actual_device
             self.actual_whisper_compute_type = actual_compute_type
         except Exception as e:
@@ -1165,7 +1213,7 @@ class RedScribeApp:
         self.root.after(
             0,
             self.status.set,
-            f"Transcribing with {actual_device.upper()} ({actual_compute_type}) - 0% | ETA --:--"
+            f"Transcribing {inputs['whisper_model']} with {actual_device.upper()} ({actual_compute_type}) - 0% | ETA --:--"
         )
 
         try:
@@ -1234,7 +1282,7 @@ class RedScribeApp:
                 self.root.after(
                     0,
                     self.status.set,
-                    f"Transcribing with {actual_device.upper()} ({actual_compute_type}) - {progress:.0f}% | ETA {eta_str}"
+                    f"Transcribing {inputs['whisper_model']} with {actual_device.upper()} ({actual_compute_type}) - {progress:.0f}% | ETA {eta_str}"
                 )
 
         audio_duration_s = float(getattr(info, "duration", last_end))
@@ -1259,6 +1307,7 @@ class RedScribeApp:
                 meta_from_gui=meta_from_gui,
                 actual_device=actual_device,
                 actual_compute_type=actual_compute_type,
+                whisper_model=inputs["whisper_model"],
                 diarization_enabled=diarization_enabled,
                 diarization_status=diarization_status,
                 diarization_model=DIARIZATION_MODEL
@@ -1286,6 +1335,7 @@ class RedScribeApp:
                 meta_from_gui=meta_from_gui,
                 actual_device=actual_device,
                 actual_compute_type=actual_compute_type,
+                whisper_model=inputs["whisper_model"],
                 diarization_enabled=diarization_enabled,
                 diarization_status=diarization_status,
                 diarization_model=DIARIZATION_MODEL
