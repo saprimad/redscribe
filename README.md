@@ -6,7 +6,7 @@ RedScribe is a Windows desktop application for transcribing research interviews 
 
 **Version 2.0.0**
 
-No tagged GitHub Release has been published yet. The repository includes the changes listed under **Unreleased** in [CHANGELOG.md](CHANGELOG.md); the version number shown in the application has not been changed for those additions. Release and Zenodo citation details will be finalised when a tagged version is published.
+No tagged GitHub Release has been published yet. The repository includes the changes listed under **Unreleased** in [CHANGELOG.md](CHANGELOG.md); the version number shown in the application has not been changed for those additions. A [RedScribe Zenodo record](https://doi.org/10.5281/zenodo.22941754) is available separately; this does not imply that a tagged GitHub Release has been archived.
 
 The primary application is [`redscribe_gpu.py`](redscribe_gpu.py). The earlier Qwen/Ollama prototype, [`whisper_gui.py`](whisper_gui.py), is deprecated and retained only for historical reference. It is not supported or recommended for research use.
 
@@ -145,7 +145,7 @@ RedScribe attempts to load Whisper with CUDA and `float16`. If that fails, it fa
 
 ## Citation
 
-If RedScribe supports a study, cite the software using the metadata in [`CITATION.cff`](CITATION.cff). The metadata lists all four authors and describes both Excel and Word output. No DOI has been assigned to this repository yet; add the version-specific DOI only after the tagged GitHub release is archived in Zenodo. Do not reuse a RedScrap DOI for RedScribe.
+If RedScribe supports a study, cite the software using the metadata in [`CITATION.cff`](CITATION.cff) and the RedScribe Zenodo DOI: [10.5281/zenodo.22941754](https://doi.org/10.5281/zenodo.22941754). The metadata lists all four authors and describes both Excel and Word output. This Zenodo record is separate from any future tagged GitHub Release.
 
 ## Authors
 
