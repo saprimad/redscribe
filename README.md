@@ -139,10 +139,9 @@ RedScribe attempts to load Whisper with CUDA and `float16`. If that fails, it fa
 
 If RedScribe supports a study, cite the software using the metadata in `CITATION.cff`. A DOI can be added after a GitHub release is archived in Zenodo.
 
-## Author
+## Authors
 
-Copyright notification owner: Mad Sapri bin Tumiran<br>
-Authors: Mad Sapri bin Tumiran; Mohd Shahezwan bin Abd Wahab; Janattul Ain binti Jamal; Nursyuhadah binti Othman<br>
+Mad Sapri bin Tumiran; Mohd Shahezwan bin Abd Wahab; Janattul Ain binti Jamal; Nursyuhadah binti Othman<br>
 Malaysia copyright notification: CRDV2026W02110<br>
 Faculty of Pharmacy, Universiti Teknologi MARA (UiTM), Malaysia<br>
 Support: saprimad@moh.gov.my
