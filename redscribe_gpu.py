@@ -593,6 +593,28 @@ def save_xlsx_with_early_report(
     wb.save(xlsx_path)
 
 
+def group_consecutive_speaker_turns(utterance_rows: list[dict]) -> list[dict]:
+    """Combine adjacent utterances from the same speaker for readable Word output."""
+    turns = []
+    for row in utterance_rows:
+        text = (row.get("text") or "").strip()
+        if not text:
+            continue
+
+        speaker = row.get("speaker") or "UNKNOWN"
+        if turns and turns[-1]["speaker"] == speaker:
+            turns[-1]["end_s"] = max(turns[-1]["end_s"], row["end_s"])
+            turns[-1]["text"] += " " + text
+        else:
+            turns.append({
+                "speaker": speaker,
+                "start_s": row["start_s"],
+                "end_s": row["end_s"],
+                "text": text,
+            })
+    return turns
+
+
 def save_docx_transcript(
     docx_path: str,
     utterance_rows: list[dict],
@@ -631,7 +653,7 @@ def save_docx_transcript(
     )
     document.add_heading("Transcript", level=1)
 
-    for row in utterance_rows:
+    for row in group_consecutive_speaker_turns(utterance_rows):
         paragraph = document.add_paragraph()
         heading = (
             f"[{sec_to_hms(row['start_s'])}–{sec_to_hms(row['end_s'])}] "

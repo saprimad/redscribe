@@ -10,6 +10,7 @@ All notable changes to RedScribe are documented in this file.
 
 ### Changed
 
+- Grouped adjacent utterances from the same speaker into one paragraph in the Word transcript.
 - Kept the status and action buttons visible while the transcript panel resizes to fit the window.
 - Sized the initial window to the available screen area.
 
@@ -38,4 +39,3 @@ All notable changes to RedScribe are documented in this file.
 ## Earlier prototype
 
 The initial repository contained Whisper transcription and experimental Qwen/Ollama-assisted coding. That unstable prototype remains in `whisper_gui.py` for historical reference but is deprecated and unsupported.
-
