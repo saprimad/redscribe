@@ -17,6 +17,7 @@ data/
 transcripts/
 *.xlsx
 *.xls
+*.docx
 *.csv
 *.tsv
 *.mp3
@@ -32,3 +33,4 @@ transcripts/
 .vscode/
 .DS_Store
 Thumbs.db
+

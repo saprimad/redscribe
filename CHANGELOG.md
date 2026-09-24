@@ -2,6 +2,17 @@
 
 All notable changes to RedScribe are documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- Editable Word transcript export alongside the existing Excel workbook.
+
+### Changed
+
+- Kept the status and action buttons visible while the transcript panel resizes to fit the window.
+- Sized the initial window to the available screen area.
+
 ## [2.0.0] - 2026-09-22
 
 ### Added
@@ -27,3 +38,4 @@ All notable changes to RedScribe are documented in this file.
 ## Earlier prototype
 
 The initial repository contained Whisper transcription and experimental Qwen/Ollama-assisted coding. That unstable prototype remains in `whisper_gui.py` for historical reference but is deprecated and unsupported.
+
