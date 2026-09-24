@@ -986,7 +986,12 @@ class RedScribeApp:
         )
         self.open_btn.pack(side="right", padx=4)
 
-        footer = tk.Label(bottom_panel, text="© Mad Sapri Tumiran | Support", fg="gray", cursor="hand2")
+        footer = tk.Label(
+            bottom_panel,
+            text="© Mad Sapri Tumiran | CRDV2026W02110 | Authors & Support",
+            fg="gray",
+            cursor="hand2"
+        )
         footer.pack(side="bottom", pady=3)
         footer.bind("<Button-1>", self.show_support)
 
@@ -1007,7 +1012,13 @@ class RedScribeApp:
             "About RedScribe",
             f"RedScribe v{APP_VERSION}\n"
             "Research Speech Transcription System\n\n"
-            "© Mad Sapri Tumiran\n\n"
+            "Owner: Mad Sapri bin Tumiran\n\n"
+            "Authors:\n"
+            "Mad Sapri bin Tumiran\n"
+            "Mohd Shahezwan bin Abd Wahab\n"
+            "Janattul Ain binti Jamal\n"
+            "Nursyuhadah binti Othman\n\n"
+            "Malaysia copyright notification: CRDV2026W02110\n\n"
             "Support:\n"
             "saprimad@moh.gov.my"
         )
