@@ -6,18 +6,26 @@ authors:
   - family-names: Tumiran
     given-names: Mad Sapri
     email: saprimad@moh.gov.my
+  - family-names: Abd Wahab
+    given-names: Mohd Shahezwan
+  - family-names: Jamal
+    given-names: Janattul Ain
+  - family-names: Othman
+    given-names: Nursyuhadah
 version: 2.0.0
-date-released: 2026-09-22
 repository-code: "https://github.com/saprimad/redscribe"
 url: "https://github.com/saprimad/redscribe"
 abstract: >-
-  A desktop research transcription application using Faster-Whisper with
-  optional pyannote.audio speaker diarisation and structured Excel export for
-  researcher-led verification and qualitative analysis.
+  A Windows desktop application for research interview transcription using
+  selectable Faster-Whisper models, optional pyannote.audio speaker
+  diarisation, spoken-language selection, and structured Excel and editable
+  Word exports for researcher-led verification and qualitative analysis.
 keywords:
   - speech transcription
   - qualitative research
   - speaker diarisation
   - Faster-Whisper
   - pyannote.audio
+  - Microsoft Word
+  - Excel
   - research software
