@@ -7,6 +7,7 @@ All notable changes to RedScribe are documented in this file.
 ### Added
 
 - Editable Word transcript export alongside the existing Excel workbook.
+- Added the Excel early report's metadata, transcription summary, speaker counts, charts, timeline and top keywords to the Word output.
 
 ### Changed
 
