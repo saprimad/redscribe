@@ -1,5 +1,6 @@
 faster-whisper
 openpyxl
+python-docx
 pyannote.audio
 soundfile
 torch
