@@ -110,6 +110,8 @@ With Auto detect, the detected language appears in the live transcript area befo
 
 **Whisper Model** defaults to `large-v3`. Use `small` or `base` for a CPU-only laptop, or try `turbo` for faster processing on a capable GPU; check each transcript against the audio. The selection is remembered on that computer in `%APPDATA%\RedScribe\settings.json` (or `~/.config/RedScribe/settings.json` if `APPDATA` is unavailable). This settings file contains only the model name, never a Hugging Face token or study details. The selected model and actual CPU/GPU mode are recorded in both outputs. The first use of another model downloads it from the Hugging Face Hub and needs an internet connection.
 
+When transcription runs on CPU, RedScribe uses at most 70% of the detected logical processor count as Faster-Whisper worker threads, with a budget at least two below the total when available. This is a thread budget, **not a guaranteed 70% CPU-utilisation limit**; diarisation, other libraries and other applications have separate CPU activity. It does not prevent memory exhaustion. On a laptop, choose `small` or `base` if `large-v3` is slow or memory is limited.
+
 Repeated runs with the same study details receive numbered filenames (for example, `_2.xlsx` and `_2.docx`) so an earlier report is preserved even while it is open.
 
 Supported input formats shown in the interface are MP3, WAV, M4A and MP4. FFmpeg may support additional formats, but they are not currently exposed by the file picker.
