@@ -50,6 +50,10 @@ APP_TITLE = f"RedScribe v{APP_VERSION} – Research Speech Transcription System"
 TRANSCRIPTION_LANGUAGES = {"Auto detect": None, "Bahasa Melayu": "ms", "English": "en"}
 
 
+class TranscriptionCancelled(Exception):
+    """The user requested a safe stop before report export began."""
+
+
 def model_settings_path() -> str:
     config_root = os.environ.get("APPDATA") or os.path.join(os.path.expanduser("~"), ".config")
     return os.path.join(config_root, "RedScribe", "settings.json")
@@ -858,6 +862,9 @@ class RedScribeApp:
 
         self.actual_whisper_device = "unknown"
         self.actual_whisper_compute_type = "unknown"
+        self.stop_event = threading.Event()
+        self.run_lock = threading.Lock()
+        self.run_phase = "idle"
 
         self.build_ui()
 
@@ -974,6 +981,21 @@ class RedScribeApp:
         )
         self.start_btn.pack(side="right", padx=4)
 
+        self.stop_btn = tk.Button(
+            ctrl,
+            text="Stop",
+            command=self.stop,
+            state="disabled",
+            bg="#D9534F",
+            fg="white",
+            activebackground="#C9302C",
+            activeforeground="white",
+            relief="raised",
+            padx=10,
+            pady=4
+        )
+        self.stop_btn.pack(side="right", padx=4)
+
         self.open_btn = tk.Button(
             ctrl,
             text="Open Output Folder",
@@ -1005,6 +1027,7 @@ class RedScribeApp:
         self.live_box.tag_configure("ts", foreground="blue")
         self.live_box.tag_configure("speaker", foreground="purple")
         self.live_box.tag_configure("txt", foreground="black")
+        self.live_box.tag_configure("info", foreground="#365B83")
         self.live_box.tag_configure("warn", foreground="red")
 
     def show_support(self, _event=None):
@@ -1110,6 +1133,41 @@ class RedScribeApp:
         self.live_box.see("end")
         self.live_box.configure(state="disabled")
 
+    def log_info(self, text: str):
+        self.live_box.configure(state="normal")
+        self.live_box.insert("end", f"{text}\n", ("info",))
+        self.live_box.see("end")
+        self.live_box.configure(state="disabled")
+
+    def stop(self):
+        with self.run_lock:
+            if self.run_phase != "processing":
+                return
+            self.stop_event.set()
+        self.stop_btn.config(state="disabled")
+        self.status.set("Stopping after the current processing step...")
+
+    def check_stop(self):
+        if self.stop_event.is_set():
+            raise TranscriptionCancelled()
+
+    def begin_saving(self):
+        with self.run_lock:
+            self.check_stop()
+            self.run_phase = "saving"
+        self.root.after(0, lambda: self.stop_btn.config(state="disabled"))
+        self.root.after(0, self.status.set, "Saving reports...")
+
+    def finish_run(self, cancelled: bool):
+        with self.run_lock:
+            self.run_phase = "idle"
+        self.start_btn.config(state="normal")
+        self.stop_btn.config(state="disabled")
+        if cancelled:
+            self.progress_var.set(0.0)
+            self.status.set("Stopped; no reports were saved for this run")
+            self.log_warning("Stopped by user. No Word or Excel report was saved for this run.")
+
     def start(self):
         inputs = {
             "audio_path": self.audio_path.get().strip(),
@@ -1132,6 +1190,12 @@ class RedScribeApp:
             messagebox.showwarning("File not found", "The selected audio file no longer exists.")
             return
 
+        with self.run_lock:
+            if self.run_phase != "idle":
+                return
+            self.stop_event.clear()
+            self.run_phase = "processing"
+
         self.live_box.configure(state="normal")
         self.live_box.delete("1.0", "end")
         self.live_box.configure(state="disabled")
@@ -1139,12 +1203,16 @@ class RedScribeApp:
         self.progress_var.set(0.0)
         self.status.set(f"Loading {inputs['whisper_model']} model...")
         self.start_btn.config(state="disabled")
+        self.stop_btn.config(state="normal")
 
         threading.Thread(target=self.run_whisper, args=(inputs,), daemon=True).start()
 
     def run_whisper(self, inputs: dict):
+        cancelled = False
         try:
             self._run_whisper(inputs)
+        except TranscriptionCancelled:
+            cancelled = True
         except Exception:
             error_text = traceback.format_exc()
             try:
@@ -1158,6 +1226,7 @@ class RedScribeApp:
                 "RedScribe Error", "The run stopped unexpectedly. See output/redscribe_error.log for details."))
         finally:
             release_gpu_cache()
+            self.root.after(0, self.finish_run, cancelled)
 
     def _run_whisper(self, inputs: dict):
         start_clock = time.time()
@@ -1184,9 +1253,13 @@ class RedScribeApp:
 
         try:
             model, actual_device, actual_compute_type = create_whisper_model(inputs["whisper_model"])
+            self.check_stop()
             self.actual_whisper_device = actual_device
             self.actual_whisper_compute_type = actual_compute_type
+        except TranscriptionCancelled:
+            raise
         except Exception as e:
+            self.check_stop()
             error_text = str(e)
             self.root.after(
                 0,
@@ -1210,8 +1283,12 @@ class RedScribeApp:
                     speaker_count_text=inputs["speaker_count"]
                 )
                 speakers = sorted({t["speaker"] for t in diarization_turns})
+                self.check_stop()
                 diarization_status = f"Completed ({len(speakers)} speaker label(s))"
+            except TranscriptionCancelled:
+                raise
             except Exception as e:
+                self.check_stop()
                 diarization_status = f"Skipped / failed: {e}"
                 self.root.after(
                     0,
@@ -1220,6 +1297,8 @@ class RedScribeApp:
                     f"Reason: {e}\n"
                 )
                 diarization_turns = []
+
+        self.check_stop()
 
         self.root.after(
             0,
@@ -1235,7 +1314,17 @@ class RedScribeApp:
                 vad_filter=True,
                 beam_size=5
             )
+            self.check_stop()
+            language_code = getattr(info, "language", None)
+            if inputs.get("language") is None and language_code:
+                language_name = {"cy": "Welsh", "ms": "Bahasa Melayu", "en": "English"}.get(
+                    language_code, language_code
+                )
+                self.root.after(0, self.log_info, f"Auto detected language: {language_name} ({language_code})")
+        except TranscriptionCancelled:
+            raise
         except Exception as e:
+            self.check_stop()
             error_text = str(e)
             self.root.after(
                 0,
@@ -1253,6 +1342,7 @@ class RedScribeApp:
         last_end = 0.0
 
         for seg in segments:
+            self.check_stop()
             seg_text = (seg.text or "").strip()
             st = float(seg.start)
             en = float(seg.end)
@@ -1296,6 +1386,7 @@ class RedScribeApp:
                     f"Transcribing {inputs['whisper_model']} with {actual_device.upper()} ({actual_compute_type}) - {progress:.0f}% | ETA {eta_str}"
                 )
 
+        self.begin_saving()
         audio_duration_s = float(getattr(info, "duration", last_end))
         elapsed_min = round((time.time() - start_clock) / 60, 2)
 
