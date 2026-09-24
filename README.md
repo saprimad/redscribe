@@ -1,5 +1,7 @@
 # RedScribe
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22941754.svg)](https://doi.org/10.5281/zenodo.22941754)
+
 RedScribe is a Windows desktop application for transcribing research interviews and other recorded speech. Version 2.0 uses Faster-Whisper for transcription and can optionally use pyannote.audio to distinguish between speakers. It exports an Excel workbook and an editable Word report for researcher-led verification and qualitative analysis.
 
 ## Current source version
