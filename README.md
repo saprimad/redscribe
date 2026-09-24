@@ -71,13 +71,24 @@ Audio or video → Faster-Whisper transcription → optional speaker diarisation
 
 1. Open the model page for [`pyannote/speaker-diarization-community-1`](https://huggingface.co/pyannote/speaker-diarization-community-1) and accept any required conditions.
 2. Create a Hugging Face token with read access.
-3. Either paste the token into the masked RedScribe field for the current session or set it as an environment variable:
+3. With RedScribe's virtual environment activated, log in once on this computer:
 
    ```powershell
-   $env:HF_TOKEN="your_token_here"
+   python -c "from huggingface_hub import interpreter_login; interpreter_login()"
    ```
 
-RedScribe does not write the token to a configuration file. Never commit a token, participant recording or identifiable transcript to GitHub.
+   Enter the token when prompted (the input is hidden). When asked **Add token as git credential?**, answer `n`; Git access is not needed for diarisation.
+4. Verify the login without displaying the token:
+
+   ```powershell
+   python -c "from huggingface_hub import get_token; print('Token saved' if get_token() else 'No token found')"
+   ```
+
+   If it prints `Token saved`, leave RedScribe's Hugging Face Token field blank. The app uses the locally cached login. Log in using the same Python environment that runs RedScribe.
+
+Alternatively, paste a token into the masked field for the current app session. A temporary `HF_TOKEN` environment variable also works for that terminal session, but must be set again in a new terminal.
+
+RedScribe does not write the token to a configuration file. The Hugging Face login stores it locally on the computer. Never commit a token, participant recording or identifiable transcript to GitHub.
 
 ## Running RedScribe
 
