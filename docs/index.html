@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="RedScribe is a local Windows desktop tool for research speech transcription, speaker diarisation, and editable Excel and Word reports.">
+  <meta name="description" content="RedScribe is a local Windows and macOS desktop tool for research speech transcription, speaker diarisation, and editable Excel and Word reports.">
   <title>RedScribe — Research Speech Transcription</title>
   <style>
     :root { color-scheme: light; --ink:#172231; --muted:#566474; --red:#ad283a; --red-dark:#841c2d; --cream:#faf7f3; --line:#e5e0da; --white:#fff; }
@@ -88,7 +88,7 @@
     <div class="hero"><div class="wrap hero-grid">
       <div><div class="eyebrow">Research speech transcription · v2.0.0</div>
         <h1>From recording to a reviewable transcript.</h1>
-        <p class="lead">RedScribe transcribes research speech on your Windows computer and prepares an Excel verification workbook and an editable Word report.</p>
+        <p class="lead">RedScribe transcribes research speech locally on Windows and macOS and prepares an Excel verification workbook and an editable Word report.</p>
         <div class="actions"><a class="button" href="https://github.com/saprimad/redscribe">View source on GitHub</a><a class="button secondary" href="#outputs">Explore the outputs</a></div>
         <p class="note">Source code is available under PolyForm Noncommercial 1.0.0. Python setup is required; this is not a one-click installer.</p>
       </div>
@@ -107,7 +107,7 @@
     <section id="features"><div class="wrap"><div class="section-head"><div class="eyebrow">Designed for research workflows</div><h2>Control the transcription, then check the result.</h2><p>RedScribe creates a draft that remains editable. The researcher verifies the transcript and report against the original recording.</p></div>
       <div class="grid">
         <div class="card"><div class="icon">01</div><h3>Choose a model</h3><p>Faster-Whisper large-v3 is the default. Turbo, medium, small and base let users choose for available hardware.</p></div>
-        <div class="card"><div class="icon">02</div><h3>GPU or CPU</h3><p>The app tries NVIDIA CUDA first and falls back to CPU when necessary. Smaller models can be more practical on laptops.</p></div>
+        <div class="card"><div class="icon">02</div><h3>GPU or CPU</h3><p>Windows can use NVIDIA CUDA with automatic CPU fallback. Apple Silicon uses local CPU processing and has been tested on a Mac mini M4 with 24 GB unified memory.</p></div>
         <div class="card"><div class="icon">03</div><h3>Set the language</h3><p>Use automatic detection or select Bahasa Melayu or English when detection is inaccurate. Speech is transcribed, not translated.</p></div>
         <div class="card"><div class="icon">04</div><h3>Identify speakers</h3><p>Optional pyannote.audio diarisation adds speaker labels. An expected number of speakers can also be supplied.</p></div>
         <div class="card"><div class="icon">05</div><h3>Follow progress</h3><p>See a live transcript, estimated timestamps, detected language, progress and remaining time. Stop before export begins.</p></div>
@@ -125,7 +125,7 @@
       <div class="steps"><div class="step"><small>01 / INPUT</small><h3>Select a recording</h3><p>Choose MP3, WAV, M4A or MP4 and enter optional study metadata.</p></div><div class="step"><small>02 / SETTINGS</small><h3>Choose processing</h3><p>Select the model and language; enable speaker diarisation if needed.</p></div><div class="step"><small>03 / OUTPUT</small><h3>Export both reports</h3><p>Review the live transcript, then open the generated Excel and Word files.</p></div><div class="step"><small>04 / VERIFY</small><h3>Check against audio</h3><p>Correct words, timestamps and speaker labels before analysis or publication.</p></div></div>
     </div></section>
 
-    <section id="download" class="band"><div class="wrap"><div class="eyebrow" style="color:#ffb4bd">Get started</div><h2>Run RedScribe on your computer.</h2><p>Windows 10 or 11, Python 3.10 or 3.11 and FFmpeg are required. The README covers installation, model selection and optional Hugging Face diarisation setup. Audio processing is local; initial model downloads and authentication may require internet access.</p>
+    <section id="download" class="band"><div class="wrap"><div class="eyebrow" style="color:#ffb4bd">Get started</div><h2>Run RedScribe on your computer.</h2><p>RedScribe supports Windows 10 or 11 and Apple Silicon macOS. Python 3.10 or 3.11 and FFmpeg are required. The README provides separate Windows and macOS installation instructions, model selection guidance and optional Hugging Face diarisation setup. Audio processing is local; initial model downloads and authentication may require internet access.</p>
       <div class="actions"><a class="button" href="https://github.com/saprimad/redscribe#installation">Read installation guide</a><a class="button secondary" href="https://github.com/saprimad/redscribe/archive/refs/heads/main.zip">Download source ZIP</a><a class="button secondary" href="https://doi.org/10.5281/zenodo.22941754">Zenodo DOI</a></div>
       <p class="note">Commercial or other uses outside the PolyForm Noncommercial licence require a separate written agreement: <a href="mailto:saprimad@moh.gov.my">saprimad@moh.gov.my</a>.</p>
     </div></section>
@@ -144,6 +144,6 @@
       <p class="note">Sample .xlsx and .docx files are automated drafts and may contain errors. Support is voluntary and does not grant a commercial licence or priority technical assistance.</p>
     </div></section>
   </main>
-  <footer><div class="wrap"><div>© Mad Sapri Tumiran · Malaysia copyright notification CRDV2026W02110<br>Authors: Mad Sapri Tumiran, Mohd Shahezwan Abd Wahab, Janattul Ain Jamal, Nursyuhadah Othman<br>Development test PC: Intel Core i5-14400F (14th Gen) · NVIDIA GeForce RTX 5070 OC · 64 GB DDR5 RAM</div><div><a href="https://github.com/saprimad/redscribe">GitHub</a> · <a href="https://github.com/saprimad/redscribe/blob/main/LICENSE">Licence</a> · <a href="mailto:saprimad@moh.gov.my">Support</a> · <a href="https://buymeacoffee.com/saprimad" target="_blank" rel="noopener noreferrer">Buy Me a Coffee</a></div></div></footer>
+  <footer><div class="wrap"><div>© Mad Sapri Tumiran · Malaysia copyright notification CRDV2026W02110<br>Authors: Mad Sapri Tumiran, Mohd Shahezwan Abd Wahab, Janattul Ain Jamal, Nursyuhadah Othman<br>Test systems: Intel Core i5-14400F (14th Gen) · NVIDIA GeForce RTX 5070 OC · 64 GB DDR5 RAM; Mac mini · Apple M4 · 24 GB unified memory</div><div><a href="https://github.com/saprimad/redscribe">GitHub</a> · <a href="https://github.com/saprimad/redscribe/blob/main/LICENSE">Licence</a> · <a href="mailto:saprimad@moh.gov.my">Support</a> · <a href="https://buymeacoffee.com/saprimad" target="_blank" rel="noopener noreferrer">Buy Me a Coffee</a></div></div></footer>
 </body>
 </html>
