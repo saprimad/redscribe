@@ -2,7 +2,7 @@
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22941754.svg)](https://doi.org/10.5281/zenodo.22941754)
 
-RedScribe is a Windows desktop application for transcribing research interviews and other recorded speech. Version 2.0 uses Faster-Whisper for transcription and can optionally use pyannote.audio to distinguish between speakers. It exports an Excel workbook and an editable Word report for researcher-led verification and qualitative analysis.
+RedScribe is a Windows and macOS desktop application for transcribing research interviews and other recorded speech. Version 2.0 uses Faster-Whisper for transcription and can optionally use pyannote.audio to distinguish between speakers. It exports an Excel workbook and an editable Word report for researcher-led verification and qualitative analysis.
 
 ## Current source version
 
@@ -36,13 +36,16 @@ Audio or video → Faster-Whisper transcription → optional speaker diarisation
 
 ## Requirements
 
-- Windows 10 or 11
+- Windows 10 or 11, or macOS
 - Python 3.10 or 3.11 recommended
 - FFmpeg available in `PATH`
-- NVIDIA GPU recommended; CPU mode is supported but slower
+- Windows: NVIDIA GPU recommended; CPU mode is supported but slower
+- macOS: Apple Silicon is supported; the current version uses optimised CPU processing rather than NVIDIA CUDA
 - A Hugging Face account and accepted model conditions when speaker diarisation is enabled
 
 ## Installation
+
+### Windows 10 or 11
 
 1. Clone the repository and enter its folder:
 
@@ -75,6 +78,48 @@ Audio or video → Faster-Whisper transcription → optional speaker diarisation
 
    Close and reopen PowerShell after installation, then verify it with `ffmpeg -version`.
 
+### macOS
+
+RedScribe has been tested successfully on a Mac mini with an Apple M4 chip and 24 GB of unified memory. The current version runs transcription and speaker diarisation through CPU processing on Mac; NVIDIA CUDA instructions do not apply. Modern Apple Silicon can nevertheless provide strong local transcription performance.
+
+1. Install [Homebrew](https://brew.sh/) if it is not already installed.
+
+2. Install Git, Python 3.11 with Tkinter support, and FFmpeg:
+
+   ```bash
+   brew install git python@3.11 python-tk@3.11 ffmpeg
+   ```
+
+3. Clone the repository and enter its folder:
+
+   ```bash
+   git clone https://github.com/saprimad/redscribe.git
+   cd redscribe
+   ```
+
+4. Create and activate a virtual environment:
+
+   ```bash
+   "$(brew --prefix python@3.11)/bin/python3.11" -m venv .venv
+   source .venv/bin/activate
+   python -m pip install --upgrade pip
+   ```
+
+5. Install RedScribe dependencies:
+
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+6. Verify the installation and start RedScribe:
+
+   ```bash
+   ffmpeg -version
+   python redscribe_gpu.py
+   ```
+
+The first launch may take longer while the selected Whisper model is downloaded. On a modern Apple Silicon Mac, use `large-v3` when prioritising transcription accuracy or `turbo` when prioritising faster processing. The `small` and `base` models remain useful for older Macs or systems with limited memory. If macOS asks for permission to access a folder containing the selected recording, allow access so RedScribe can read the file and save its reports.
+
 ## Speaker diarisation setup
 
 1. Open the model page for [`pyannote/speaker-diarization-community-1`](https://huggingface.co/pyannote/speaker-diarization-community-1) and accept any required conditions.
@@ -102,7 +147,7 @@ RedScribe does not write the token to a configuration file. The Hugging Face log
 
 ## Running RedScribe
 
-```powershell
+```text
 python redscribe_gpu.py
 ```
 
@@ -124,17 +169,18 @@ Audio transcription and diarisation run on the user's computer. Internet access 
 
 The repository's `.gitignore` excludes common audio, video, spreadsheet, transcript, data, credential and output files. This is a safeguard, not a substitute for checking every commit before pushing research material.
 
-## GPU fallback
+## GPU acceleration and CPU fallback
 
-RedScribe attempts to load Whisper with CUDA and `float16`. If that fails, it falls back to CPU with `int8`. Speaker diarisation is sent to CUDA only when CUDA is available; a diarisation failure does not stop transcription.
+On Windows, RedScribe attempts to load Whisper with CUDA and `float16`. If CUDA is unavailable or loading fails, it falls back to CPU with `int8`. On macOS, the current version uses CPU mode with `int8`. Speaker diarisation is sent to CUDA only when CUDA is available; otherwise it runs on CPU. A diarisation failure does not stop transcription.
 
 ## Troubleshooting
 
 - **`ffmpeg` not found:** install FFmpeg, reopen the terminal and confirm `ffmpeg -version` works.
+- **Tkinter is missing on macOS:** run `brew install python-tk@3.11`, recreate the virtual environment with the Homebrew Python 3.11 command above, and reinstall the dependencies.
 - **Hugging Face access error:** accept the model conditions and check that the token has read access.
 - **CUDA or DLL error:** confirm that the NVIDIA driver, PyTorch build and CUDA runtime are compatible.
 - **Diarisation fails but transcription continues:** review the warning shown in the application and inspect the generated Excel metadata.
-- **Slow processing:** confirm that the status bar reports `CUDA`; CPU transcription with `large-v3` can be substantially slower.
+- **Slow processing:** on Windows with an NVIDIA GPU, confirm that the status bar reports `CUDA`. On Apple Silicon, try `turbo` for faster processing; reserve `small` or `base` for older Macs or systems with limited memory. CPU transcription with `large-v3` may be slower on older hardware.
 
 ## Repository files
 
