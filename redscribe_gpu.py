@@ -11,6 +11,7 @@ import tempfile
 import gc
 import traceback
 import json
+import math
 from io import BytesIO
 from collections import Counter
 
@@ -37,6 +38,17 @@ WHISPER_COMPUTE_TYPE = {
     "cuda": "float16",   # Fast and efficient on supported NVIDIA GPUs.
     "cpu": "int8"        # Reduces memory and processing requirements on CPUs.
 }
+
+
+def cpu_thread_budget() -> int:
+    """Leave some logical processors available during CPU transcription.
+
+    This limits worker threads, not total system CPU utilisation. Other
+    processes and libraries can still use CPU time independently.
+    """
+    logical_processors = os.cpu_count() or 2
+    seventy_percent = max(1, math.floor(logical_processors * 0.7))
+    return min(seventy_percent, max(1, logical_processors - 2))
 
 # Speaker diarisation model.
 # Notes:
@@ -229,7 +241,8 @@ def create_whisper_model(model_size: str):
     for device in WHISPER_DEVICE_PRIORITY:
         compute_type = WHISPER_COMPUTE_TYPE.get(device, "int8")
         try:
-            model = WhisperModel(model_size, device=device, compute_type=compute_type)
+            options = {"cpu_threads": cpu_thread_budget(), "num_workers": 1} if device == "cpu" else {}
+            model = WhisperModel(model_size, device=device, compute_type=compute_type, **options)
             return model, device, compute_type
         except Exception as e:
             last_error = e

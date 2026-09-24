@@ -6,6 +6,8 @@ All notable changes to RedScribe are documented in this file. The dated 2.0.0 en
 
 ### Added
 
+- Applied a conservative CPU thread budget to Faster-Whisper (at most 70% of detected logical processors, leaving two unused when available); this is not a system-wide CPU percentage or memory limit.
+
 - Added a Stop button for safe cancellation before report export and a live display of the auto-detected language.
 - Added a spoken-language selector (Auto detect, Bahasa Melayu, English) while keeping Whisper in transcription mode.
 - Added a local Hugging Face token availability check beside the masked token field; it does not verify access to the diarisation model.
