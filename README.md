@@ -147,7 +147,17 @@ RedScribe attempts to load Whisper with CUDA and `float16`. If that fails, it fa
 
 ## Citation
 
-If RedScribe supports a study, cite the software using the metadata in [`CITATION.cff`](CITATION.cff) and the RedScribe Zenodo DOI: [10.5281/zenodo.22941754](https://doi.org/10.5281/zenodo.22941754). The metadata lists all four authors and describes both Excel and Word output. This Zenodo record is separate from any future tagged GitHub Release.
+If RedScribe supports a study, cite the software using its Zenodo DOI. The record is separate from any future tagged GitHub Release.
+
+### APA
+
+Tumiran, M. S., Abd Wahab, M. S., Jamal, J. A., & Othman, N. (2026). *RedScribe: Research Speech Transcription System* (Version 2.0.0) [Computer software]. Zenodo. https://doi.org/10.5281/zenodo.22941754
+
+### IEEE
+
+M. S. Tumiran, M. S. Abd Wahab, J. A. Jamal, and N. Othman, “RedScribe: Research Speech Transcription System,” ver. 2.0.0, Zenodo, 2026, doi: 10.5281/zenodo.22941754. [Online]. Available: https://doi.org/10.5281/zenodo.22941754
+
+Machine-readable citation metadata are provided in [`CITATION.cff`](CITATION.cff).
 
 ## Authors
 
