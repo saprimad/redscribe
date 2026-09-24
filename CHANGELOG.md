@@ -6,6 +6,7 @@ All notable changes to RedScribe are documented in this file.
 
 ### Added
 
+- Added a per-computer Whisper model choice (`large-v3`, `turbo`, `medium`, `small`, `base`) with `large-v3` as the default and the selected model recorded in both reports.
 - Editable Word transcript export alongside the existing Excel workbook.
 - Added the Excel early report's metadata, transcription summary, speaker counts, charts, timeline and top keywords to the Word output.
 

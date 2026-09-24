@@ -10,7 +10,7 @@ The primary application is [`redscribe_gpu.py`](redscribe_gpu.py). The earlier Q
 
 ## Features
 
-- Whisper `large-v3` transcription through Faster-Whisper
+- Selectable Faster-Whisper models: `large-v3` (default), `turbo`, `medium`, `small` and `base`
 - NVIDIA CUDA first, with automatic CPU fallback
 - Optional speaker diarisation using `pyannote/speaker-diarization-community-1`
 - Optional expected-speaker count
@@ -99,6 +99,8 @@ python redscribe_gpu.py
 ```
 
 Select an audio or video file, complete the optional study metadata, choose whether to enable speaker diarisation, and start transcription. **Transcription Language** defaults to Auto detect; select Bahasa Melayu or English when detection is inaccurate. The app uses Whisper's transcription task, not translation. Mixed-language speech still needs checking against the recording. Matching `.xlsx` and `.docx` files are written to `output/YYYY-MM/`. Repeated runs create a numbered file pair rather than overwriting an earlier result. The Word file begins with the Excel `Early_Report` information and charts, followed by a transcript that combines adjacent utterances from the same speaker into one editable paragraph, labelled with the first start and last end time. The Excel workbook retains each utterance separately, along with verification columns. If a run stops with an unexpected Python error, details are written locally to `output/redscribe_error.log`; review the log before sharing it because paths may identify research files.
+
+**Whisper Model** defaults to `large-v3`. Use `small` or `base` for a CPU-only laptop, or try `turbo` for faster processing on a capable GPU; check each transcript against the audio. The selection is remembered on that computer in `%APPDATA%\RedScribe\settings.json` (or `~/.config/RedScribe/settings.json` if `APPDATA` is unavailable). This settings file contains only the model name, never a Hugging Face token or study details. The selected model and actual CPU/GPU mode are recorded in both outputs. The first use of another model downloads it from the Hugging Face Hub and needs an internet connection.
 
 Repeated runs with the same study details receive numbered filenames (for example, `_2.xlsx` and `_2.docx`) so an earlier report is preserved even while it is open.
 
