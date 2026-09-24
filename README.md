@@ -1,10 +1,12 @@
 # RedScribe
 
-RedScribe is a desktop application for transcribing research interviews and other recorded speech. Version 2.0 uses Faster-Whisper for transcription and can optionally use pyannote.audio to distinguish between speakers. It exports a structured Excel workbook for researcher-led verification and qualitative analysis.
+RedScribe is a Windows desktop application for transcribing research interviews and other recorded speech. Version 2.0 uses Faster-Whisper for transcription and can optionally use pyannote.audio to distinguish between speakers. It exports an Excel workbook and an editable Word report for researcher-led verification and qualitative analysis.
 
-## Current release
+## Current source version
 
 **Version 2.0.0**
+
+No tagged GitHub Release has been published yet. The repository includes the changes listed under **Unreleased** in [CHANGELOG.md](CHANGELOG.md); the version number shown in the application has not been changed for those additions. Release and Zenodo citation details will be finalised when a tagged version is published.
 
 The primary application is [`redscribe_gpu.py`](redscribe_gpu.py). The earlier Qwen/Ollama prototype, [`whisper_gui.py`](whisper_gui.py), is deprecated and retained only for historical reference. It is not supported or recommended for research use.
 
@@ -12,16 +14,19 @@ The primary application is [`redscribe_gpu.py`](redscribe_gpu.py). The earlier Q
 
 - Selectable Faster-Whisper models: `large-v3` (default), `turbo`, `medium`, `small` and `base`
 - NVIDIA CUDA first, with automatic CPU fallback
+- Spoken-language choice: Auto detect (default), Bahasa Melayu or English; transcription does not translate the recording
 - Optional speaker diarisation using `pyannote/speaker-diarization-community-1`
 - Optional expected-speaker count
-- Live timestamped transcript display
-- Sentence-level speaker and timestamp assignment
-- Excel export with study metadata, a verification worksheet, speaker counts, speech/silence summary, timeline density and token frequency
-- Editable Microsoft Word (`.docx`) report with the same early report sections as Excel, including summary tables, speaker counts, speech/silence and timeline charts, top keywords, and consecutive speech grouped by speaker
+- Local **Check Token** button to show whether a Hugging Face token is available, without displaying or validating it against the model
+- Live timestamped transcript, detected-language notice, progress and estimated remaining time
+- Speaker assignment and estimated sentence timestamps derived from Whisper segments
+- Excel export with study metadata, an utterance-level verification worksheet, speaker counts, approximate speech/silence durations, five-minute utterance density and token frequency
+- Editable Microsoft Word (`.docx`) report with the early report tables and charts, top tokens, and adjacent utterances grouped by speaker
+- Numbered Excel/Word filenames on repeated runs to preserve previous reports
 - Bottom controls that remain visible as the live transcript area resizes
-- Red Stop button to cancel the current run before report export
+- Red Stop button to cancel a run before report export begins
 
-RedScribe produces an automated draft. Researchers remain responsible for checking the transcript, speaker labels and analytical outputs against the original recording.
+RedScribe produces an automated draft. Sentence timestamps are estimates; speech/silence figures use Whisper segment spans, and token counts are simple text frequencies rather than validated linguistic analysis. Researchers remain responsible for checking the transcript, speaker labels and analytical outputs against the original recording.
 
 ## Workflow
 
@@ -87,7 +92,7 @@ Audio or video → Faster-Whisper transcription → optional speaker diarisation
 
    If it prints `Token saved`, leave RedScribe's Hugging Face Token field blank. The app uses the locally cached login. Log in using the same Python environment that runs RedScribe.
 
-In RedScribe, click **Check Token** beside the masked field to see whether a token is entered for this app session, available in the environment, or saved through Hugging Face login. This local check does not display the token or test model access; if diarisation fails, confirm the token's read access and acceptance of the model conditions.
+In RedScribe, click **Check Token** beside the masked field to see whether a token is entered for this app session, available in the environment, or saved through Hugging Face login. This local check does not display the token, contact Hugging Face or test model access; if diarisation fails, confirm the token's read access and acceptance of the model conditions.
 
 Alternatively, paste a token into the masked field for the current app session. A temporary `HF_TOKEN` environment variable also works for that terminal session, but must be set again in a new terminal.
 
@@ -134,10 +139,11 @@ RedScribe attempts to load Whisper with CUDA and `float16`. If that fails, it fa
 - `requirements.txt` — Python dependencies
 - `CITATION.cff` — software citation metadata
 - `CHANGELOG.md` — release history
+- `LICENSE` — PolyForm Noncommercial 1.0.0 terms for the original RedScribe code and documentation
 
 ## Citation
 
-If RedScribe supports a study, cite the software using the metadata in `CITATION.cff`. A DOI can be added after a GitHub release is archived in Zenodo.
+If RedScribe supports a study, cite the software using the metadata in [`CITATION.cff`](CITATION.cff). The metadata lists all four authors and describes both Excel and Word output. No DOI has been assigned to this repository yet; add the version-specific DOI only after the tagged GitHub release is archived in Zenodo. Do not reuse a RedScrap DOI for RedScribe.
 
 ## Authors
 
