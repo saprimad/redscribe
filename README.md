@@ -19,6 +19,7 @@ The primary application is [`redscribe_gpu.py`](redscribe_gpu.py). The earlier Q
 - Excel export with study metadata, a verification worksheet, speaker counts, speech/silence summary, timeline density and token frequency
 - Editable Microsoft Word (`.docx`) report with the same early report sections as Excel, including summary tables, speaker counts, speech/silence and timeline charts, top keywords, and consecutive speech grouped by speaker
 - Bottom controls that remain visible as the live transcript area resizes
+- Red Stop button to cancel the current run before report export
 
 RedScribe produces an automated draft. Researchers remain responsible for checking the transcript, speaker labels and analytical outputs against the original recording.
 
@@ -99,6 +100,8 @@ python redscribe_gpu.py
 ```
 
 Select an audio or video file, complete the optional study metadata, choose whether to enable speaker diarisation, and start transcription. **Transcription Language** defaults to Auto detect; select Bahasa Melayu or English when detection is inaccurate. The app uses Whisper's transcription task, not translation. Mixed-language speech still needs checking against the recording. Matching `.xlsx` and `.docx` files are written to `output/YYYY-MM/`. Repeated runs create a numbered file pair rather than overwriting an earlier result. The Word file begins with the Excel `Early_Report` information and charts, followed by a transcript that combines adjacent utterances from the same speaker into one editable paragraph, labelled with the first start and last end time. The Excel workbook retains each utterance separately, along with verification columns. If a run stops with an unexpected Python error, details are written locally to `output/redscribe_error.log`; review the log before sharing it because paths may identify research files.
+
+With Auto detect, the detected language appears in the live transcript area before the first segment. If it is wrong (for example, Welsh for a Malay recording), click **Stop**, choose Bahasa Melayu or English under Transcription Language, and start again. Stop waits for the current model-loading, diarisation or transcription step to finish; it cannot interrupt a library call instantly. A stopped run does not save a partial Word or Excel report. Once report saving begins, Stop is disabled until both exports finish. Previously completed reports are preserved.
 
 **Whisper Model** defaults to `large-v3`. Use `small` or `base` for a CPU-only laptop, or try `turbo` for faster processing on a capable GPU; check each transcript against the audio. The selection is remembered on that computer in `%APPDATA%\RedScribe\settings.json` (or `~/.config/RedScribe/settings.json` if `APPDATA` is unavailable). This settings file contains only the model name, never a Hugging Face token or study details. The selected model and actual CPU/GPU mode are recorded in both outputs. The first use of another model downloads it from the Hugging Face Hub and needs an internet connection.
 
