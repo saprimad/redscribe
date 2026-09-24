@@ -17,12 +17,14 @@ The primary application is [`redscribe_gpu.py`](redscribe_gpu.py). The earlier Q
 - Live timestamped transcript display
 - Sentence-level speaker and timestamp assignment
 - Excel export with study metadata, a verification worksheet, speaker counts, speech/silence summary, timeline density and token frequency
+- Editable Microsoft Word (`.docx`) transcript with study metadata, timestamps and speaker labels
+- Bottom controls that remain visible as the live transcript area resizes
 
 RedScribe produces an automated draft. Researchers remain responsible for checking the transcript, speaker labels and analytical outputs against the original recording.
 
 ## Workflow
 
-Audio or video → Faster-Whisper transcription → optional speaker diarisation → structured Excel export → researcher verification
+Audio or video → Faster-Whisper transcription → optional speaker diarisation → Excel and Word export → researcher verification
 
 ## Requirements
 
@@ -83,7 +85,7 @@ RedScribe does not write the token to a configuration file. Never commit a token
 python redscribe_gpu.py
 ```
 
-Select an audio or video file, complete the optional study metadata, choose whether to enable speaker diarisation, and start transcription. Results are written to `output/YYYY-MM/`.
+Select an audio or video file, complete the optional study metadata, choose whether to enable speaker diarisation, and start transcription. Matching `.xlsx` and `.docx` files are written to `output/YYYY-MM/`. The Word file is an editable transcript; the Excel workbook retains the processing summaries and verification columns.
 
 Supported input formats shown in the interface are MP3, WAV, M4A and MP4. FFmpeg may support additional formats, but they are not currently exposed by the file picker.
 
