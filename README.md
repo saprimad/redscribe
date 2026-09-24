@@ -86,6 +86,8 @@ Audio or video → Faster-Whisper transcription → optional speaker diarisation
 
    If it prints `Token saved`, leave RedScribe's Hugging Face Token field blank. The app uses the locally cached login. Log in using the same Python environment that runs RedScribe.
 
+In RedScribe, click **Check Token** beside the masked field to see whether a token is entered for this app session, available in the environment, or saved through Hugging Face login. This local check does not display the token or test model access; if diarisation fails, confirm the token's read access and acceptance of the model conditions.
+
 Alternatively, paste a token into the masked field for the current app session. A temporary `HF_TOKEN` environment variable also works for that terminal session, but must be set again in a new terminal.
 
 RedScribe does not write the token to a configuration file. The Hugging Face login stores it locally on the computer. Never commit a token, participant recording or identifiable transcript to GitHub.
