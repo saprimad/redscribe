@@ -5,17 +5,21 @@ type: software
 authors:
   - family-names: Tumiran
     given-names: Mad Sapri
+    orcid: "https://orcid.org/0009-0006-2634-5009"
     email: saprimad@moh.gov.my
   - family-names: Abd Wahab
     given-names: Mohd Shahezwan
+    orcid: "https://orcid.org/0000-0002-2801-0134"
   - family-names: Jamal
     given-names: Janattul Ain
+    orcid: "https://orcid.org/0009-0009-7083-7512"
   - family-names: Othman
     given-names: Nursyuhadah
+    orcid: "https://orcid.org/0000-0002-0650-3456"
 version: 2.0.0
 doi: 10.5281/zenodo.22941754
 repository-code: "https://github.com/saprimad/redscribe"
-url: "https://github.com/saprimad/redscribe"
+url: "https://doi.org/10.5281/zenodo.22941754"
 abstract: >-
   A Windows desktop application for research interview transcription using
   selectable Faster-Whisper models, optional pyannote.audio speaker
