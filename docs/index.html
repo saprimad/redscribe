@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="RedScribe is a local Windows desktop tool for research speech transcription, speaker diarisation, and editable Excel and Word reports.">
+  <title>RedScribe — Research Speech Transcription</title>
+  <style>
+    :root { color-scheme: light; --ink:#172231; --muted:#566474; --red:#ad283a; --red-dark:#841c2d; --cream:#faf7f3; --line:#e5e0da; --white:#fff; }
+    * { box-sizing:border-box; }
+    html { scroll-behavior:smooth; }
+    body { margin:0; font:16px/1.65 system-ui,-apple-system,"Segoe UI",sans-serif; color:var(--ink); background:var(--cream); }
+    a { color:inherit; }
+    a:focus-visible, button:focus-visible { outline:3px solid #eb9b57; outline-offset:3px; }
+    .wrap { max-width:1160px; margin:auto; padding:0 24px; }
+    header { background:#fff; border-bottom:1px solid var(--line); }
+    nav { min-height:74px; display:flex; align-items:center; justify-content:space-between; gap:24px; }
+    .brand { font-weight:800; font-size:1.42rem; letter-spacing:-.04em; text-decoration:none; }
+    .brand span { color:var(--red); }
+    .navlinks { display:flex; flex-wrap:wrap; align-items:center; gap:24px; font-size:.91rem; font-weight:650; }
+    .navlinks a { text-decoration:none; }
+    .navlinks a:hover { color:var(--red); }
+    .hero { padding:95px 0 100px; background:radial-gradient(circle at 84% 10%,#f7d9d8 0,transparent 35%),linear-gradient(145deg,#fff 0%,#faf7f3 65%); }
+    .hero-grid { display:grid; grid-template-columns:1.05fr .95fr; align-items:center; gap:64px; }
+    .eyebrow { text-transform:uppercase; color:var(--red); font-size:.76rem; font-weight:800; letter-spacing:.13em; }
+    h1,h2,h3,p { margin-top:0; }
+    h1 { font-size:clamp(2.8rem,5.2vw,5.1rem); line-height:1.06; letter-spacing:-.065em; margin:16px 0 24px; }
+    h2 { font-size:clamp(2rem,3vw,3rem); line-height:1.16; letter-spacing:-.045em; margin:10px 0 18px; }
+    h3 { font-size:1.16rem; line-height:1.3; margin:0 0 9px; }
+    .lead { font-size:1.18rem; color:var(--muted); max-width:610px; }
+    .actions { display:flex; flex-wrap:wrap; gap:12px; margin:30px 0 24px; }
+    .button { display:inline-flex; align-items:center; justify-content:center; text-align:center; min-height:46px; padding:10px 20px; border-radius:8px; background:var(--red); color:#fff; text-decoration:none; font-weight:750; border:1px solid var(--red); }
+    .button:hover { background:var(--red-dark); }
+    .button.secondary { background:#fff; color:var(--ink); border-color:#d9d1ca; }
+    .button.secondary:hover { border-color:var(--red); color:var(--red); }
+    .note { color:var(--muted); font-size:.87rem; }
+    .mock { background:#fff; border:1px solid #e8d8d4; box-shadow:0 25px 75px #6323311a; border-radius:15px; overflow:hidden; transform:rotate(1deg); }
+    .mock-top { background:#f4f0ed; padding:12px 16px; border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; font-size:.72rem; color:#67717d; }
+    .dots { display:flex; gap:5px; } .dots i { width:7px; height:7px; border-radius:100%; background:#c4b9b3; }
+    .mock-body { padding:25px; }
+    .mock-row { display:flex; gap:12px; align-items:center; justify-content:space-between; margin-bottom:16px; font-size:.83rem; }
+    .mock-label { color:#5f6873; }
+    .mock-field { border:1px solid #dfe1e4; border-radius:5px; padding:7px 10px; min-width:55%; color:#283646; background:#fff; }
+    .mock-strip { background:#f9f2f1; color:#842638; border:1px solid #f1dddb; border-radius:5px; padding:10px 12px; font-size:.78rem; margin:17px 0; }
+    .mock-transcript { background:#f9fafb; border:1px solid #e7e9eb; border-radius:6px; padding:15px; font-size:.77rem; line-height:1.7; }
+    .mock-transcript p { margin:0 0 9px; } .mock-transcript p:last-child { margin:0; }
+    .mock-transcript b { color:var(--red); }
+    .mock-foot { display:flex; justify-content:space-between; align-items:center; margin-top:18px; font-size:.75rem; color:#65717e; }
+    .mock-pill { background:#d8efd9; color:#175228; padding:6px 10px; border-radius:5px; font-weight:700; }
+    section { padding:85px 0; }
+    .section-head { max-width:760px; margin-bottom:34px; }
+    .section-head p { color:var(--muted); }
+    .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:18px; }
+    .card { background:#fff; border:1px solid var(--line); border-radius:12px; padding:26px; }
+    .card p { color:var(--muted); margin:0; }
+    .icon { width:38px; height:38px; background:#fbebe9; color:var(--red); display:grid; place-items:center; border-radius:8px; font-size:1.2rem; font-weight:800; margin-bottom:22px; }
+    .outputs { background:#fff; border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
+    .output-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:24px; }
+    .output { padding:32px; border:1px solid var(--line); border-radius:12px; background:var(--cream); }
+    .output strong { color:var(--red); font-size:.82rem; letter-spacing:.08em; }
+    ul { padding-left:20px; margin:15px 0 0; } li { padding-left:3px; margin:7px 0; }
+    .steps { display:grid; grid-template-columns:repeat(4,1fr); gap:19px; }
+    .step { border-top:2px solid var(--red); padding-top:17px; }
+    .step small { color:var(--red); font-weight:800; }
+    .step p { color:var(--muted); margin-bottom:0; }
+    .band { background:#1e2735; color:#fff; }
+    .band p { color:#cfdae3; }
+    .band .button.secondary { background:transparent; color:#fff; border-color:#77818d; }
+    .band .button.secondary:hover { border-color:#fff; }
+    .sources { background:#fff; }
+    .sources details { border:1px solid var(--line); border-radius:10px; padding:16px 22px; }
+    .sources summary { cursor:pointer; font-weight:700; }
+    .sources a { color:var(--red-dark); overflow-wrap:anywhere; }
+    footer { padding:34px 0; background:#161e29; color:#c9d0d8; font-size:.85rem; }
+    footer .wrap { display:flex; justify-content:space-between; gap:20px; flex-wrap:wrap; }
+    footer a { color:#fff; }
+    @media(max-width:850px) { .hero-grid { grid-template-columns:1fr; gap:40px; } .mock { max-width:580px; transform:none; } .grid { grid-template-columns:repeat(2,1fr); } .steps { grid-template-columns:repeat(2,1fr); } }
+    @media(max-width:600px) { nav { align-items:flex-start; flex-direction:column; padding:15px 0; gap:8px; } .navlinks { gap:13px; } .hero { padding:60px 0; } section { padding:60px 0; } .grid,.output-grid,.steps { grid-template-columns:1fr; } .mock-body { padding:18px; } .mock-row { display:block; } .mock-field { margin-top:4px; } }
+  </style>
+</head>
+<body>
+  <header><nav class="wrap" aria-label="Main navigation">
+    <a class="brand" href="#top">Red<span>Scribe</span></a>
+    <div class="navlinks"><a href="#features">Features</a><a href="#outputs">Outputs</a><a href="#workflow">How it works</a><a href="#samples">Evaluation sources</a><a href="#download">Get started</a></div>
+  </nav></header>
+  <main id="top">
+    <div class="hero"><div class="wrap hero-grid">
+      <div><div class="eyebrow">Research speech transcription · v2.0.0</div>
+        <h1>From recording to a reviewable transcript.</h1>
+        <p class="lead">RedScribe transcribes research speech on your Windows computer and prepares an Excel verification workbook and an editable Word report.</p>
+        <div class="actions"><a class="button" href="https://github.com/saprimad/redscribe">View source on GitHub</a><a class="button secondary" href="#outputs">Explore the outputs</a></div>
+        <p class="note">Source code is available under PolyForm Noncommercial 1.0.0. Python setup is required; this is not a one-click installer.</p>
+      </div>
+      <div class="mock" role="img" aria-label="Illustrative RedScribe interface showing transcription options and a short fictional transcript. This is not an actual app screenshot.">
+        <div class="mock-top"><span>RedScribe · illustrative interface</span><span class="dots"><i></i><i></i><i></i></span></div>
+        <div class="mock-body"><div class="mock-row"><span class="mock-label">Whisper model</span><span class="mock-field">large-v3 ▾</span></div>
+          <div class="mock-row"><span class="mock-label">Spoken language</span><span class="mock-field">Auto detect ▾</span></div>
+          <div class="mock-row"><span class="mock-label">Speaker diarisation</span><span class="mock-field">✓ Enabled</span></div>
+          <div class="mock-strip">Token status: saved Hugging Face login found</div>
+          <div class="mock-transcript"><p><b>[00:00:04] SPEAKER_00</b> Thank you for joining this research discussion.</p><p><b>[00:00:08] SPEAKER_01</b> Happy to be here.</p></div>
+          <div class="mock-foot"><span>Excel + Word reports</span><span class="mock-pill">Researcher review</span></div>
+        </div>
+      </div>
+    </div></div>
+
+    <section id="features"><div class="wrap"><div class="section-head"><div class="eyebrow">Designed for research workflows</div><h2>Control the transcription, then check the result.</h2><p>RedScribe creates a draft that remains editable. The researcher verifies the transcript and report against the original recording.</p></div>
+      <div class="grid">
+        <div class="card"><div class="icon">01</div><h3>Choose a model</h3><p>Faster-Whisper large-v3 is the default. Turbo, medium, small and base let users choose for available hardware.</p></div>
+        <div class="card"><div class="icon">02</div><h3>GPU or CPU</h3><p>The app tries NVIDIA CUDA first and falls back to CPU when necessary. Smaller models can be more practical on laptops.</p></div>
+        <div class="card"><div class="icon">03</div><h3>Set the language</h3><p>Use automatic detection or select Bahasa Melayu or English when detection is inaccurate. Speech is transcribed, not translated.</p></div>
+        <div class="card"><div class="icon">04</div><h3>Identify speakers</h3><p>Optional pyannote.audio diarisation adds speaker labels. An expected number of speakers can also be supplied.</p></div>
+        <div class="card"><div class="icon">05</div><h3>Follow progress</h3><p>See a live transcript, estimated timestamps, detected language, progress and remaining time. Stop before export begins.</p></div>
+        <div class="card"><div class="icon">06</div><h3>Check token availability</h3><p>A local check reports whether a Hugging Face token is available without displaying it. Model access is not tested by this check.</p></div>
+      </div>
+    </div></section>
+
+    <section id="outputs" class="outputs"><div class="wrap"><div class="section-head"><div class="eyebrow">What users receive</div><h2>Two files from each completed run.</h2><p>RedScribe saves matching, numbered .xlsx and .docx files locally. The deposit itself contains source code; users generate their own reports from their recordings.</p></div>
+      <div class="output-grid"><article class="output"><strong>EXCEL WORKBOOK · .XLSX</strong><h3>Structured review and early report</h3><ul><li><b>Early_Report:</b> study and processing metadata, model and CPU/GPU mode, language, diarisation status and processing time.</li><li>Segment and utterance counts, simple word/token counts, estimated speech and silence durations, and speaker utterance counts.</li><li>Speech versus silence chart, five-minute utterance density chart, and top 20 token frequencies.</li><li><b>Transcription:</b> one utterance per row with speaker, start/end times, automated text, and blank verification/correction and notes columns.</li></ul></article>
+      <article class="output"><strong>WORD REPORT · .DOCX</strong><h3>Editable report and readable transcript</h3><ul><li>Opening report with study metadata and transcription summary.</li><li>Speaker counts, speech versus silence table and chart, five-minute timeline table and chart, and top 20 token table.</li><li>A separate transcript section after a page break.</li><li>Adjacent utterances by the same speaker grouped into paragraphs with speaker labels and estimated start/end times.</li></ul></article></div>
+      <p class="note" style="margin-top:20px">Counts are simple text frequencies, and timing and speaker assignments are estimates. Always compare outputs with the recording before research use.</p>
+    </div></section>
+
+    <section id="workflow"><div class="wrap"><div class="section-head"><div class="eyebrow">Workflow</div><h2>A practical path from audio to analysis.</h2></div>
+      <div class="steps"><div class="step"><small>01 / INPUT</small><h3>Select a recording</h3><p>Choose MP3, WAV, M4A or MP4 and enter optional study metadata.</p></div><div class="step"><small>02 / SETTINGS</small><h3>Choose processing</h3><p>Select the model and language; enable speaker diarisation if needed.</p></div><div class="step"><small>03 / OUTPUT</small><h3>Export both reports</h3><p>Review the live transcript, then open the generated Excel and Word files.</p></div><div class="step"><small>04 / VERIFY</small><h3>Check against audio</h3><p>Correct words, timestamps and speaker labels before analysis or publication.</p></div></div>
+    </div></section>
+
+    <section id="download" class="band"><div class="wrap"><div class="eyebrow" style="color:#ffb4bd">Get started</div><h2>Run RedScribe on your computer.</h2><p>Windows 10 or 11, Python 3.10 or 3.11 and FFmpeg are required. The README covers installation, model selection and optional Hugging Face diarisation setup. Audio processing is local; initial model downloads and authentication may require internet access.</p>
+      <div class="actions"><a class="button" href="https://github.com/saprimad/redscribe#installation">Read installation guide</a><a class="button secondary" href="https://github.com/saprimad/redscribe/archive/refs/heads/main.zip">Download source ZIP</a></div>
+      <p class="note">Commercial or other uses outside the PolyForm Noncommercial licence require a separate written agreement: <a href="mailto:saprimad@moh.gov.my">saprimad@moh.gov.my</a>.</p>
+    </div></section>
+
+    <section id="samples" class="sources"><div class="wrap"><div class="section-head"><div class="eyebrow">Evaluation sources</div><h2>Varied public recordings used during testing.</h2><p>Links identify recordings used as inputs. This site and the source-code deposit do not redistribute videos, audio or full transcripts. Rights remain with their respective holders.</p></div>
+      <details><summary>View the nine YouTube source links</summary><ul>
+        <li>Podcast Ubat atau Tabu: <a href="https://www.youtube.com/watch?v=WZoR_4m4yCs">Episode 7</a>, <a href="https://www.youtube.com/watch?v=hFi1LqbmBvc">Episode 8</a>, <a href="https://www.youtube.com/watch?v=_I3pf4-oKhc">Episode 12</a></li>
+        <li><a href="https://www.youtube.com/watch?v=JfwHmy_3UDQ">A Conversation With Mahathir Mohamad</a></li>
+        <li><a href="https://www.youtube.com/watch?v=4AXfXeMHicY">Oxford Union mental health panel discussion</a></li>
+        <li><a href="https://www.youtube.com/watch?v=ytyiY3mWBrc">Easy Mandarin 91: doctor conversation in Taiwan</a></li>
+        <li><a href="https://www.youtube.com/watch?v=ibOk9hcxj6M">Q&amp;A in Chinese</a></li>
+        <li><a href="https://www.youtube.com/watch?v=pukKRkLyQ-0">Medical Apartheid: IK Book Discussion</a></li>
+        <li><a href="https://www.youtube.com/watch?v=HUOOhOW2LwE">சாமிகளின் பிறப்பும் இறப்பும் - காந்தாரா</a></li>
+      </ul></details>
+    </div></section>
+  </main>
+  <footer><div class="wrap"><div>© Mad Sapri Tumiran · Malaysia copyright notification CRDV2026W02110<br>Authors: Mad Sapri Tumiran, Mohd Shahezwan Abd Wahab, Janattul Ain Jamal, Nursyuhadah Othman</div><div><a href="https://github.com/saprimad/redscribe">GitHub</a> · <a href="https://github.com/saprimad/redscribe/blob/main/LICENSE">Licence</a> · <a href="mailto:saprimad@moh.gov.my">Support</a></div></div></footer>
+</body>
+</html>
