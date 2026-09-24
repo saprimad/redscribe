@@ -8,6 +8,8 @@ import re
 import shutil
 import subprocess
 import tempfile
+import gc
+import traceback
 from io import BytesIO
 from collections import Counter
 
@@ -43,6 +45,7 @@ DIARIZATION_MODEL = "pyannote/speaker-diarization-community-1"
 
 APP_VERSION = "2.0.0"
 APP_TITLE = f"RedScribe v{APP_VERSION} – Research Speech Transcription System"
+TRANSCRIPTION_LANGUAGES = {"Auto detect": None, "Bahasa Melayu": "ms", "English": "en"}
 
 
 # =========================
@@ -151,6 +154,18 @@ def ensure_dir(path: str):
     os.makedirs(path, exist_ok=True)
 
 
+def available_output_paths(folder: str, filename_base: str) -> tuple[str, str]:
+    """Keep successive Word/Excel exports together without overwriting old results."""
+    suffix = 1
+    while True:
+        stem = filename_base if suffix == 1 else f"{filename_base}_{suffix}"
+        xlsx_path = os.path.join(folder, f"{stem}.xlsx")
+        docx_path = os.path.join(folder, f"{stem}.docx")
+        if not os.path.exists(xlsx_path) and not os.path.exists(docx_path):
+            return xlsx_path, docx_path
+        suffix += 1
+
+
 def open_folder(path: str):
     try:
         os.startfile(path)
@@ -176,6 +191,17 @@ def create_whisper_model():
             last_error = e
 
     raise RuntimeError(f"Unable to load the Whisper model on any available device. Last error: {last_error}")
+
+
+def release_gpu_cache():
+    """Release unreferenced model allocations between independent recordings."""
+    gc.collect()
+    try:
+        import torch
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+    except ImportError:
+        pass
 
 
 
@@ -316,7 +342,11 @@ def run_diarization(audio_path: str, hf_token: str | None, preferred_device: str
             pass
 
     diarization_input = load_audio_for_pyannote(audio_path)
-    diarization_output = pipeline(diarization_input, **kwargs)
+    try:
+        diarization_output = pipeline(diarization_input, **kwargs)
+    finally:
+        del pipeline, diarization_input
+        release_gpu_cache()
 
     # pyannote/speaker-diarization-community-1 returns a DiarizeOutput object.
     # The actual Annotation is inside .exclusive_speaker_diarization or .speaker_diarization.
@@ -772,6 +802,7 @@ class RedScribeApp:
         self.label = tk.StringVar()
         self.period = tk.StringVar(value=time.strftime("%Y-%m"))
         self.audio_path = tk.StringVar()
+        self.transcription_language = tk.StringVar(value="Auto detect")
 
         self.diarization_enabled = tk.BooleanVar(value=True)
         self.hf_token = tk.StringVar()
@@ -816,6 +847,14 @@ class RedScribeApp:
         tk.Button(file_fr, text="Browse…", command=self.browse_file).pack(side="left")
 
         tk.Label(top, text="Supported formats: mp3, wav, m4a, mp4", fg="gray").pack(anchor="w", pady=(2, 6))
+
+        language_fr = tk.Frame(top)
+        language_fr.pack(fill="x", pady=2)
+        tk.Label(language_fr, text="Transcription Language", width=28, anchor="w").pack(side="left")
+        ttk.Combobox(language_fr, textvariable=self.transcription_language,
+                     values=list(TRANSCRIPTION_LANGUAGES), state="readonly", width=20).pack(side="left")
+        tk.Label(language_fr, text="Select the spoken language if auto detection is inaccurate.",
+                 fg="gray").pack(side="left", padx=8)
 
         diar_fr = tk.LabelFrame(top, text="Speaker Diarisation")
         diar_fr.pack(fill="x", pady=(4, 6))
@@ -987,6 +1026,7 @@ class RedScribeApp:
             "diarization_enabled": bool(self.diarization_enabled.get()),
             "hf_token": self.hf_token.get().strip(),
             "speaker_count": self.speaker_count.get().strip(),
+            "language": TRANSCRIPTION_LANGUAGES[self.transcription_language.get()],
         }
 
         if not inputs["audio_path"]:
@@ -1008,6 +1048,23 @@ class RedScribeApp:
         threading.Thread(target=self.run_whisper, args=(inputs,), daemon=True).start()
 
     def run_whisper(self, inputs: dict):
+        try:
+            self._run_whisper(inputs)
+        except Exception:
+            error_text = traceback.format_exc()
+            try:
+                with open(os.path.join(self.base_output_dir, "redscribe_error.log"), "a", encoding="utf-8") as log:
+                    log.write(f"\n{time.strftime('%Y-%m-%d %H:%M:%S')}\n{error_text}\n")
+            except OSError:
+                pass
+            self.root.after(0, self.status.set, "Transcription failed")
+            self.root.after(0, lambda: self.start_btn.config(state="normal"))
+            self.root.after(0, lambda: messagebox.showerror(
+                "RedScribe Error", "The run stopped unexpectedly. See output/redscribe_error.log for details."))
+        finally:
+            release_gpu_cache()
+
+    def _run_whisper(self, inputs: dict):
         start_clock = time.time()
 
         audio_path = inputs["audio_path"]
@@ -1028,17 +1085,17 @@ class RedScribeApp:
             researcher=inputs["researcher"],
             audio_base=audio_base
         )
-        xlsx_path = os.path.join(out_folder, f"{filename_base}.xlsx")
-        docx_path = os.path.join(out_folder, f"{filename_base}.docx")
+        xlsx_path, docx_path = available_output_paths(out_folder, filename_base)
 
         try:
             model, actual_device, actual_compute_type = create_whisper_model()
             self.actual_whisper_device = actual_device
             self.actual_whisper_compute_type = actual_compute_type
         except Exception as e:
+            error_text = str(e)
             self.root.after(
                 0,
-                lambda: messagebox.showerror("Whisper Error", f"The Whisper model could not be loaded.\n\n{e}")
+                lambda error_text=error_text: messagebox.showerror("Whisper Error", f"The Whisper model could not be loaded.\n\n{error_text}")
             )
             self.root.after(0, self.status.set, "Failed to load model")
             self.root.after(0, lambda: self.start_btn.config(state="normal"))
@@ -1078,14 +1135,16 @@ class RedScribeApp:
         try:
             segments, info = model.transcribe(
                 audio_path,
-                language=None,
+                language=inputs.get("language"),
+                task="transcribe",
                 vad_filter=True,
                 beam_size=5
             )
         except Exception as e:
+            error_text = str(e)
             self.root.after(
                 0,
-                lambda: messagebox.showerror("Transcription Error", f"The audio could not be transcribed.\n\n{e}")
+                lambda error_text=error_text: messagebox.showerror("Transcription Error", f"The audio could not be transcribed.\n\n{error_text}")
             )
             self.root.after(0, self.status.set, "Transcription failed")
             self.root.after(0, lambda: self.start_btn.config(state="normal"))
@@ -1169,9 +1228,10 @@ class RedScribeApp:
                 diarization_model=DIARIZATION_MODEL
             )
         except Exception as e:
+            error_text = str(e)
             self.root.after(
                 0,
-                lambda: messagebox.showerror("Excel Error", f"The Excel workbook could not be saved.\n\n{e}")
+                lambda error_text=error_text: messagebox.showerror("Excel Error", f"The Excel workbook could not be saved.\n\n{error_text}")
             )
             self.root.after(0, self.status.set, "Excel save failed")
             self.root.after(0, lambda: self.start_btn.config(state="normal"))
