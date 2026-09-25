@@ -53,7 +53,9 @@
     .demo { background:#fff; border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
     .demo-grid { display:grid; grid-template-columns:.72fr 1.28fr; align-items:center; gap:48px; }
     .video-shell { overflow:hidden; border:1px solid #e4d7d2; border-radius:14px; background:#111827; box-shadow:0 22px 60px #63233117; }
-    .video-frame { display:block; width:100%; aspect-ratio:16/9; border:0; background:#111827; }
+    .video-link { display:block; overflow:hidden; background:#111827; }
+    .video-thumb { display:block; width:100%; aspect-ratio:16/9; object-fit:cover; transition:transform .25s ease; }
+    .video-link:hover .video-thumb { transform:scale(1.015); }
     .video-fallback { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:12px 16px; color:#d8dee6; font-size:.82rem; }
     .video-fallback a { color:#fff; font-weight:700; }
     section { padding:85px 0; }
@@ -120,7 +122,7 @@
 
     <section id="demo" class="demo"><div class="wrap demo-grid">
       <div><div class="eyebrow">Video demonstration</div><h2>See RedScribe in action.</h2><p class="lead">Watch a short demonstration of the RedScribe workflow, from application setup to local transcription and research-ready outputs.</p><p class="note">Duration: 2 minutes 26 seconds · Full HD</p></div>
-      <div class="video-shell"><iframe class="video-frame" src="https://drive.google.com/file/d/1eXpNHManD_sm2fFhTYnfcsRJD5WS5_mP/view?usp=drivesdk" title="RedScribe video demonstration" loading="lazy" allow="autoplay; fullscreen" allowfullscreen></iframe><div class="video-fallback"><span>Video hosted on Google Drive</span><a href="https://drive.google.com/file/d/1eXpNHManD_sm2fFhTYnfcsRJD5WS5_mP/view?usp=drivesdk" target="_blank" rel="noopener noreferrer">Open video ↗</a></div></div>
+      <div class="video-shell"><a class="video-link" href="https://drive.google.com/file/d/1eXpNHManD_sm2fFhTYnfcsRJD5WS5_mP/view?usp=drivesdk" target="_blank" rel="noopener noreferrer" aria-label="Play the RedScribe video demonstration on Google Drive"><img class="video-thumb" src="assets/redscribe-demo-thumbnail.jpg" alt="RedScribe application interface with a play button" width="1280" height="720" loading="lazy"></a><div class="video-fallback"><span>Video hosted on Google Drive</span><a href="https://drive.google.com/file/d/1eXpNHManD_sm2fFhTYnfcsRJD5WS5_mP/view?usp=drivesdk" target="_blank" rel="noopener noreferrer">Play video ↗</a></div></div>
     </div></section>
 
     <section id="features"><div class="wrap"><div class="section-head"><div class="eyebrow">Designed for research workflows</div><h2>Control the transcription, then check the result.</h2><p>RedScribe creates a draft that remains editable. The researcher verifies the transcript and report against the original recording.</p></div>
