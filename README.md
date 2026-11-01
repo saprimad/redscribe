@@ -32,7 +32,13 @@ RedScribe produces an automated draft. Sentence timestamps are estimates; speech
 
 ## Workflow
 
-Audio or video → Faster-Whisper transcription → optional speaker diarisation → Excel and Word export → researcher verification
+The following diagram summarises RedScribe's input configuration, local processing pipeline, and research-oriented outputs.
+
+![RedScribe system architecture and processing workflow](docs/images/redscribe-system-workflow.svg)
+
+*Figure 1. RedScribe system architecture and processing workflow (input, process and output).* 
+
+Select a recording, language and Whisper model, then configure optional speaker diarisation. When enabled, diarisation runs before Faster-Whisper transcription; a diarisation failure does not prevent transcription. RedScribe subsequently prepares timestamped utterances, descriptive summaries, and Excel and Word reports for researcher verification.
 
 ## Requirements
 
