@@ -20,6 +20,8 @@ All notable changes to RedScribe are documented in this file. The dated 2.0.0 en
 
 ### Changed
 
+- Moved Hugging Face token entry and management into a dedicated Settings window, opened from a compact token-status button; kept model selection on the main workspace.
+
 - Preserve previous Excel/Word output pairs by numbering filenames on repeated runs; show the original error when export fails.
 - Grouped adjacent utterances from the same speaker into one paragraph in the Word transcript.
 - Kept the status and action buttons visible while the transcript panel resizes to fit the window.

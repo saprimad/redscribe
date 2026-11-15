@@ -868,6 +868,8 @@ class RedScribeApp:
         self.diarization_enabled = tk.BooleanVar(value=True)
         self.hf_token = tk.StringVar()
         self.token_status = tk.StringVar(value="Token status: not checked")
+        self.token_summary = tk.StringVar(value="Hugging Face: checking token... | Settings...")
+        self.token_settings_window = None
         self.speaker_count = tk.StringVar()
 
         self.base_output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "output")
@@ -943,23 +945,10 @@ class RedScribeApp:
         ).pack(anchor="w", padx=6, pady=(4, 2))
 
         token_fr = tk.Frame(diar_fr)
-        token_fr.pack(fill="x", padx=6, pady=2)
-        tk.Label(token_fr, text="Hugging Face Token", width=28, anchor="w").pack(side="left")
-        self.token_entry = tk.Entry(token_fr, textvariable=self.hf_token, show="*")
-        self.token_entry.pack(side="left", fill="x", expand=True)
-        self.show_token_btn = tk.Button(token_fr, text="Show", width=5, command=self.toggle_token_visibility)
-        self.show_token_btn.pack(side="left", padx=(6, 0))
-
-        token_actions = tk.Frame(diar_fr)
-        token_actions.pack(fill="x", padx=6, pady=2)
-        for label, command in (("Save Token", self.save_hf_token),
-                               ("Remove Saved", self.remove_hf_token),
-                               ("Check Token", self.check_hf_token)):
-            tk.Button(token_actions, text=label, command=command).pack(side="left", padx=(0, 6))
-        tk.Label(token_actions, text="Saved tokens load automatically on this computer.",
-                 fg="gray").pack(side="left")
-        tk.Label(diar_fr, textvariable=self.token_status, fg="#28613B", anchor="w",
-                 justify="left", wraplength=620).pack(fill="x", padx=6, pady=(0, 2))
+        token_fr.pack(fill="x", padx=6, pady=(2, 6))
+        ttk.Button(token_fr, textvariable=self.token_summary,
+                   command=self.open_token_settings).pack(side="left")
+        tk.Label(token_fr, text="Manage your token in Settings.", fg="gray").pack(side="left", padx=8)
 
         speaker_fr = tk.Frame(diar_fr)
         speaker_fr.pack(fill="x", padx=6, pady=(2, 6))
@@ -1070,9 +1059,74 @@ class RedScribeApp:
             "saprimad@moh.gov.my"
         )
 
+    def open_token_settings(self):
+        """Keep credential controls out of the transcription workspace."""
+        if self.token_settings_window is not None and self.token_settings_window.winfo_exists():
+            self.token_settings_window.lift()
+            self.token_settings_window.focus_set()
+            return
+
+        win = tk.Toplevel(self.root)
+        self.token_settings_window = win
+        win.title("RedScribe Settings - Hugging Face")
+        win.transient(self.root)
+        win.resizable(False, False)
+        panel = ttk.Frame(win, padding=20)
+        panel.pack(fill="both", expand=True)
+        ttk.Label(panel, text="Hugging Face", font=("Segoe UI", 15, "bold")).pack(anchor="w")
+        ttk.Label(panel, text="Token settings for speaker diarisation", foreground="#52606D").pack(anchor="w", pady=(3, 16))
+
+        status_card = ttk.LabelFrame(panel, text="Current token", padding=12)
+        status_card.pack(fill="x", pady=(0, 14))
+        ttk.Label(status_card, textvariable=self.token_status, wraplength=450,
+                  justify="left").pack(fill="x")
+        ttk.Label(status_card, text="Availability only; model access has not been tested.",
+                  foreground="#52606D", wraplength=450).pack(anchor="w", pady=(8, 0))
+
+        ttk.Label(panel, text="Enter or replace token", font=("Segoe UI", 10, "bold")).pack(anchor="w")
+        entry_row = ttk.Frame(panel)
+        entry_row.pack(fill="x", pady=(6, 8))
+        self.token_entry = ttk.Entry(entry_row, textvariable=self.hf_token, show="*", width=48)
+        self.token_entry.pack(side="left", fill="x", expand=True)
+        self.show_token_btn = ttk.Button(entry_row, text="Show", width=6, command=self.toggle_token_visibility)
+        self.show_token_btn.pack(side="left", padx=(8, 0))
+        ttk.Label(panel, text="Leave blank to use a saved token. An unsaved entry is used only for this app session.",
+                  foreground="#52606D", wraplength=480, justify="left").pack(anchor="w")
+
+        actions = ttk.Frame(panel)
+        actions.pack(fill="x", pady=(14, 16))
+        for label, command in (("Save Token", self.save_hf_token),
+                               ("Remove Saved", self.remove_hf_token),
+                               ("Check Token", self.check_hf_token)):
+            ttk.Button(actions, text=label, command=command).pack(side="left", padx=(0, 8))
+
+        ttk.Separator(panel).pack(fill="x")
+        ttk.Label(panel, text="Saved tokens use this computer's system credential store. Removing a saved token does not revoke it on Hugging Face or sign out a separate login.",
+                  foreground="#52606D", wraplength=480, justify="left").pack(anchor="w", pady=(12, 14))
+        ttk.Button(panel, text="Done", command=self.close_token_settings).pack(anchor="e")
+        win.protocol("WM_DELETE_WINDOW", self.close_token_settings)
+        win.bind("<Escape>", lambda _event: self.close_token_settings())
+        win.update_idletasks()
+        x = max(0, self.root.winfo_rootx() + (self.root.winfo_width() - win.winfo_reqwidth()) // 2)
+        y = max(0, self.root.winfo_rooty() + (self.root.winfo_height() - win.winfo_reqheight()) // 2)
+        win.geometry(f"+{x}+{y}")
+        win.grab_set()
+        self.token_entry.focus_set()
+        self.check_hf_token()
+
+    def close_token_settings(self):
+        if self.token_settings_window is not None:
+            self.token_entry.configure(show="*")
+            self.token_settings_window.grab_release()
+            self.token_settings_window.destroy()
+            self.token_settings_window = None
+
     def token_entry_changed(self, *_args):
-        self.token_status.set("Token: session entry (click Save Token to remember)"
-                              if self.hf_token.get().strip() else "Token: click Check Token to refresh")
+        if self.hf_token.get().strip():
+            self.token_status.set("Token: session entry (click Save Token to remember)")
+            self.token_summary.set("Hugging Face: session token | Settings...")
+        else:
+            self.check_hf_token()
 
     def toggle_token_visibility(self):
         hidden = bool(self.token_entry.cget("show"))
@@ -1086,6 +1140,15 @@ class RedScribeApp:
         if selection.warning:
             status += f" {selection.warning}"
         self.token_status.set(status)
+        if not selection.token:
+            summary = "Token not configured"
+        elif selection.source == "saved in system credential store":
+            summary = "Token saved"
+        elif selection.source.startswith("entered in app"):
+            summary = "Session token"
+        else:
+            summary = "Token available"
+        self.token_summary.set(f"Hugging Face: {summary} | Settings...")
 
     def save_hf_token(self):
         try:
