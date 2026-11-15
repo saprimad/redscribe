@@ -5,3 +5,4 @@ matplotlib
 pyannote.audio
 soundfile
 torch
+keyring>=25.6,<26

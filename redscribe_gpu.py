@@ -14,6 +14,7 @@ import json
 import math
 from io import BytesIO
 from collections import Counter
+from token_store import TokenStoreError, resolve_token, save_token, remove_saved_token
 
 from openpyxl import Workbook
 from openpyxl.utils import get_column_letter
@@ -880,6 +881,8 @@ class RedScribeApp:
         self.run_phase = "idle"
 
         self.build_ui()
+        self.hf_token.trace_add("write", self.token_entry_changed)
+        self.root.after(100, self.check_hf_token)
 
     def build_ui(self):
         top = tk.Frame(self.root)
@@ -942,12 +945,21 @@ class RedScribeApp:
         token_fr = tk.Frame(diar_fr)
         token_fr.pack(fill="x", padx=6, pady=2)
         tk.Label(token_fr, text="Hugging Face Token", width=28, anchor="w").pack(side="left")
-        tk.Entry(token_fr, textvariable=self.hf_token, show="*").pack(side="left", fill="x", expand=True)
-        tk.Button(token_fr, text="Check Token", command=self.check_hf_token).pack(side="left", padx=(6, 0))
-        token_status_fr = tk.Frame(diar_fr)
-        token_status_fr.pack(fill="x", padx=6, pady=(0, 2))
-        tk.Label(token_status_fr, width=28).pack(side="left")
-        tk.Label(token_status_fr, textvariable=self.token_status, fg="#28613B", anchor="w").pack(side="left")
+        self.token_entry = tk.Entry(token_fr, textvariable=self.hf_token, show="*")
+        self.token_entry.pack(side="left", fill="x", expand=True)
+        self.show_token_btn = tk.Button(token_fr, text="Show", width=5, command=self.toggle_token_visibility)
+        self.show_token_btn.pack(side="left", padx=(6, 0))
+
+        token_actions = tk.Frame(diar_fr)
+        token_actions.pack(fill="x", padx=6, pady=2)
+        for label, command in (("Save Token", self.save_hf_token),
+                               ("Remove Saved", self.remove_hf_token),
+                               ("Check Token", self.check_hf_token)):
+            tk.Button(token_actions, text=label, command=command).pack(side="left", padx=(0, 6))
+        tk.Label(token_actions, text="Saved tokens load automatically on this computer.",
+                 fg="gray").pack(side="left")
+        tk.Label(diar_fr, textvariable=self.token_status, fg="#28613B", anchor="w",
+                 justify="left", wraplength=620).pack(fill="x", padx=6, pady=(0, 2))
 
         speaker_fr = tk.Frame(diar_fr)
         speaker_fr.pack(fill="x", padx=6, pady=(2, 6))
@@ -1058,23 +1070,46 @@ class RedScribeApp:
             "saprimad@moh.gov.my"
         )
 
+    def token_entry_changed(self, *_args):
+        self.token_status.set("Token: session entry (click Save Token to remember)"
+                              if self.hf_token.get().strip() else "Token: click Check Token to refresh")
+
+    def toggle_token_visibility(self):
+        hidden = bool(self.token_entry.cget("show"))
+        self.token_entry.configure(show="" if hidden else "*")
+        self.show_token_btn.configure(text="Hide" if hidden else "Show")
+
     def check_hf_token(self):
-        """Check for a locally available token without displaying or uploading it."""
-        if self.hf_token.get().strip():
-            self.token_status.set("Token status: entered in app (current session)")
-        elif os.environ.get("HF_TOKEN") or os.environ.get("HUGGINGFACE_HUB_TOKEN"):
-            self.token_status.set("Token status: found in environment")
-        else:
-            try:
-                from huggingface_hub import get_token
-                found = bool(get_token())
-            except Exception:
-                self.token_status.set("Token status: could not check saved login")
-                return
-            self.token_status.set(
-                "Token status: saved Hugging Face login found" if found
-                else "Token status: no token found; see README setup"
-            )
+        """Local availability only; no network validation or secret display."""
+        selection = resolve_token(self.hf_token.get())
+        status = f"Token: {selection.source}."
+        if selection.warning:
+            status += f" {selection.warning}"
+        self.token_status.set(status)
+
+    def save_hf_token(self):
+        try:
+            save_token(self.hf_token.get())
+        except TokenStoreError as exc:
+            messagebox.showwarning("Save Token", str(exc))
+            return
+        self.hf_token.set("")
+        self.token_entry.configure(show="*")
+        self.show_token_btn.configure(text="Show")
+        self.check_hf_token()
+
+    def remove_hf_token(self):
+        try:
+            remove_saved_token()
+        except TokenStoreError as exc:
+            messagebox.showwarning("Remove Saved Token", str(exc))
+            return
+        # Only remove RedScribe's keyring entry; preserve any typed session token.
+        self.check_hf_token()
+        messagebox.showinfo("Remove Saved Token",
+                            "RedScribe's saved token has been removed.\n\n"
+                            "Any session token, environment token or Hugging Face login remains available. "
+                            "This does not revoke the token on Hugging Face.")
 
     def save_selected_model(self, _event=None):
         try:
@@ -1201,6 +1236,9 @@ class RedScribeApp:
         if not os.path.isfile(inputs["audio_path"]):
             messagebox.showwarning("File not found", "The selected audio file no longer exists.")
             return
+
+        if inputs["diarization_enabled"]:
+            inputs["hf_token"] = resolve_token(inputs["hf_token"]).token
 
         with self.run_lock:
             if self.run_phase != "idle":

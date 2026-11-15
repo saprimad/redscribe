@@ -19,7 +19,7 @@ The primary application is [`redscribe_gpu.py`](redscribe_gpu.py). The earlier Q
 - Spoken-language choice: Auto detect (default), Bahasa Melayu or English; transcription does not translate the recording
 - Optional speaker diarisation using `pyannote/speaker-diarization-community-1`
 - Optional expected-speaker count
-- Local **Check Token** button to show whether a Hugging Face token is available, without displaying or validating it against the model
+- Hugging Face token controls: masked entry, Show/Hide, Save Token, Remove Saved and a local Check Token button; saved tokens use the system credential store through `keyring`
 - Live timestamped transcript, detected-language notice, progress and estimated remaining time
 - Speaker assignment and estimated sentence timestamps derived from Whisper segments
 - Excel export with study metadata, an utterance-level verification worksheet, speaker counts, approximate speech/silence durations, five-minute utterance density and token frequency
@@ -130,26 +130,24 @@ The first launch may take longer while the selected Whisper model is downloaded.
 
 1. Open the model page for [`pyannote/speaker-diarization-community-1`](https://huggingface.co/pyannote/speaker-diarization-community-1) and accept any required conditions.
 2. Create a Hugging Face token with read access.
-3. With RedScribe's virtual environment activated, log in once on this computer:
+3. Start RedScribe and paste the token into **Hugging Face Token**. It is masked by default; **Show/Hide** toggles visibility for the typed token.
+4. Click **Save Token** to remember it on this computer. The field clears after confirmed storage. Leave it blank on future launches: RedScribe retrieves its saved token automatically when diarisation starts.
 
-   ```powershell
-   python -c "from huggingface_hub import interpreter_login; interpreter_login()"
-   ```
+**Save Token** uses `keyring` with Windows Credential Manager, macOS Keychain or a supported Linux desktop credential store (Secret Service, KWallet or libsecret). It never writes tokens to RedScribe's JSON settings or another application configuration file. Plaintext and third-party fallback backends are rejected. An operating-system prompt may ask you to unlock or allow access to the store. If the store is missing, locked or unavailable, the app shows a warning; you can still paste a token for the current session without saving it. Existing installations should run `pip install -r requirements.txt` to add the dependency.
 
-   Enter the token when prompted (the input is hidden). When asked **Add token as git credential?**, answer `n`; Git access is not needed for diarisation.
-4. Verify the login without displaying the token:
+**Check Token** reports local availability and the source that will be used. It does not display the token, contact Hugging Face or validate model access. The priority is: typed session token → RedScribe's saved keyring token → `HF_TOKEN` / `HUGGINGFACE_HUB_TOKEN` environment variable → existing Hugging Face login. A saved token is not copied back into the visible entry field.
 
-   ```powershell
-   python -c "from huggingface_hub import get_token; print('Token saved' if get_token() else 'No token found')"
-   ```
+**Remove Saved** deletes only RedScribe's keyring entry. It preserves a typed session token, environment variables and any separate Hugging Face login, and does not revoke the token on Hugging Face. Check the status afterwards to see if another source is still available. Saving a new token replaces RedScribe's previous entry.
 
-   If it prints `Token saved`, leave RedScribe's Hugging Face Token field blank. The app uses the locally cached login. Log in using the same Python environment that runs RedScribe.
+An existing Hugging Face login remains supported. If you prefer that route, run:
 
-In RedScribe, click **Check Token** beside the masked field to see whether a token is entered for this app session, available in the environment, or saved through Hugging Face login. This local check does not display the token, contact Hugging Face or test model access; if diarisation fails, confirm the token's read access and acceptance of the model conditions.
+```powershell
+python -c "from huggingface_hub import interpreter_login; interpreter_login()"
+```
 
-Alternatively, paste a token into the masked field for the current app session. A temporary `HF_TOKEN` environment variable also works for that terminal session, but must be set again in a new terminal.
+Enter the token at the hidden prompt and answer `n` when asked **Add token as git credential?**. This separate Hugging Face login manages its own local cache; **Remove Saved** does not delete it. There is no automatic migration of an existing login into RedScribe's keyring.
 
-RedScribe does not write the token to a configuration file. The Hugging Face login stores it locally on the computer. Never commit a token, participant recording or identifiable transcript to GitHub.
+Token availability does not guarantee diarisation access: accept the model conditions and ensure the token has read access. Never commit a token, participant recording or identifiable transcript to GitHub.
 
 ## Running RedScribe
 
@@ -192,6 +190,7 @@ On Windows, RedScribe attempts to load Whisper with CUDA and `float16`. If CUDA 
 
 - `redscribe_gpu.py` — current RedScribe v2 application
 - `whisper_gui.py` — deprecated Qwen/Ollama prototype retained for historical reference
+- `token_store.py` — system credential storage and token-source selection
 - `requirements.txt` — Python dependencies
 - `CITATION.cff` — software citation metadata
 - `CHANGELOG.md` — release history
