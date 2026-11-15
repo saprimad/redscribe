@@ -19,6 +19,8 @@ from speaker_styles import speaker_colour, speaker_fill
 from asr_backends import EXTRA_MODELS, LocalASR, validate_language
 from model_loading import model_preparation
 from model_options import describe_model, model_output_folder, preflight_model, ModelPreflightError, MODEL_FOLDERS
+from diarization_backends import (DEFAULT_DIARIZER, SORTFORMER, DIARIZATION_MODELS, describe_diarizer,
+                                  preflight_diarizer, run_sortformer)
 from token_store import TokenStoreError, resolve_token, save_token, remove_saved_token
 
 from openpyxl import Workbook
@@ -92,11 +94,34 @@ def load_model_preference() -> str:
 def save_model_preference(selected: str) -> None:
     if selected not in WHISPER_MODELS:
         raise ValueError("Unsupported ASR model")
+    save_preference("whisper_model", selected)
+
+
+def load_diarizer_preference():
+    try:
+        with open(model_settings_path(), encoding="utf-8") as settings_file:
+            selected = json.load(settings_file).get("diarization_backend")
+        if selected in DIARIZATION_MODELS:
+            return selected
+    except (OSError, ValueError, AttributeError):
+        pass
+    return DEFAULT_DIARIZER
+
+
+def save_preference(key, value):
     path = model_settings_path()
+    try:
+        with open(path, encoding="utf-8") as settings_file:
+            settings = json.load(settings_file)
+        if not isinstance(settings, dict):
+            settings = {}
+    except (OSError, ValueError):
+        settings = {}
+    settings[key] = value
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    # No token or study details are stored in this file.
+    # Model preferences only; credentials remain in the system keyring.
     with open(path, "w", encoding="utf-8") as settings_file:
-        json.dump({"whisper_model": selected}, settings_file)
+        json.dump(settings, settings_file)
 
 
 # =========================
@@ -953,6 +978,7 @@ class RedScribeApp:
         self.whisper_model = tk.StringVar(value=load_model_preference())
 
         self.diarization_enabled = tk.BooleanVar(value=True)
+        self.diarization_backend = tk.StringVar(value=load_diarizer_preference())
         self.hf_token = tk.StringVar()
         self.token_status = tk.StringVar(value="Token status: not checked")
         self.token_summary = tk.StringVar(value="Checking token...")
@@ -976,6 +1002,7 @@ class RedScribeApp:
         self.hf_token.trace_add("write", self.token_entry_changed)
         self.audio_path.trace_add("write", self.update_file_summary)
         self.diarization_enabled.trace_add("write", self.update_diarization_summary)
+        self.diarization_backend.trace_add("write", self.update_diarization_summary)
         self.speaker_count.trace_add("write", self.update_diarization_summary)
         self.update_diarization_summary()
         self.root.after(100, self.check_hf_token)
@@ -1197,9 +1224,22 @@ class RedScribeApp:
     def update_diarization_summary(self, *_args):
         enabled = self.diarization_enabled.get()
         count = self.speaker_count.get().strip()
-        detail = f"{count} expected speakers" if count else "Automatic speaker count"
-        self.diarization_summary.set(f"ON - {detail}" if enabled else "OFF - Transcription only")
+        selected = self.diarization_backend.get()
+        detail = "Automatic (up to 4 speakers)" if selected == SORTFORMER else (f"{count} expected speakers" if count else "Automatic speaker count")
+        self.diarization_summary.set(f"ON - {selected}\n{detail}" if enabled else "OFF - Transcription only")
         self.diarization_badge.configure(fg="#24623B" if enabled else "#667085")
+
+    def save_selected_diarizer(self, _event=None):
+        self.refresh_diarizer_settings()
+        try:
+            save_preference("diarization_backend", self.diarization_backend.get())
+        except OSError:
+            messagebox.showwarning("Diarisation model", "The choice could not be saved; it will still apply to this session.")
+
+    def refresh_diarizer_settings(self):
+        selected = self.diarization_backend.get()
+        self.diarizer_hint.configure(text=describe_diarizer(selected))
+        self.speaker_count_entry.configure(state="disabled" if selected == SORTFORMER else "normal")
 
     def begin_diarization_activity(self):
         self.begin_model_activity("Loading diarisation model...")
@@ -1322,10 +1362,19 @@ class RedScribeApp:
         speaker_options.pack(fill="x", pady=(0, 12))
         ttk.Checkbutton(speaker_options, text="Enable speaker diarisation",
                         variable=self.diarization_enabled).pack(anchor="w")
+        ttk.Label(speaker_options, text="Diarisation model").pack(anchor="w", pady=(8, 4))
+        diarizer_choice = ttk.Combobox(speaker_options, textvariable=self.diarization_backend,
+                                      values=tuple(DIARIZATION_MODELS), state="readonly", width=30)
+        diarizer_choice.pack(fill="x")
+        diarizer_choice.bind("<<ComboboxSelected>>", self.save_selected_diarizer)
+        self.diarizer_hint = ttk.Label(speaker_options, wraplength=450, foreground="#52606D")
+        self.diarizer_hint.pack(anchor="w", pady=(6, 2))
         count_row = ttk.Frame(speaker_options)
         count_row.pack(fill="x", pady=(8, 4))
         ttk.Label(count_row, text="Expected speakers").pack(side="left")
-        ttk.Entry(count_row, textvariable=self.speaker_count, width=8).pack(side="right")
+        self.speaker_count_entry = ttk.Entry(count_row, textvariable=self.speaker_count, width=8)
+        self.speaker_count_entry.pack(side="right")
+        self.refresh_diarizer_settings()
         ttk.Label(speaker_options, text="Diarisation is on by default. Leave the count blank for automatic detection. Changes apply to the next run.",
                   wraplength=450, foreground="#52606D").pack(anchor="w")
 
@@ -1586,6 +1635,7 @@ class RedScribeApp:
             "label": self.label.get().strip(),
             "period": self.period.get().strip(),
             "diarization_enabled": bool(self.diarization_enabled.get()),
+            "diarization_backend": self.diarization_backend.get(),
             "hf_token": self.hf_token.get().strip(),
             "speaker_count": self.speaker_count.get().strip(),
             "language": TRANSCRIPTION_LANGUAGES[self.transcription_language.get()],
@@ -1636,6 +1686,8 @@ class RedScribeApp:
             self.root.after(0, self.log_info, "Checking selected model runtime and CUDA availability before processing...")
             try:
                 result = preflight_model(inputs["whisper_model"], inputs.get("language"))
+                if inputs.get("diarization_enabled"):
+                    result += " " + preflight_diarizer(inputs.get("diarization_backend", DEFAULT_DIARIZER))
                 self.check_stop()
             finally:
                 self.root.after(0, self.end_diarization_activity)
@@ -1726,13 +1778,19 @@ class RedScribeApp:
                 self.root.after(0, self.update_diarization_activity, stage, completed, total)
 
             try:
-                diarization_turns = run_diarization(
-                    audio_path=audio_path,
-                    hf_token=inputs["hf_token"],
-                    preferred_device=actual_device,
-                    speaker_count_text=inputs["speaker_count"],
-                    progress_callback=report_diarization
-                )
+                if inputs.get("diarization_backend", DEFAULT_DIARIZER) == SORTFORMER:
+                    diarization_turns = run_sortformer(
+                        audio_path=audio_path, hf_token=inputs["hf_token"],
+                        speaker_count_text=inputs["speaker_count"], progress_callback=report_diarization,
+                        check_stop=self.check_stop)
+                else:
+                    diarization_turns = run_diarization(
+                        audio_path=audio_path,
+                        hf_token=inputs["hf_token"],
+                        preferred_device=actual_device,
+                        speaker_count_text=inputs["speaker_count"],
+                        progress_callback=report_diarization
+                    )
                 speakers = sorted({t["speaker"] for t in diarization_turns})
                 self.check_stop()
                 diarization_status = f"Completed ({len(speakers)} speaker label(s))"
@@ -1879,7 +1937,7 @@ class RedScribeApp:
                 whisper_model=inputs["whisper_model"],
                 diarization_enabled=diarization_enabled,
                 diarization_status=diarization_status,
-                diarization_model=DIARIZATION_MODEL
+                diarization_model=DIARIZATION_MODELS[inputs.get("diarization_backend", DEFAULT_DIARIZER)]
             )
         except Exception as e:
             error_text = str(e)
@@ -1907,7 +1965,7 @@ class RedScribeApp:
                 whisper_model=inputs["whisper_model"],
                 diarization_enabled=diarization_enabled,
                 diarization_status=diarization_status,
-                diarization_model=DIARIZATION_MODEL
+                diarization_model=DIARIZATION_MODELS[inputs.get("diarization_backend", DEFAULT_DIARIZER)]
             )
         except Exception as exc:
             word_error = str(exc)

@@ -118,6 +118,15 @@ class WorkerPreflightTests(unittest.TestCase):
         self.app.run_whisper(self.inputs)
         self.assertEqual(calls,['requirements','stop check','pipeline'])
 
+    def test_selected_diarizer_runtime_failure_precedes_asr_download_pipeline(self):
+        self.ns['preflight_diarizer']=Mock(side_effect=ModelPreflightError('NeMo missing'))
+        self.ns['DEFAULT_DIARIZER']='pyannote Community-1'
+        self.inputs.update(diarization_enabled=True,diarization_backend='NVIDIA Sortformer')
+        self.app.run_whisper(self.inputs)
+        self.ns['preflight_diarizer'].assert_called_once_with('NVIDIA Sortformer')
+        self.app._run_whisper.assert_not_called()
+        self.app.root.after.assert_any_call(0,self.app.log_warning,'NeMo missing')
+
     def test_stop_during_preflight_does_not_enter_pipeline(self):
         self.app.check_stop.side_effect=self.cancelled()
         self.app.run_whisper(self.inputs)
