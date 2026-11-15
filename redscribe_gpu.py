@@ -539,7 +539,9 @@ def save_xlsx_with_early_report(
     ws1.title = "Early_Report"
 
     ws1["A1"] = "Study & Processing Metadata"
-    ws1["A1"].font = ws1["A1"].font.copy(bold=True)
+    heading_font = copy(ws1["A1"].font)
+    heading_font.bold = True
+    ws1["A1"].font = heading_font
 
     speaker_summary = compute_speaker_summary(utterance_rows)
     speakers_detected = ", ".join([speaker for speaker, _ in speaker_summary]) if speaker_summary else "None"
@@ -571,7 +573,9 @@ def save_xlsx_with_early_report(
         r += 1
 
     ws1[f"A{r+1}"] = "Transcription Summary"
-    ws1[f"A{r+1}"].font = ws1[f"A{r+1}"].font.copy(bold=True)
+    heading_font = copy(ws1[f"A{r+1}"].font)
+    heading_font.bold = True
+    ws1[f"A{r+1}"].font = heading_font
 
     total_segments = len(segment_ranges)
     total_utterances = len(utterance_rows)
@@ -606,7 +610,9 @@ def save_xlsx_with_early_report(
 
     r_spk = r2 + 2
     ws1[f"A{r_spk}"] = "Speaker Utterance Count"
-    ws1[f"A{r_spk}"].font = ws1[f"A{r_spk}"].font.copy(bold=True)
+    heading_font = copy(ws1[f"A{r_spk}"].font)
+    heading_font.bold = True
+    ws1[f"A{r_spk}"].font = heading_font
     ws1[f"A{r_spk+2}"] = "Speaker"
     ws1[f"B{r_spk+2}"] = "Utterances"
 
@@ -619,7 +625,9 @@ def save_xlsx_with_early_report(
 
     r3 = max(rr_spk + 2, r2 + 5)
     ws1[f"A{r3}"] = "Speech vs Silence Distribution"
-    ws1[f"A{r3}"].font = ws1[f"A{r3}"].font.copy(bold=True)
+    heading_font = copy(ws1[f"A{r3}"].font)
+    heading_font.bold = True
+    ws1[f"A{r3}"].font = heading_font
 
     ws1[f"A{r3+2}"] = "Category"
     ws1[f"B{r3+2}"] = "Duration (minutes)"
@@ -648,7 +656,9 @@ def save_xlsx_with_early_report(
 
     r4 = r3 + 7
     ws1[f"A{r4}"] = "Timeline Density (5-minute intervals)"
-    ws1[f"A{r4}"].font = ws1[f"A{r4}"].font.copy(bold=True)
+    heading_font = copy(ws1[f"A{r4}"].font)
+    heading_font.bold = True
+    ws1[f"A{r4}"].font = heading_font
 
     ws1[f"A{r4+2}"] = "Interval (min)"
     ws1[f"B{r4+2}"] = "Utterances"
@@ -678,7 +688,9 @@ def save_xlsx_with_early_report(
 
     r5 = end_table_row + 3
     ws1[f"A{r5}"] = "Top 20 Keywords (Frequency)"
-    ws1[f"A{r5}"].font = ws1[f"A{r5}"].font.copy(bold=True)
+    heading_font = copy(ws1[f"A{r5}"].font)
+    heading_font.bold = True
+    ws1[f"A{r5}"].font = heading_font
 
     ws1[f"A{r5+2}"] = "Rank"
     ws1[f"B{r5+2}"] = "Keyword"

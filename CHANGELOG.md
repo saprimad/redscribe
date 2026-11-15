@@ -22,6 +22,9 @@ All notable changes to RedScribe are documented in this file. The dated 2.0.0 en
 
 ### Changed
 
+- Aligned the public website with the redesigned workspace, grouped live paragraphs, diarisation activity and shared report colours.
+- Replaced deprecated openpyxl font-copy calls with standard-library copying while preserving bold report headings.
+
 - Group consecutive live transcript segments from the same speaker into one paragraph with an inline timestamp and coloured label, preserving segment data and export behaviour.
 
 - Increased UI/control fonts and the live transcript to 13 pt, with closer segment spacing.
