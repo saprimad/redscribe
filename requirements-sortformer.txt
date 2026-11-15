@@ -1,3 +1,0 @@
-# Optional only: install in a compatible NeMo/CUDA environment.
-# Existing pyannote users do not need this file. Native Windows is unvalidated.
-nemo_toolkit[asr]

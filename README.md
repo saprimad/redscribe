@@ -2,7 +2,7 @@
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22941754.svg)](https://doi.org/10.5281/zenodo.22941754)
 
-RedScribe is a Windows and macOS desktop application for transcribing research interviews and other recorded speech. Version 2.0 uses Faster-Whisper by default, with optional local ASR adapters for additional models and can optionally use pyannote Community-1 or NVIDIA Sortformer to distinguish between speakers. It exports an Excel workbook and an editable Word report for researcher-led verification and qualitative analysis.
+RedScribe is a Windows and macOS desktop application for transcribing research interviews and other recorded speech. Version 2.0 uses Faster-Whisper by default, with optional local ASR adapters for additional models and can optionally use pyannote.audio to distinguish between speakers. It exports an Excel workbook and an editable Word report for researcher-led verification and qualitative analysis.
 
 ## Current source version
 
@@ -131,8 +131,6 @@ RedScribe has been tested successfully on a Mac mini with an Apple M4 chip and 2
 The first launch may take longer while the selected Whisper model is downloaded. On a modern Apple Silicon Mac, use `large-v3` when prioritising transcription accuracy or `turbo` when prioritising faster processing. The `small` and `base` models remain useful for older Macs or systems with limited memory. If macOS asks for permission to access a folder containing the selected recording, allow access so RedScribe can read the file and save its reports.
 
 ## Speaker diarisation setup
-
-Choose **pyannote Community-1** (default) or **NVIDIA Sortformer** in Settings. Sortformer uses optional NeMo/CUDA dependencies, automatic detection of up to four speakers and its own checkpoint. See [Sortformer setup and limitations](docs/SORTFORMER.md). ASR model selection remains independent.
 
 1. Open the model page for [`pyannote/speaker-diarization-community-1`](https://huggingface.co/pyannote/speaker-diarization-community-1) and accept any required conditions.
 2. Create a Hugging Face token with read access.

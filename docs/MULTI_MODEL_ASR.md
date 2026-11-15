@@ -47,10 +47,6 @@ python redscribe_gpu.py
 
 Qwen's package currently pins Transformers 4.57.6 and Accelerate 1.12.0. Dependency resolution and Windows-specific dependencies need checking on the trial machine; no vLLM or FlashAttention installation is requested. A missing optional runtime produces an install instruction when starting the selected model. Existing Faster-Whisper use does not import the optional runtimes.
 
-## Diarisation model options
-
-Settings now offers **pyannote Community-1** (default) and **NVIDIA Sortformer** independently of the ASR dropdown. Diarisation remains on by default. See [Sortformer setup](SORTFORMER.md) for its separate optional runtime, four-speaker limit, FP32 diarisation mode and Windows trial limitations. This does not add an eighth ASR model.
-
 ## Before starting and output organisation
 
 The text below **ASR model** changes with the selected model: language behaviour, CUDA FP16/CPU fallback policy and timestamp method are visible before starting. Selecting a model does not download its weights.
