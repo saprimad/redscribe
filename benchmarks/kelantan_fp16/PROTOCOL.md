@@ -14,6 +14,12 @@ This study will compare seven locally executed ASR checkpoints against 25 existi
 - Keep the verified reference independent of model outputs. Do not use these 25 recordings to fine-tune models, select prompts, or optimise hyperparameters.
 - The primary comparison includes all audible dialogue represented in the reference, using the same speaker-inclusion rules for every model.
 
+## Supplementary controlled read speech set
+
+A separate [controlled Kelantanese read-speech plan](CONTROLLED_READ_SPEECH.md) adds fictional question-and-answer passages based on the SSIG, read by Kelantanese speakers. Its illustrative starting target is five speakers reading ten short passages each. Final collection numbers are not yet fixed. The actual spoken references require independent listening and adjudication; a printed script is not a guarantee of 100 percent transcription accuracy.
+
+Use the same seven model candidates and FP16 protocol, but score and report the controlled recordings separately from the 25 spontaneous interviews. Plan a consented, versioned public audio/reference/configuration/scoring package for reproducibility. The original 25 interview pairs remain private under their own permissions. Do not release voices or recordings merely because the study protocol is stored in this repository.
+
 ## Candidate checkpoints and rationale
 
 | ID | Checkpoint | Rationale | Planned benchmark runtime |
@@ -115,6 +121,7 @@ The paper should report:
 - [ ] Freeze the protocol/configuration before the 25-pair scored run.
 - [ ] Attempt the seven model passes; report all failures and coverage.
 - [ ] Review alignments, dialect errors, uncertainty and publication tables.
+- [ ] Prepare and verify the supplementary controlled read-speech set under its separate collection and release checklist.
 
 ## Primary documentation
 
