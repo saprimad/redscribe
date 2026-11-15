@@ -18,6 +18,8 @@ from copy import copy
 from speaker_styles import speaker_colour, speaker_fill
 from asr_backends import EXTRA_MODELS, LocalASR, validate_language
 from model_loading import model_preparation
+from diarization_options import (DEFAULT_DIARIZATION_MODEL, DIARIZATION_MODELS,
+                                  DEFAULT_DIARIZATION_CHOICE, describe_diarization)
 from model_options import describe_model, model_output_folder, preflight_model, ModelPreflightError, MODEL_FOLDERS
 from token_store import TokenStoreError, resolve_token, save_token, remove_saved_token
 
@@ -62,7 +64,7 @@ def cpu_thread_budget() -> int:
 # 1. Install: pip install pyannote.audio
 # 2. Sign in to Hugging Face, or provide a token through the GUI or HF_TOKEN.
 # 3. Accept the model conditions on Hugging Face when required.
-DIARIZATION_MODEL = "pyannote/speaker-diarization-community-1"
+DIARIZATION_MODEL = DEFAULT_DIARIZATION_MODEL
 
 APP_VERSION = "2.0.0"
 APP_TITLE = f"RedScribe v{APP_VERSION} – Research Speech Transcription System"
@@ -92,11 +94,35 @@ def load_model_preference() -> str:
 def save_model_preference(selected: str) -> None:
     if selected not in WHISPER_MODELS:
         raise ValueError("Unsupported ASR model")
+    save_preference("whisper_model", selected)
+
+
+def load_diarization_preference():
+    try:
+        with open(model_settings_path(), encoding="utf-8") as settings_file:
+            selected = json.load(settings_file).get("diarization_model")
+        for choice, checkpoint in DIARIZATION_MODELS.items():
+            if checkpoint == selected:
+                return choice
+    except (OSError, ValueError, AttributeError):
+        pass
+    return DEFAULT_DIARIZATION_CHOICE
+
+
+def save_preference(key, value):
     path = model_settings_path()
+    try:
+        with open(path, encoding="utf-8") as settings_file:
+            settings = json.load(settings_file)
+        if not isinstance(settings, dict):
+            settings = {}
+    except (OSError, ValueError):
+        settings = {}
+    settings[key] = value
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    # No token or study details are stored in this file.
+    # Model preferences only; credentials remain in the system keyring.
     with open(path, "w", encoding="utf-8") as settings_file:
-        json.dump({"whisper_model": selected}, settings_file)
+        json.dump(settings, settings_file)
 
 
 # =========================
@@ -340,13 +366,16 @@ def load_audio_for_pyannote(audio_path: str):
             pass
 
 
-def create_diarization_pipeline(hf_token: str | None, preferred_device: str = "cpu"):
+def create_diarization_pipeline(hf_token: str | None, preferred_device: str = "cpu", model_id: str | None = None):
     """
     Load the pyannote speaker diarisation pipeline.
 
     The lazy import allows the application to open even when pyannote.audio is
     not installed. Transcription can therefore continue without diarisation.
     """
+    model_id = model_id or DIARIZATION_MODEL
+    if model_id not in DIARIZATION_MODELS.values():
+        raise ValueError("Unsupported pyannote diarisation checkpoint")
     try:
         from pyannote.audio import Pipeline
     except Exception as e:
@@ -365,21 +394,22 @@ def create_diarization_pipeline(hf_token: str | None, preferred_device: str = "c
 
     try:
         if token:
-            pipeline = Pipeline.from_pretrained(DIARIZATION_MODEL, token=token)
+            pipeline = Pipeline.from_pretrained(model_id, token=token)
         else:
             # Use the cached Hugging Face login when no token is entered.
-            pipeline = Pipeline.from_pretrained(DIARIZATION_MODEL, token=True)
+            pipeline = Pipeline.from_pretrained(model_id, token=True)
     except TypeError:
         # Compatibility fallback for older pyannote/huggingface_hub releases.
         if token:
-            pipeline = Pipeline.from_pretrained(DIARIZATION_MODEL, use_auth_token=token)
+            pipeline = Pipeline.from_pretrained(model_id, use_auth_token=token)
         else:
-            pipeline = Pipeline.from_pretrained(DIARIZATION_MODEL, use_auth_token=True)
+            pipeline = Pipeline.from_pretrained(model_id, use_auth_token=True)
 
     if pipeline is None:
         raise RuntimeError(
             "The speaker diarisation model could not be loaded. Confirm that the Hugging Face token "
-            "is valid and that the model conditions have been accepted."
+            f"is valid and that the selected model conditions have been accepted ({model_id}). "
+            "For 3.1, also accept pyannote/segmentation-3.0 conditions and check runtime compatibility."
         )
 
     # Use the GPU for pyannote when CUDA is available and Whisper loaded on CUDA.
@@ -395,7 +425,7 @@ def create_diarization_pipeline(hf_token: str | None, preferred_device: str = "c
 
 
 def run_diarization(audio_path: str, hf_token: str | None, preferred_device: str,
-                    speaker_count_text: str = "", progress_callback=None) -> list[dict]:
+                    speaker_count_text: str = "", progress_callback=None, model_id: str | None = None) -> list[dict]:
     """
     Return list:
     [
@@ -407,8 +437,11 @@ def run_diarization(audio_path: str, hf_token: str | None, preferred_device: str
         if progress_callback is not None:
             progress_callback(stage, completed, total)
 
-    report("Loading diarisation model...")
-    pipeline = create_diarization_pipeline(hf_token, preferred_device)
+    report(f"Loading diarisation model: {model_id}..." if model_id else "Loading diarisation model...")
+    if model_id is None:
+        pipeline = create_diarization_pipeline(hf_token, preferred_device)
+    else:
+        pipeline = create_diarization_pipeline(hf_token, preferred_device, model_id=model_id)
 
     kwargs = {}
     speaker_count_text = (speaker_count_text or "").strip()
@@ -953,6 +986,7 @@ class RedScribeApp:
         self.whisper_model = tk.StringVar(value=load_model_preference())
 
         self.diarization_enabled = tk.BooleanVar(value=True)
+        self.diarization_choice = tk.StringVar(value=load_diarization_preference())
         self.hf_token = tk.StringVar()
         self.token_status = tk.StringVar(value="Token status: not checked")
         self.token_summary = tk.StringVar(value="Checking token...")
@@ -976,6 +1010,7 @@ class RedScribeApp:
         self.hf_token.trace_add("write", self.token_entry_changed)
         self.audio_path.trace_add("write", self.update_file_summary)
         self.diarization_enabled.trace_add("write", self.update_diarization_summary)
+        self.diarization_choice.trace_add("write", self.update_diarization_summary)
         self.speaker_count.trace_add("write", self.update_diarization_summary)
         self.update_diarization_summary()
         self.root.after(100, self.check_hf_token)
@@ -1198,8 +1233,16 @@ class RedScribeApp:
         enabled = self.diarization_enabled.get()
         count = self.speaker_count.get().strip()
         detail = f"{count} expected speakers" if count else "Automatic speaker count"
-        self.diarization_summary.set(f"ON - {detail}" if enabled else "OFF - Transcription only")
+        self.diarization_summary.set(f"ON - {self.diarization_choice.get()}\n{detail}" if enabled else "OFF - Transcription only")
         self.diarization_badge.configure(fg="#24623B" if enabled else "#667085")
+
+    def save_selected_diarization(self, _event=None):
+        choice = self.diarization_choice.get()
+        self.diarization_hint.configure(text=describe_diarization(choice))
+        try:
+            save_preference("diarization_model", DIARIZATION_MODELS[choice])
+        except OSError:
+            messagebox.showwarning("Diarisation model", "The choice could not be saved; it will still apply to this session.")
 
     def begin_diarization_activity(self):
         self.begin_model_activity("Loading diarisation model...")
@@ -1322,6 +1365,14 @@ class RedScribeApp:
         speaker_options.pack(fill="x", pady=(0, 12))
         ttk.Checkbutton(speaker_options, text="Enable speaker diarisation",
                         variable=self.diarization_enabled).pack(anchor="w")
+        ttk.Label(speaker_options, text="Diarisation model").pack(anchor="w", pady=(8, 4))
+        diarization_choice = ttk.Combobox(speaker_options, textvariable=self.diarization_choice,
+                                          values=tuple(DIARIZATION_MODELS), state="readonly", width=30)
+        diarization_choice.pack(fill="x")
+        diarization_choice.bind("<<ComboboxSelected>>", self.save_selected_diarization)
+        self.diarization_hint = ttk.Label(speaker_options, text=describe_diarization(self.diarization_choice.get()),
+                                         wraplength=450, foreground="#52606D")
+        self.diarization_hint.pack(anchor="w", pady=(6, 2))
         count_row = ttk.Frame(speaker_options)
         count_row.pack(fill="x", pady=(8, 4))
         ttk.Label(count_row, text="Expected speakers").pack(side="left")
@@ -1586,6 +1637,7 @@ class RedScribeApp:
             "label": self.label.get().strip(),
             "period": self.period.get().strip(),
             "diarization_enabled": bool(self.diarization_enabled.get()),
+            "diarization_model": DIARIZATION_MODELS[self.diarization_choice.get()],
             "hf_token": self.hf_token.get().strip(),
             "speaker_count": self.speaker_count.get().strip(),
             "language": TRANSCRIPTION_LANGUAGES[self.transcription_language.get()],
@@ -1731,7 +1783,8 @@ class RedScribeApp:
                     hf_token=inputs["hf_token"],
                     preferred_device=actual_device,
                     speaker_count_text=inputs["speaker_count"],
-                    progress_callback=report_diarization
+                    progress_callback=report_diarization,
+                    model_id=inputs.get("diarization_model", DIARIZATION_MODEL)
                 )
                 speakers = sorted({t["speaker"] for t in diarization_turns})
                 self.check_stop()
@@ -1879,7 +1932,7 @@ class RedScribeApp:
                 whisper_model=inputs["whisper_model"],
                 diarization_enabled=diarization_enabled,
                 diarization_status=diarization_status,
-                diarization_model=DIARIZATION_MODEL
+                diarization_model=inputs.get("diarization_model", DIARIZATION_MODEL)
             )
         except Exception as e:
             error_text = str(e)
@@ -1907,7 +1960,7 @@ class RedScribeApp:
                 whisper_model=inputs["whisper_model"],
                 diarization_enabled=diarization_enabled,
                 diarization_status=diarization_status,
-                diarization_model=DIARIZATION_MODEL
+                diarization_model=inputs.get("diarization_model", DIARIZATION_MODEL)
             )
         except Exception as exc:
             word_error = str(exc)

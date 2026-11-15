@@ -40,6 +40,15 @@ class DiarizationStatusTests(unittest.TestCase):
         progress.assert_any_call('Grouping speakers...', None, None)
         self.ns['release_gpu_cache'].assert_called_once()
 
+    def test_legacy_choice_is_forwarded_and_annotation_output_is_supported(self):
+        self.pipeline.return_value = SimpleNamespace(itertracks=self.annotation.itertracks)
+        turns = self.ns['run_diarization']('file.wav', 'example-token', 'cpu', '2',
+                                          model_id='pyannote/speaker-diarization-3.1')
+        self.ns['create_diarization_pipeline'].assert_called_once_with(
+            'example-token', 'cpu', model_id='pyannote/speaker-diarization-3.1')
+        self.assertEqual(turns, [dict(start=8.0, end=20.0, speaker='SPEAKER_01')])
+        self.ns['release_gpu_cache'].assert_called_once()
+
     def test_pipeline_failure_releases_resources(self):
         self.pipeline.side_effect = RuntimeError('model failure')
         with self.assertRaises(RuntimeError):

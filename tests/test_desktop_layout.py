@@ -22,6 +22,7 @@ from token_store import TokenSelection, TokenStoreError
 from speaker_styles import speaker_colour
 from asr_backends import EXTRA_MODELS, validate_language
 from model_options import describe_model
+from diarization_options import DIARIZATION_MODELS, DEFAULT_DIARIZATION_CHOICE, describe_diarization
 
 
 @unittest.skipUnless(tk is not None and os.environ.get("DISPLAY"), "A Tk display is required")
@@ -37,6 +38,8 @@ class DesktopLayoutTests(unittest.TestCase):
             time=__import__("time"), __file__=str(Path(__file__).resolve().parents[1] / "redscribe_gpu.py"),
             threading=SimpleNamespace(Lock=threading.Lock, Event=threading.Event, Thread=Mock()),
             EXTRA_MODELS=EXTRA_MODELS, validate_language=validate_language, describe_model=describe_model,
+            DIARIZATION_MODELS=DIARIZATION_MODELS, describe_diarization=describe_diarization,
+            load_diarization_preference=lambda: DEFAULT_DIARIZATION_CHOICE,
             APP_TITLE="RedScribe - UI test", APP_VERSION="2.0.0",
             WHISPER_MODELS=("large-v3", "turbo", "medium", "small", "base") + tuple(EXTRA_MODELS),
             TRANSCRIPTION_LANGUAGES={"Auto detect": None, "Bahasa Melayu": "ms", "English": "en"},

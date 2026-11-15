@@ -132,6 +132,10 @@ The first launch may take longer while the selected Whisper model is downloaded.
 
 ## Speaker diarisation setup
 
+Settings now offers **Community-1 (Recommended)** and **3.1 (Legacy / comparison)**. Community-1 remains the default, and diarisation stays on by default. The selected model is remembered separately from the ASR model and recorded in both reports. Both choices use the existing local pyannote runtime; no WSL or extra diarisation engine is added. The 3.1 option still needs a real inference/compatibility test on the current installation.
+
+For **3.1**, also accept the conditions for [`pyannote/speaker-diarization-3.1`](https://huggingface.co/pyannote/speaker-diarization-3.1) and [`pyannote/segmentation-3.0`](https://huggingface.co/pyannote/segmentation-3.0) using the same Hugging Face account/token. Selecting a model does not download it; loading starts with a transcription run. A failed model is reported rather than silently replaced with the other choice. For Community-1, follow these steps:
+
 1. Open the model page for [`pyannote/speaker-diarization-community-1`](https://huggingface.co/pyannote/speaker-diarization-community-1) and accept any required conditions.
 2. Create a Hugging Face token with read access.
 3. Start RedScribe and click **Settings** in the header or **Diarisation settings** in the Speakers panel. Paste the token into **Enter or replace token** in the Settings window. It is masked by default; **Show/Hide** toggles visibility for the typed token.

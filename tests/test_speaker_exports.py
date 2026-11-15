@@ -30,7 +30,7 @@ def example_rows():
                                          "SPEAKER_02", "SPEAKER_00", "SPEAKER_04", "SPEAKER_03"))]
 
 
-def export_examples(directory, chunk_timing=False):
+def export_examples(directory, chunk_timing=False, diarization_model=None):
     rows = example_rows()
     kwargs = dict(utterance_rows=rows, segment_ranges=[(row['start_s'], row['end_s']) for row in rows],
                   audio_path="example.wav", audio_duration_s=80, processing_minutes=1.2,
@@ -38,7 +38,7 @@ def export_examples(directory, chunk_timing=False):
                                  "chunk_timing": chunk_timing, "checkpoint": "test/checkpoint",
                                  "model_revision": "test-revision", "timing_note": "Test timing method"},
                   actual_device="cpu", actual_compute_type="int8", whisper_model="large-v3",
-                  diarization_enabled=True, diarization_status="Completed", diarization_model=app.DIARIZATION_MODEL)
+                  diarization_enabled=True, diarization_status="Completed", diarization_model=diarization_model or app.DIARIZATION_MODEL)
     xlsx = Path(directory) / "speaker_colours.xlsx"
     docx = Path(directory) / "speaker_colours.docx"
     app.save_xlsx_with_early_report(xlsx_path=str(xlsx), **kwargs)
@@ -73,6 +73,18 @@ class SpeakerExportTests(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         cls.tmp.cleanup()
+
+    def test_selected_legacy_diarisation_checkpoint_is_in_both_exports(self):
+        checkpoint = 'pyannote/speaker-diarization-3.1'
+        with tempfile.TemporaryDirectory() as directory:
+            xlsx, docx = export_examples(directory, diarization_model=checkpoint)
+            book = load_workbook(xlsx)
+            values = {row[0].value: row[1].value for row in book['Early_Report'] if len(row) >= 2}
+            self.assertEqual(values['Diarisation Model'], checkpoint)
+            book.close()
+            document = Document(docx)
+            metadata = {row.cells[0].text: row.cells[1].text for row in document.tables[0].rows}
+            self.assertEqual(metadata['Diarisation Model'], checkpoint)
 
     def test_chunk_exports_omit_unmeasured_speech_silence_and_record_model(self):
         with tempfile.TemporaryDirectory() as directory:

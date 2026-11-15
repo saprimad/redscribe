@@ -47,6 +47,23 @@ python redscribe_gpu.py
 
 Qwen's package currently pins Transformers 4.57.6 and Accelerate 1.12.0. Dependency resolution and Windows-specific dependencies need checking on the trial machine; no vLLM or FlashAttention installation is requested. A missing optional runtime produces an install instruction when starting the selected model. Existing Faster-Whisper use does not import the optional runtimes.
 
+## Local diarisation options
+
+**Settings → Diarisation model** offers:
+
+| Choice | Checkpoint | Role |
+| --- | --- | --- |
+| Community-1 (Recommended) | `pyannote/speaker-diarization-community-1` | Default |
+| 3.1 (Legacy / comparison) | `pyannote/speaker-diarization-3.1` | Optional older comparison pipeline |
+
+Diarisation stays on by default. The selected checkpoint is captured at Start and recorded in Word/Excel. Selection persists independently from the ASR dropdown, and existing settings default to Community-1. Both use the installed local `pyannote.audio` runtime and existing CPU/CUDA handling; no WSL/NeMo engine is involved.
+
+Both accept automatic/expected speaker counts and use the existing token selection. For 3.1, accept both its model conditions and those for `pyannote/segmentation-3.0` using the same Hugging Face account. Selecting a model only changes the preference; first-use downloads happen during the run. Loading/progress notices identify the requested checkpoint. No automatic substitution with the other model occurs if loading fails; the existing policy continues transcription without speaker labels and records the diarisation failure.
+
+The adapter accepts both legacy Annotation output and Community-1 DiarizeOutput. **Actual 3.1 loading/inference and compatibility with the installed pyannote release remain unvalidated.** The legacy model card specifies pyannote.audio >=3.1; Community-1 uses a newer runtime, so do not downgrade a working environment simply to try the legacy option. Access approval alone does not guarantee compatible dependencies.
+
+Primary reference: [3.1 model card and requirements](https://huggingface.co/pyannote/speaker-diarization-3.1).
+
 ## Before starting and output organisation
 
 The text below **ASR model** changes with the selected model: language behaviour, CUDA FP16/CPU fallback policy and timestamp method are visible before starting. Selecting a model does not download its weights.

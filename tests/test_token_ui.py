@@ -11,8 +11,9 @@ from token_store import TokenSelection, TokenStoreError
 source = ast.parse(Path(__file__).resolve().parents[1].joinpath("redscribe_gpu.py").read_text())
 app_class = next(node for node in source.body if isinstance(node, ast.ClassDef) and node.name == "RedScribeApp")
 from asr_backends import EXTRA_MODELS, validate_language
+from diarization_options import DIARIZATION_MODELS, DEFAULT_DIARIZATION_CHOICE, describe_diarization
 
-namespace = {"EXTRA_MODELS": EXTRA_MODELS, "validate_language": validate_language, "TokenStoreError": TokenStoreError, "messagebox": Mock(), "resolve_token": Mock(),
+namespace = {"DIARIZATION_MODELS": DIARIZATION_MODELS, "describe_diarization": describe_diarization, "EXTRA_MODELS": EXTRA_MODELS, "validate_language": validate_language, "TokenStoreError": TokenStoreError, "messagebox": Mock(), "resolve_token": Mock(),
              "save_token": Mock(), "remove_saved_token": Mock(), "os": Mock(),
              "TRANSCRIPTION_LANGUAGES": {"Auto detect": None}, "threading": Mock(),
              "tk": Mock(), "ttk": Mock()}
@@ -37,6 +38,7 @@ class TokenUITests(unittest.TestCase):
                 value.reset_mock(return_value=True, side_effect=True)
         self.app = namespace["RedScribeApp"].__new__(namespace["RedScribeApp"])
         self.app.ui_font = "Segoe UI"
+        self.app.diarization_choice = Value(DEFAULT_DIARIZATION_CHOICE)
         self.app.hf_token = Value("hf_example_only")
         self.app.token_status = Value()
         self.app.token_summary = Value()
@@ -131,8 +133,9 @@ class TokenUITests(unittest.TestCase):
         self.app.close_token_settings()  # Closing again is safe.
 
     def test_worker_receives_resolved_saved_token_only_with_diarisation(self):
-        for enabled in (True, False):
-            with self.subTest(diarisation=enabled):
+        for enabled, choice in ((enabled, choice) for enabled in (True, False) for choice in DIARIZATION_MODELS):
+            with self.subTest(diarisation=enabled, model=choice):
+                self.app.diarization_choice.set(choice)
                 namespace["resolve_token"].reset_mock()
                 self.app.hf_token.set("")
                 for name, value in (("audio_path", "example.wav"), ("project", ""), ("researcher", ""),
@@ -148,6 +151,7 @@ class TokenUITests(unittest.TestCase):
                 self.app.start()
                 inputs = namespace["threading"].Thread.call_args.kwargs["args"][0]
                 self.assertEqual(inputs["hf_token"], "hf_example_only" if enabled else "")
+                self.assertEqual(inputs["diarization_model"], DIARIZATION_MODELS[choice])
                 self.assertEqual(namespace["resolve_token"].call_count, int(enabled))
 
 
