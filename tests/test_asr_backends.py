@@ -92,6 +92,7 @@ class AdapterTests(unittest.TestCase):
         with patch.dict(sys.modules, {"faster_whisper.audio":SimpleNamespace(decode_audio=Mock(return_value=audio))}):
             segments,info=adapter.transcribe("local.mp3")
             self.assertEqual(info.duration,31)
+            self.assertEqual(info.language_source,"configured")
             adapter._load.assert_not_called()
             rows=list(segments)
         self.assertEqual([(r.start,r.end) for r in rows],[(0,15.5),(15.5,31)])

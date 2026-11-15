@@ -131,6 +131,22 @@ RedScribe has been tested successfully on a Mac mini with an Apple M4 chip and 2
 
 The first launch may take longer while the selected Whisper model is downloaded. On a modern Apple Silicon Mac, use `large-v3` when prioritising transcription accuracy or `turbo` when prioritising faster processing. The `small` and `base` models remain useful for older Macs or systems with limited memory. If macOS asks for permission to access a folder containing the selected recording, allow access so RedScribe can read the file and save its reports.
 
+## Diarisation dependency repair
+
+If importing pyannote reports `cannot import name '_ExtendedAttributes' from 'opentelemetry.util.types'`, the failure is in its Python dependency stack, before any model download. RedScribe distinguishes this from pyannote itself being missing. With diarisation enabled, the runtime import check must pass before processing starts.
+
+Close RedScribe, open PowerShell in the project folder, and use the same project virtual environment explicitly:
+
+```powershell
+.\.venv\Scripts\python.exe -c "import sys; print(sys.executable)"
+.\.venv\Scripts\python.exe -m pip install --upgrade opentelemetry-api opentelemetry-sdk opentelemetry-exporter-otlp
+.\.venv\Scripts\python.exe -m pip check
+.\.venv\Scripts\python.exe -c "from pyannote.audio import Pipeline; print('pyannote import OK')"
+.\.venv\Scripts\python.exe redscribe_gpu.py
+```
+
+These commands assume the existing `.venv` contains your RedScribe/CUDA dependencies. A global `Python311/Lib/site-packages` path in a traceback can indicate a different interpreter or an environment exposing global packages; check VS Code's selected interpreter. If `pip check` or the import still fails, resolve the reported version conflicts before retrying. Upgrading the OpenTelemetry packages together lets pip resolve their compatibility, but it is not a guarantee that unrelated package constraints are satisfied. The app does not install packages automatically.
+
 ## Speaker diarisation setup
 
 Settings now offers **Community-1 (Recommended)** and **3.1 (Legacy / comparison)**. Community-1 remains the default, and diarisation stays on by default. The selected model is remembered separately from the ASR model and recorded in both reports. Both choices use the existing local pyannote runtime; no WSL or extra diarisation engine is added. The 3.1 option still needs a real inference/compatibility test on the current installation.

@@ -19,7 +19,8 @@ from speaker_styles import speaker_colour, speaker_fill
 from asr_backends import EXTRA_MODELS, LocalASR, validate_language
 from model_loading import model_preparation
 from diarization_options import (DEFAULT_DIARIZATION_MODEL, DIARIZATION_MODELS,
-                                  DEFAULT_DIARIZATION_CHOICE, describe_diarization)
+                                  DEFAULT_DIARIZATION_CHOICE, describe_diarization,
+                                  DiarizationDependencyError, load_pyannote_pipeline_class)
 from model_options import describe_model, model_output_folder, preflight_model, ModelPreflightError, MODEL_FOLDERS, ASR_MODEL_LABELS, model_label
 from token_store import TokenStoreError, resolve_token, save_token, remove_saved_token
 
@@ -376,14 +377,7 @@ def create_diarization_pipeline(hf_token: str | None, preferred_device: str = "c
     model_id = model_id or DIARIZATION_MODEL
     if model_id not in DIARIZATION_MODELS.values():
         raise ValueError("Unsupported pyannote diarisation checkpoint")
-    try:
-        from pyannote.audio import Pipeline
-    except Exception as e:
-        raise RuntimeError(
-            "pyannote.audio is not installed. Install it with:\n"
-            "pip install pyannote.audio\n\n"
-            f"Original error: {e}"
-        )
+    Pipeline = load_pyannote_pipeline_class()
 
     token = (
         (hf_token or "").strip()
@@ -438,6 +432,7 @@ def run_diarization(audio_path: str, hf_token: str | None, preferred_device: str
             progress_callback(stage, completed, total)
 
     report(f"Loading diarisation model: {model_id}..." if model_id else "Loading diarisation model...")
+    report("Checking cached diarisation files / automatically downloading missing model weights. First use may take several minutes; keep the app open...")
     if model_id is None:
         pipeline = create_diarization_pipeline(hf_token, preferred_device)
     else:
@@ -475,6 +470,7 @@ def run_diarization(audio_path: str, hf_token: str | None, preferred_device: str
             last_update, last_stage = now, stage
 
     try:
+        report("Diarisation model ready. Cached/downloaded weights have loaded successfully.")
         report("Preparing audio for diarisation...")
         diarization_input = load_audio_for_pyannote(audio_path)
         report("Detecting speech...")
@@ -1698,12 +1694,16 @@ class RedScribeApp:
             self.root.after(0, self.log_info, "Checking selected model runtime and CUDA availability before processing...")
             try:
                 result = preflight_model(inputs["whisper_model"], inputs.get("language"))
+                if inputs.get("diarization_enabled"):
+                    self.root.after(0, self.log_info, "Checking pyannote dependencies before automatic model download...")
+                    load_pyannote_pipeline_class()
+                    result += " Diarisation runtime import check passed; missing model weights will download automatically."
                 self.check_stop()
             finally:
                 self.root.after(0, self.end_diarization_activity)
             self.root.after(0, self.log_info, result)
             self._run_whisper(inputs)
-        except ModelPreflightError as exc:
+        except (ModelPreflightError, DiarizationDependencyError) as exc:
             self.root.after(0, self.log_warning, str(exc))
             self.root.after(0, self.status.set, "Requirements check failed; nothing processed")
             self.root.after(0, lambda detail=str(exc): messagebox.showerror("Model requirements", detail))
@@ -1841,7 +1841,8 @@ class RedScribeApp:
                 language_name = {"cy": "Welsh", "ms": "Bahasa Melayu", "en": "English"}.get(
                     language_code, language_code
                 )
-                self.root.after(0, self.log_info, f"Auto detected language: {language_name} ({language_code})")
+                language_notice = "Configured decoder language" if getattr(info, "language_source", None) == "configured" else "Auto detected language"
+                self.root.after(0, self.log_info, f"{language_notice}: {language_name} ({language_code})")
         except TranscriptionCancelled:
             raise
         except Exception as e:

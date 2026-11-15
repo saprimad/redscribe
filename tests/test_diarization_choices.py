@@ -9,7 +9,8 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock, patch
 
-from diarization_options import DEFAULT_DIARIZATION_MODEL, DIARIZATION_MODELS, DEFAULT_DIARIZATION_CHOICE
+from diarization_options import (DEFAULT_DIARIZATION_MODEL, DIARIZATION_MODELS, DEFAULT_DIARIZATION_CHOICE,
+                                  load_pyannote_pipeline_class, DiarizationDependencyError)
 
 SOURCE=ast.parse(Path(__file__).resolve().parents[1].joinpath('redscribe_gpu.py').read_text())
 
@@ -22,7 +23,7 @@ def load_functions(names,namespace):
 class PipelineChoiceTests(unittest.TestCase):
     def setUp(self):
         self.pipeline=Mock()
-        self.ns=dict(os=os,DIARIZATION_MODEL=DEFAULT_DIARIZATION_MODEL,DIARIZATION_MODELS=DIARIZATION_MODELS)
+        self.ns=dict(os=os,load_pyannote_pipeline_class=load_pyannote_pipeline_class,DIARIZATION_MODEL=DEFAULT_DIARIZATION_MODEL,DIARIZATION_MODELS=DIARIZATION_MODELS)
         load_functions({'create_diarization_pipeline'},self.ns)
         patcher=patch.dict(sys.modules,{'pyannote.audio':SimpleNamespace(Pipeline=self.pipeline)})
         patcher.start()
@@ -57,6 +58,38 @@ class PipelineChoiceTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.ns['create_diarization_pipeline']('example-only',model_id='unknown/checkpoint')
         self.pipeline.from_pretrained.assert_not_called()
+
+
+class DependencyImportTests(unittest.TestCase):
+    def test_missing_pyannote_is_distinguished_from_missing_subdependency(self):
+        for missing in ('pyannote','pyannote.audio'):
+            with patch('importlib.import_module',side_effect=ModuleNotFoundError('missing',name=missing)):
+                with self.assertRaisesRegex(DiarizationDependencyError,'not installed'):
+                    load_pyannote_pipeline_class()
+        with patch('importlib.import_module',side_effect=ModuleNotFoundError('missing',name='other_dependency')):
+            with self.assertRaises(DiarizationDependencyError) as caught:
+                load_pyannote_pipeline_class()
+        self.assertIn('dependency could not be imported',str(caught.exception))
+        self.assertNotIn('pyannote.audio is not installed',str(caught.exception))
+
+    def test_opentelemetry_error_has_repair_steps_and_interpreter(self):
+        error=ImportError("cannot import name '_ExtendedAttributes' from 'opentelemetry.util.types'")
+        with patch('importlib.import_module',side_effect=error):
+            with self.assertRaises(DiarizationDependencyError) as caught:
+                load_pyannote_pipeline_class()
+        message=str(caught.exception)
+        self.assertIn('OpenTelemetry dependencies are incompatible',message)
+        self.assertIn('opentelemetry-api opentelemetry-sdk opentelemetry-exporter-otlp',message)
+        self.assertIn(sys.executable,message)
+        self.assertNotIn('pyannote.audio is not installed',message)
+        self.assertIs(caught.exception.__cause__,error)
+
+    def test_success_does_not_load_any_model_weights(self):
+        pipeline=Mock()
+        with patch('importlib.import_module',return_value=SimpleNamespace(Pipeline=pipeline)):
+            self.assertIs(load_pyannote_pipeline_class(),pipeline)
+        pipeline.assert_not_called()
+        pipeline.from_pretrained.assert_not_called()
 
 
 class PreferenceTests(unittest.TestCase):

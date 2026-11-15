@@ -49,6 +49,17 @@ class DiarizationStatusTests(unittest.TestCase):
         self.assertEqual(turns, [dict(start=8.0, end=20.0, speaker='SPEAKER_01')])
         self.ns['release_gpu_cache'].assert_called_once()
 
+    def test_download_preparation_notice_precedes_pipeline_load_and_ready_follows(self):
+        events=[]
+        progress=lambda stage,*args:events.append(stage)
+        self.ns['create_diarization_pipeline'].side_effect=lambda *a,**kw:events.append('LOADED') or self.pipeline
+        self.ns['run_diarization']('file.wav',None,'cpu',progress_callback=progress)
+        loading=next(i for i,event in enumerate(events) if 'automatically downloading missing' in event)
+        ready=next(i for i,event in enumerate(events) if 'Diarisation model ready' in event)
+        self.assertLess(loading,events.index('LOADED'))
+        self.assertGreater(ready,events.index('LOADED'))
+        self.assertNotIn('%',events[loading])
+
     def test_pipeline_failure_releases_resources(self):
         self.pipeline.side_effect = RuntimeError('model failure')
         with self.assertRaises(RuntimeError):

@@ -146,7 +146,8 @@ class LocalASR:
         duration = len(audio) / 16000
         if not duration:
             raise ValueError("The recording contains no decodable audio.")
-        info = SimpleNamespace(duration=duration, language=self.language, timing_note=self.timing_note)
+        info = SimpleNamespace(duration=duration, language=self.language, timing_note=self.timing_note,
+                               language_source="configured" if self.language else "unknown")
 
         def segments():
             try:

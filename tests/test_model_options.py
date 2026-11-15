@@ -7,6 +7,7 @@ import unittest
 from unittest.mock import Mock, patch
 
 from asr_backends import EXTRA_MODELS
+from diarization_options import DiarizationDependencyError
 from model_options import (LEGACY_MODELS, MODEL_FOLDERS, ModelPreflightError,
                            describe_model, model_output_folder, preflight_model, ASR_MODEL_LABELS, model_label)
 
@@ -105,6 +106,7 @@ class WorkerPreflightTests(unittest.TestCase):
         self.cancelled=Cancelled
         self.check=Mock(return_value='Checks passed')
         self.ns=dict(preflight_model=self.check,ModelPreflightError=ModelPreflightError,
+                     DiarizationDependencyError=DiarizationDependencyError,load_pyannote_pipeline_class=Mock(),
                      TranscriptionCancelled=Cancelled,release_gpu_cache=Mock())
         source=ast.parse(Path(__file__).resolve().parents[1].joinpath('redscribe_gpu.py').read_text())
         node=next(n for n in source.body if isinstance(n,ast.ClassDef) and n.name=='RedScribeApp')
@@ -132,6 +134,14 @@ class WorkerPreflightTests(unittest.TestCase):
         self.app._run_whisper.side_effect=lambda *a:calls.append('pipeline')
         self.app.run_whisper(self.inputs)
         self.assertEqual(calls,['requirements','stop check','pipeline'])
+
+    def test_broken_diarisation_dependency_stops_before_any_model_processing(self):
+        self.inputs['diarization_enabled']=True
+        self.ns['load_pyannote_pipeline_class'].side_effect=DiarizationDependencyError('Repair OpenTelemetry')
+        self.app.run_whisper(self.inputs)
+        self.app._run_whisper.assert_not_called()
+        self.app.root.after.assert_any_call(0,self.app.log_warning,'Repair OpenTelemetry')
+        self.app.root.after.assert_any_call(0,self.app.finish_run,False)
 
     def test_stop_during_preflight_does_not_enter_pipeline(self):
         self.app.check_stop.side_effect=self.cancelled()

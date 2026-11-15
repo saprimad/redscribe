@@ -81,6 +81,16 @@ On Start, a background requirements check verifies the optional runtime classes 
 
 Outputs are grouped under `output/<YYYY-MM>/<model>/`, for example `output/2026-11/mesolitica_whisper_turbo_v3/`. Word and Excel remain together and both filenames include the stable model name, so copied files remain identifiable. Existing output folders are untouched; repeated runs keep the existing collision-safe numbering. **Open output folder** opens the current model's folder. A preflight failure does not replace the last successful output-folder location.
 
+## Diarisation dependency checks and automatic downloads
+
+With diarisation enabled, the worker checks that pyannote's Pipeline class can be imported before downloading ASR weights or processing audio. Missing pyannote and broken subdependencies are diagnosed separately. The `_ExtendedAttributes` OpenTelemetry import failure produces an alignment/upgrade command, `pip check`, the active interpreter path and a restart instruction; dependency repair is separate from model downloads. No package installation is performed by the app.
+
+Once the runtime imports successfully, `Pipeline.from_pretrained` automatically fetches missing selected-model weights/dependencies using the existing Hugging Face token and cache. Live Transcript logs **Checking cached diarisation files / automatically downloading missing model weights** before loading and **Diarisation model ready** only after successful loading. Complete cached files are reused by pyannote/Hugging Face. Model access still requires accepted conditions; no fake download percentage is displayed.
+
+A broken runtime now stops the run before processing so an enabled diarisation request is not lost because of an import failure. Model access/inference failures after preparation retain the existing explicit continuation-without-speaker-labels policy and failure metadata. See [dependency repair commands](../README.md#diarisation-dependency-repair). Actual environment repair and downloads on the user's Windows machine remain unverified.
+
+Fixed-language extra decoders report **Configured decoder language**, rather than claiming their configured Malay decoder was automatically detected.
+
 ## Model-loading notifications
 
 Live Transcript logs model preparation, explains the first-use download, and confirms when the model is ready. A highlighted activity banner and bottom status line animate with elapsed time throughout preparation; the UI remains responsive. Faster-Whisper distinguishes cached weights, actual downloads and loading into memory. Extra Transformers/Qwen backends report checking cached files / automatically downloading missing files because their internal loaders do not expose a reliable unified transfer percentage.
