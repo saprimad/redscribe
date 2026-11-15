@@ -47,6 +47,12 @@ python redscribe_gpu.py
 
 Qwen's package currently pins Transformers 4.57.6 and Accelerate 1.12.0. Dependency resolution and Windows-specific dependencies need checking on the trial machine; no vLLM or FlashAttention installation is requested. A missing optional runtime produces an install instruction when starting the selected model. Existing Faster-Whisper use does not import the optional runtimes.
 
+## Model-loading notifications
+
+Live Transcript logs model preparation, explains the first-use download, and confirms when the model is ready. A highlighted activity banner and bottom status line animate with elapsed time throughout preparation; the UI remains responsive. Faster-Whisper distinguishes cached weights, actual downloads and loading into memory. Extra Transformers/Qwen backends report checking cached files / automatically downloading missing files because their internal loaders do not expose a reliable unified transfer percentage.
+
+No fake percentage is shown for unknown download totals, and preparation time is separate from transcription progress. Ready is only announced after weights load successfully; an interrupted/failed preparation does not announce success. Existing diarisation activity notices remain in use. Notifications appear inside the app without a blocking pop-up.
+
 ## Precision, language and memory
 
 - Extra models require CUDA and FP16, batch size one. They never silently retry in CPU, FP32, BF16 or quantised mode. Loading/inference errors fail the run rather than exporting incomplete reports.

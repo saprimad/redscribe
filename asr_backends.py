@@ -6,6 +6,7 @@ The original Faster-Whisper route remains in redscribe_gpu.py.
 from dataclasses import dataclass
 import math
 from types import SimpleNamespace
+from model_loading import model_preparation
 
 
 @dataclass(frozen=True)
@@ -61,7 +62,8 @@ class LocalASR:
     """Lazy CUDA FP16, batch-one inference after pyannote has released its model."""
     timing_note = TIMING_NOTE
 
-    def __init__(self, selected, language=None, check_stop=lambda: None):
+    def __init__(self, selected, language=None, check_stop=lambda: None, status_callback=None):
+        self.status_callback = status_callback
         self.spec = EXTRA_MODELS[selected]
         validate_language(self.spec, language)
         self.language = language or self.spec.default_language
@@ -82,6 +84,10 @@ class LocalASR:
             raise RuntimeError(f"Install the optional runtime first: python -m pip install -r {requirement}") from exc
 
     def _load(self):
+        with model_preparation(self.spec.checkpoint, self.status_callback):
+            self._load_weights()
+
+    def _load_weights(self):
         import torch
         self.check_stop()
         if self.spec.engine == "qwen":

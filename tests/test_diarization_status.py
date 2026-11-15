@@ -88,6 +88,31 @@ class DiarizationStatusTests(unittest.TestCase):
         app.update_diarization_activity('Late callback', 1, 2)
         self.assertIsNone(app.diarization_started)
 
+    def test_model_banner_uses_elapsed_timer_and_cleans_up_after_ready(self):
+        app = self.make_app()
+        app.log_warning = Mock()
+        app.show_model_notification('start', 'Preparing model: test')
+        app.show_model_notification('stage', 'Downloading model: test')
+        self.clock.monotonic.return_value = 40.0
+        app.tick_diarization_activity()
+        self.assertIn('Downloading model: test', app.status.set.call_args.args[0])
+        self.assertIn('Elapsed: 00:00:30', app.status.set.call_args.args[0])
+        self.assertNotIn('%', app.status.set.call_args.args[0])
+        app.show_model_notification('ready', 'Model ready: test')
+        self.assertIsNone(app.diarization_started)
+        app.activity_label.grid_remove.assert_called()
+        app.log_info.assert_called_with('Model ready: test')
+        app.log_warning.assert_not_called()
+
+    def test_failed_preparation_hides_banner_and_logs_warning(self):
+        app = self.make_app()
+        app.log_warning = Mock()
+        app.show_model_notification('start', 'Preparing model')
+        app.show_model_notification('failed', 'Preparation interrupted')
+        app.log_warning.assert_called_once_with('Preparation interrupted')
+        self.assertIsNone(app.diarization_timer)
+        self.assertIsNone(app.diarization_started)
+
     def test_stopping_and_unknown_percentage(self):
         app = self.make_app()
         app.begin_diarization_activity()

@@ -17,6 +17,7 @@ from collections import Counter
 from copy import copy
 from speaker_styles import speaker_colour, speaker_fill
 from asr_backends import EXTRA_MODELS, LocalASR, validate_language
+from model_loading import model_preparation
 from token_store import TokenStoreError, resolve_token, save_token, remove_saved_token
 
 from openpyxl import Workbook
@@ -234,25 +235,34 @@ def open_folder(path: str):
         pass
 
 
-def create_whisper_model(model_size: str):
-    """
-    Load Whisper on the GPU when possible, with an automatic CPU fallback.
-
-    Return:
-        model, actual_device, actual_compute_type
-    """
-    last_error = None
-
-    for device in WHISPER_DEVICE_PRIORITY:
-        compute_type = WHISPER_COMPUTE_TYPE.get(device, "int8")
+def create_whisper_model(model_size: str, status_callback=None):
+    """Prepare cached/downloaded weights, then try CUDA FP16 and CPU INT8."""
+    from faster_whisper.utils import download_model
+    from huggingface_hub.errors import LocalEntryNotFoundError
+    notify = status_callback or (lambda state, message: None)
+    with model_preparation(model_size, notify):
         try:
-            options = {"cpu_threads": cpu_thread_budget(), "num_workers": 1} if device == "cpu" else {}
-            model = WhisperModel(model_size, device=device, compute_type=compute_type, **options)
-            return model, device, compute_type
-        except Exception as e:
-            last_error = e
-
-    raise RuntimeError(f"Unable to load the Whisper model on any available device. Last error: {last_error}")
+            model_path = download_model(model_size, local_files_only=True)
+            # A cached snapshot can exist after an interrupted partial download.
+            if not all(os.path.isfile(os.path.join(model_path, name)) for name in ("model.bin", "config.json")):
+                raise LocalEntryNotFoundError("Cached model files are incomplete")
+            notify("stage", "Using saved model files; loading into memory...")
+        except LocalEntryNotFoundError:
+            notify("stage", f"Downloading model: {model_size}. First use only; please keep the app open...")
+            model_path = download_model(model_size)
+            notify("stage", "Download complete. Loading model into memory...")
+        last_error = None
+        for device in WHISPER_DEVICE_PRIORITY:
+            compute_type = WHISPER_COMPUTE_TYPE.get(device, "int8")
+            try:
+                options = {"cpu_threads": cpu_thread_budget(), "num_workers": 1} if device == "cpu" else {}
+                model = WhisperModel(model_path, device=device, compute_type=compute_type, **options)
+                return model, device, compute_type
+            except Exception as exc:
+                last_error = exc
+                if device == "cuda":
+                    notify("stage", "CUDA model loading failed; trying the existing CPU INT8 fallback...")
+        raise RuntimeError(f"Unable to load the Whisper model on any available device. Last error: {last_error}")
 
 
 def release_gpu_cache():
@@ -1190,15 +1200,35 @@ class RedScribeApp:
         self.diarization_badge.configure(fg="#24623B" if enabled else "#667085")
 
     def begin_diarization_activity(self):
-        """Main-thread-only display lifecycle; keep ticking during model calls."""
+        self.begin_model_activity("Loading diarisation model...")
+
+    def begin_model_activity(self, stage):
+        """Main-thread-only banner; elapsed timer also covers model downloads."""
         self.end_diarization_activity()
         self.activity_label.grid()
         self.diarization_started = time.monotonic()
-        self.diarization_stage = "Loading diarisation model..."
+        self.diarization_stage = stage
         self.diarization_fraction = None
         self.diarization_last_logged_stage = None
         self.diarization_tick = 0
         self.tick_diarization_activity()
+
+    def show_model_notification(self, state, message):
+        """Called on the Tk thread, never directly from a loader worker."""
+        if state == "start":
+            self.begin_model_activity(message)
+            self.log_info(message)
+        elif state == "stage":
+            self.update_diarization_activity(message)
+        elif state == "info":
+            self.log_info(message)
+        elif state in ("ready", "failed"):
+            self.end_diarization_activity()
+            if state == "ready":
+                self.log_info(message)
+            else:
+                self.log_warning(message)
+            self.status.set(message)
 
     def tick_diarization_activity(self):
         if self.diarization_started is None:
@@ -1609,6 +1639,7 @@ class RedScribeApp:
                     log.write(f"\n{time.strftime('%Y-%m-%d %H:%M:%S')}\n{error_text}\n")
             except OSError:
                 pass
+            self.root.after(0, self.log_warning, "Transcription stopped unexpectedly. Check the error notification and output/redscribe_error.log.")
             self.root.after(0, self.status.set, "Transcription failed")
             self.root.after(0, lambda: self.start_btn.config(state="normal"))
             self.root.after(0, lambda: messagebox.showerror(
@@ -1640,12 +1671,15 @@ class RedScribeApp:
         )
         xlsx_path, docx_path = available_output_paths(out_folder, filename_base)
 
+        def notify_model(state, message):
+            self.root.after(0, self.show_model_notification, state, message)
+
         try:
             if inputs["whisper_model"] in EXTRA_MODELS:
-                model = LocalASR(inputs["whisper_model"], inputs.get("language"), self.check_stop)
+                model = LocalASR(inputs["whisper_model"], inputs.get("language"), self.check_stop, notify_model)
                 actual_device, actual_compute_type = "cuda", "float16"
             else:
-                model, actual_device, actual_compute_type = create_whisper_model(inputs["whisper_model"])
+                model, actual_device, actual_compute_type = create_whisper_model(inputs["whisper_model"], notify_model)
             self.check_stop()
             self.actual_whisper_device = actual_device
             self.actual_whisper_compute_type = actual_compute_type
