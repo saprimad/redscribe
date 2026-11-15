@@ -93,9 +93,24 @@ Fixed-language extra decoders report **Configured decoder language**, rather tha
 
 ## Model-loading notifications
 
-Live Transcript logs model preparation, explains the first-use download, and confirms when the model is ready. A highlighted activity banner and bottom status line animate with elapsed time throughout preparation; the UI remains responsive. Faster-Whisper distinguishes cached weights, actual downloads and loading into memory. Extra Transformers/Qwen backends report checking cached files / automatically downloading missing files because their internal loaders do not expose a reliable unified transfer percentage.
+Live Transcript logs model preparation, explains first-use downloads and confirms readiness. A highlighted activity banner and bottom status line animate with elapsed time throughout preparation. Faster-Whisper distinguishes cached weights, actual downloads and loading into memory.
 
-No fake percentage is shown for unknown download totals, and preparation time is separate from transcription progress. Ready is only announced after weights load successfully; an interrupted/failed preparation does not announce success. Existing diarisation activity notices remain in use. Notifications appear inside the app without a blocking pop-up.
+For supported Hugging Face HTTP/Xet transfers, the app now mirrors **real file-download byte progress** in Live Transcript, for example:
+
+```text
+Downloading model-00001-of-00002.safetensors: 24.0% | 1.01 GB / 4.22 GB (file progress)
+Downloading model-00002-of-00002.safetensors: 50.0% | 239.0 MB / 478.0 MB (file progress)
+```
+
+Each transfer has a separate line that is replaced in place rather than appended on every update. Parallel Qwen shards remain separate. Updates are throttled to two per second per file, with initial/final actual byte counts included. Cached files create no fake transfer events; resumed downloads retain the starting byte count. Bytes received for a file are not proof the model is loaded or validated. Model-ready confirmation still comes after successful loading.
+
+These are **per-file percentages**, not the complete model download or transcription percentage. An unknown total shows bytes received and "total size unknown". Interrupted transfers retain their actual percentage; completion is never forced to 100%. The bottom transcription progress bar stays separate. The elapsed banner shows the most recently updated file while both file lines remain visible.
+
+The observer uses the Hub file-download progress context for HTTP/Xet, including the Hub 0.36-style runtime used with these optional adapters. It delegates transfer/cache/resume work to the installed Hub and restores the temporary hook after preparation, including failures. It does not scrape terminal text or redirect stdout/stderr; terminal diagnostics remain available. If the installed Hub does not expose this context or a backend uses another transfer path, the existing elapsed/stage notices remain available without a numerical percentage. Download descriptions are reduced to safe filenames without signed URL queries.
+
+Coverage includes ASR preparation and pyannote model preparation; no additional model files or Python packages are downloaded merely to observe progress. No blocking progress popup is used. UI updates run on Tk's main thread. Actual Windows network transfers and live Text rendering remain to be trialled; mocked HTTP/Xet/concurrent transfer checks pass.
+
+An already running app cannot acquire the new observer dynamically: finish/stop the current run, update the trial branch and relaunch for the next run.
 
 ## Precision, language and memory
 

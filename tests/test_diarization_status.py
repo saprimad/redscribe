@@ -1,5 +1,6 @@
 """Verify hook progress and UI timer cleanup without models or a display."""
 import ast
+from download_progress import hub_download_progress
 from pathlib import Path
 from types import SimpleNamespace
 import unittest
@@ -19,7 +20,7 @@ class DiarizationStatusTests(unittest.TestCase):
         self.annotation = Mock()
         self.annotation.itertracks.return_value = [(SimpleNamespace(start=8, end=20), None, 'SPEAKER_01')]
         self.pipeline.return_value = SimpleNamespace(exclusive_speaker_diarization=self.annotation)
-        self.ns = dict(time=self.clock, create_diarization_pipeline=Mock(return_value=self.pipeline),
+        self.ns = dict(hub_download_progress=hub_download_progress, time=self.clock, create_diarization_pipeline=Mock(return_value=self.pipeline),
                        load_audio_for_pyannote=Mock(return_value='audio'), release_gpu_cache=Mock())
         exec(compile(ast.Module(body=selected, type_ignores=[]), 'redscribe_gpu.py', 'exec'), self.ns)
 

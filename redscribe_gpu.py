@@ -18,6 +18,7 @@ from copy import copy
 from speaker_styles import speaker_colour, speaker_fill
 from asr_backends import EXTRA_MODELS, LocalASR, validate_language
 from model_loading import model_preparation
+from download_progress import hub_download_progress, progress_text
 from diarization_options import (DEFAULT_DIARIZATION_MODEL, DIARIZATION_MODELS,
                                   DEFAULT_DIARIZATION_CHOICE, describe_diarization,
                                   DiarizationDependencyError, load_pyannote_pipeline_class)
@@ -419,7 +420,7 @@ def create_diarization_pipeline(hf_token: str | None, preferred_device: str = "c
 
 
 def run_diarization(audio_path: str, hf_token: str | None, preferred_device: str,
-                    speaker_count_text: str = "", progress_callback=None, model_id: str | None = None) -> list[dict]:
+                    speaker_count_text: str = "", progress_callback=None, model_id: str | None = None, download_callback=None) -> list[dict]:
     """
     Return list:
     [
@@ -433,10 +434,11 @@ def run_diarization(audio_path: str, hf_token: str | None, preferred_device: str
 
     report(f"Loading diarisation model: {model_id}..." if model_id else "Loading diarisation model...")
     report("Checking cached diarisation files / automatically downloading missing model weights. First use may take several minutes; keep the app open...")
-    if model_id is None:
-        pipeline = create_diarization_pipeline(hf_token, preferred_device)
-    else:
-        pipeline = create_diarization_pipeline(hf_token, preferred_device, model_id=model_id)
+    with hub_download_progress(download_callback):
+        if model_id is None:
+            pipeline = create_diarization_pipeline(hf_token, preferred_device)
+        else:
+            pipeline = create_diarization_pipeline(hf_token, preferred_device, model_id=model_id)
 
     kwargs = {}
     speaker_count_text = (speaker_count_text or "").strip()
@@ -1265,7 +1267,9 @@ class RedScribeApp:
 
     def show_model_notification(self, state, message):
         """Called on the Tk thread, never directly from a loader worker."""
-        if state == "start":
+        if state == "download":
+            self.show_download_progress(message)
+        elif state == "start":
             self.begin_model_activity(message)
             self.log_info(message)
         elif state == "stage":
@@ -1279,6 +1283,35 @@ class RedScribeApp:
             else:
                 self.log_warning(message)
             self.status.set(message)
+
+    def show_download_progress(self, progress):
+        """Main-thread only: replace one marked text line per transfer."""
+        if self.diarization_started is None:
+            return
+        if not hasattr(self, "download_lines"):
+            self.download_lines = {}
+        key = progress["id"]
+        text = progress_text(progress)
+        self.live_box.configure(state="normal")
+        if key not in self.download_lines:
+            self.finish_live_turn()
+            start, end = key + "_start", key + "_end"
+            self.live_box.mark_set(start, "end-1c")
+            self.live_box.mark_gravity(start, "left")
+            self.live_box.insert("end", text + "\n", ("info",))
+            self.live_box.mark_set(end, f"{start}+{len(text)}c")
+            self.live_box.mark_gravity(end, "left")
+            self.download_lines[key] = (start, end)
+        else:
+            start, end = self.download_lines[key]
+            self.live_box.delete(start, end)
+            self.live_box.insert(start, text, ("info",))
+            self.live_box.mark_set(end, f"{start}+{len(text)}c")
+        self.live_box.see("end")
+        self.live_box.configure(state="disabled")
+        # Update the existing banner without adding another log line.
+        self.diarization_stage = text
+        self.diarization_fraction = None
 
     def tick_diarization_activity(self):
         if self.diarization_started is None:
@@ -1679,6 +1712,9 @@ class RedScribeApp:
         self.live_box.configure(state="disabled")
 
         self.speaker_tags.clear()
+        for marks in getattr(self, "download_lines", {}).values():
+            self.live_box.mark_unset(*marks)
+        self.download_lines = {}
         self.last_live_speaker = None
         self.progress_var.set(0.0)
         self.status.set("Checking model requirements before starting...")
@@ -1794,7 +1830,8 @@ class RedScribeApp:
                     preferred_device=actual_device,
                     speaker_count_text=inputs["speaker_count"],
                     progress_callback=report_diarization,
-                    model_id=inputs.get("diarization_model", DIARIZATION_MODEL)
+                    model_id=inputs.get("diarization_model", DIARIZATION_MODEL),
+                    download_callback=notify_model
                 )
                 speakers = sorted({t["speaker"] for t in diarization_turns})
                 self.check_stop()

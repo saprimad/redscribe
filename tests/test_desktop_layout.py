@@ -22,6 +22,7 @@ from token_store import TokenSelection, TokenStoreError
 from speaker_styles import speaker_colour
 from asr_backends import EXTRA_MODELS, validate_language
 from model_options import describe_model, ASR_MODEL_LABELS, model_label
+from download_progress import progress_text
 from diarization_options import DIARIZATION_MODELS, DEFAULT_DIARIZATION_CHOICE, describe_diarization
 
 
@@ -40,7 +41,7 @@ class DesktopLayoutTests(unittest.TestCase):
             EXTRA_MODELS=EXTRA_MODELS, validate_language=validate_language, describe_model=describe_model,
             DIARIZATION_MODELS=DIARIZATION_MODELS, describe_diarization=describe_diarization,
             load_diarization_preference=lambda: DEFAULT_DIARIZATION_CHOICE,
-            ASR_MODEL_LABELS=ASR_MODEL_LABELS, model_label=model_label,
+            ASR_MODEL_LABELS=ASR_MODEL_LABELS, model_label=model_label, progress_text=progress_text,
             APP_TITLE="RedScribe - UI test", APP_VERSION="2.0.0",
             WHISPER_MODELS=tuple(ASR_MODEL_LABELS),
             TRANSCRIPTION_LANGUAGES={"Auto detect": None, "Bahasa Melayu": "ms", "English": "en"},
@@ -60,6 +61,22 @@ class DesktopLayoutTests(unittest.TestCase):
         for timer in self.root.tk.call("after", "info"):
             self.root.after_cancel(timer)
         self.root.destroy()
+
+    def test_parallel_download_rows_update_without_duplicates_or_overwriting_each_other(self):
+        self.app.begin_model_activity('Preparing model')
+        first=dict(id='download_test_1',filename='model-00001.safetensors',downloaded=10,total=100)
+        second=dict(id='download_test_2',filename='model-00002.safetensors',downloaded=20,total=100)
+        self.app.show_model_notification('download',first)
+        self.app.show_model_notification('download',second)
+        first['downloaded']=50
+        self.app.show_model_notification('download',first)
+        text=self.app.live_box.get('1.0','end')
+        self.assertEqual(text.count('model-00001.safetensors'),1)
+        self.assertEqual(text.count('model-00002.safetensors'),1)
+        self.assertIn('50.0%',text)
+        self.assertIn('20.0%',text)
+        self.assertNotIn('10.0%',text)
+        self.app.end_diarization_activity()
 
     def test_default_workspace_and_collapsible_details(self):
         self.assertTrue(self.app.diarization_enabled.get())
