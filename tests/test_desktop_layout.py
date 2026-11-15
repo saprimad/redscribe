@@ -132,6 +132,7 @@ class DesktopLayoutTests(unittest.TestCase):
                              f"#{speaker_colour(speaker)}")
 
     def test_start_hands_saved_token_and_metadata_to_worker(self):
+        self.app.log_live_segment("00:00:01", "SPEAKER_01", "Previous run.")
         with tempfile.NamedTemporaryFile(suffix=".wav") as audio:
             self.app.audio_path.set(audio.name)
             self.app.project.set("Example project")
@@ -141,9 +142,36 @@ class DesktopLayoutTests(unittest.TestCase):
         self.assertEqual(inputs["hf_token"], "example-test-only")
         self.assertEqual(inputs["speaker_count"], "2")
         self.assertEqual(inputs["project"], "Example project")
+        self.assertIsNone(self.app.last_live_speaker)
+        self.assertNotIn("Previous run.", self.app.live_box.get("1.0", "end"))
         self.assertIn("disabled", self.app.start_btn.state())
         self.app.stop()
         self.assertTrue(self.app.stop_event.is_set())
         self.app.finish_run(cancelled=True)
         self.assertNotIn("disabled", self.app.start_btn.state())
         self.assertIn("disabled", self.app.stop_btn.state())
+
+    def test_consecutive_speaker_segments_form_one_inline_paragraph(self):
+        self.app.log_live_segment("00:00:08", "SPEAKER_01", "First phrase.")
+        self.app.log_live_segment("00:00:12", "SPEAKER_01", "Second phrase.")
+        self.app.log_live_segment("00:00:15", "SPEAKER_02", "Another speaker.")
+        self.app.log_live_segment("00:00:18", "SPEAKER_01", "Returning speaker.")
+        text = self.app.live_box.get("1.0", "end")
+        self.assertIn("00:00:08   SPEAKER_01: First phrase. Second phrase.\n", text)
+        self.assertNotIn("00:00:12", text)
+        self.assertIn("\n00:00:15   SPEAKER_02: Another speaker.\n", text)
+        self.assertIn("\n00:00:18   SPEAKER_01: Returning speaker.", text)
+        self.assertEqual(text.count("SPEAKER_01:"), 2)
+        self.assertEqual(str(self.app.live_box.cget("state")), "disabled")
+
+    def test_notices_end_paragraph_and_blank_segments_are_ignored(self):
+        self.app.log_live_segment("00:00:01", "SPEAKER_01", "Before notice.")
+        self.app.log_info("Processing notice.")
+        self.app.log_live_segment("00:00:02", "SPEAKER_01", "After notice.")
+        self.app.log_warning("Warning.")
+        self.app.log_live_segment("00:00:03", "SPEAKER_02", "  ")
+        self.app.log_live_segment("00:00:04", "SPEAKER_01", "After warning.")
+        text = self.app.live_box.get("1.0", "end")
+        self.assertIn("Before notice.\nProcessing notice.\n00:00:02   SPEAKER_01: After notice.", text)
+        self.assertIn("After notice.\nWarning.\n00:00:04   SPEAKER_01: After warning.", text)
+        self.assertNotIn("SPEAKER_02", text)

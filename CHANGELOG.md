@@ -22,6 +22,8 @@ All notable changes to RedScribe are documented in this file. The dated 2.0.0 en
 
 ### Changed
 
+- Group consecutive live transcript segments from the same speaker into one paragraph with an inline timestamp and coloured label, preserving segment data and export behaviour.
+
 - Increased UI/control fonts and the live transcript to 13 pt, with closer segment spacing.
 - Shared deterministic speaker-label colours across the live UI, Word transcript/summary and Excel Speaker cells/summary; UNKNOWN uses grey and transcript wording remains unchanged.
 

@@ -1102,6 +1102,7 @@ class RedScribeApp:
         self.live_box.tag_configure("info", foreground="#52657D")
         self.live_box.tag_configure("warn", foreground="#B42318")
         self.speaker_tags = {}
+        self.last_live_speaker = None
         self.log_info("Your transcript will appear here.\nSelect an audio file, then choose Start transcription.")
 
         bottom = tk.Frame(self.root, bg="white", padx=16, pady=12, highlightbackground=c["border"], highlightthickness=1)
@@ -1449,29 +1450,46 @@ class RedScribeApp:
             open_folder(self.base_output_dir)
 
     def log_live_segment(self, ts: str, speaker: str, text: str):
+        text = text.strip()
+        if not text:
+            return
         if speaker not in self.speaker_tags:
             tag = f"speaker_{len(self.speaker_tags)}"
             self.live_box.tag_configure(tag, foreground=f"#{speaker_colour(speaker)}",
                                         font=(self.ui_font, 11, "bold"))
             self.speaker_tags[speaker] = tag
         self.live_box.configure(state="normal")
-        self.live_box.insert("end", f"{ts}   ", ("ts",))
-        self.live_box.insert("end", f"{speaker}\n", (self.speaker_tags[speaker],))
-        self.live_box.insert("end", f"{text}\n", ("txt",))
+        if self.last_live_speaker == speaker:
+            self.live_box.insert("end", f" {text}", ("txt",))
+        else:
+            if self.last_live_speaker is not None:
+                self.live_box.insert("end", "\n")
+            self.live_box.insert("end", f"{ts}   ", ("ts",))
+            self.live_box.insert("end", f"{speaker}: ", (self.speaker_tags[speaker],))
+            self.live_box.insert("end", text, ("txt",))
+        self.last_live_speaker = speaker
         self.live_box.see("end")
         self.live_box.configure(state="disabled")
 
     def log_warning(self, text: str):
         self.live_box.configure(state="normal")
+        self.finish_live_turn()
         self.live_box.insert("end", f"{text}\n", ("warn",))
         self.live_box.see("end")
         self.live_box.configure(state="disabled")
 
     def log_info(self, text: str):
         self.live_box.configure(state="normal")
+        self.finish_live_turn()
         self.live_box.insert("end", f"{text}\n", ("info",))
         self.live_box.see("end")
         self.live_box.configure(state="disabled")
+
+    def finish_live_turn(self):
+        """Keep processing notices separate from an open transcript paragraph."""
+        if self.last_live_speaker is not None:
+            self.live_box.insert("end", "\n")
+        self.last_live_speaker = None
 
     def stop(self):
         with self.run_lock:
@@ -1539,6 +1557,7 @@ class RedScribeApp:
         self.live_box.configure(state="disabled")
 
         self.speaker_tags.clear()
+        self.last_live_speaker = None
         self.progress_var.set(0.0)
         self.status.set(f"Loading {inputs['whisper_model']} model...")
         self.start_btn.config(state="disabled")
