@@ -379,7 +379,8 @@ def create_diarization_pipeline(hf_token: str | None, preferred_device: str = "c
     return pipeline
 
 
-def run_diarization(audio_path: str, hf_token: str | None, preferred_device: str, speaker_count_text: str = "") -> list[dict]:
+def run_diarization(audio_path: str, hf_token: str | None, preferred_device: str,
+                    speaker_count_text: str = "", progress_callback=None) -> list[dict]:
     """
     Return list:
     [
@@ -387,6 +388,11 @@ def run_diarization(audio_path: str, hf_token: str | None, preferred_device: str
         ...
     ]
     """
+    def report(stage, completed=None, total=None):
+        if progress_callback is not None:
+            progress_callback(stage, completed, total)
+
+    report("Loading diarisation model...")
     pipeline = create_diarization_pipeline(hf_token, preferred_device)
 
     kwargs = {}
@@ -399,11 +405,36 @@ def run_diarization(audio_path: str, hf_token: str | None, preferred_device: str
         except ValueError:
             pass
 
-    diarization_input = load_audio_for_pyannote(audio_path)
+    # Hooks report work within a stage, not a percentage of the entire run.
+    last_update = 0.0
+    last_stage = None
+
+    def hook(step_name, step_artifact=None, *, completed=None, total=None, **_kwargs):
+        nonlocal last_update, last_stage
+        stage = {
+            "segmentation": "Detecting speech...",
+            "speaker_counting": "Estimating simultaneous speakers...",
+            "embeddings": "Analysing speaker characteristics...",
+            "discrete_diarization": "Preparing speaker timeline...",
+        }.get(step_name, "Processing speaker diarisation...")
+        # The full-embeddings event occurs just before global clustering.
+        if step_name == "embeddings" and completed is None:
+            stage = "Grouping speakers..."
+        now = time.monotonic()
+        finished = total is not None and completed is not None and completed >= total
+        if stage != last_stage or finished or now - last_update >= 0.2:
+            report(stage, completed, total)
+            last_update, last_stage = now, stage
+
     try:
-        diarization_output = pipeline(diarization_input, **kwargs)
+        report("Preparing audio for diarisation...")
+        diarization_input = load_audio_for_pyannote(audio_path)
+        report("Detecting speech...")
+        diarization_output = pipeline(diarization_input, hook=hook, **kwargs)
     finally:
-        del pipeline, diarization_input
+        del pipeline
+        if "diarization_input" in locals():
+            del diarization_input
         release_gpu_cache()
 
     # pyannote/speaker-diarization-community-1 returns a DiarizeOutput object.
@@ -1046,6 +1077,11 @@ class RedScribeApp:
         main_panel.pack(fill="both", expand=True, padx=10, pady=5)
 
         tk.Label(main_panel, text="Live Transcript", font=("Segoe UI", 10, "bold")).pack(anchor="w")
+        self.diarization_activity = tk.StringVar(value="")
+        self.diarization_timer = None
+        self.diarization_started = None
+        tk.Label(main_panel, textvariable=self.diarization_activity, fg="#365B83",
+                 anchor="w").pack(fill="x")
         self.live_box = scrolledtext.ScrolledText(main_panel, height=8, state="disabled", wrap="word")
         self.live_box.pack(fill="both", expand=True)
 
@@ -1054,6 +1090,62 @@ class RedScribeApp:
         self.live_box.tag_configure("txt", foreground="black")
         self.live_box.tag_configure("info", foreground="#365B83")
         self.live_box.tag_configure("warn", foreground="red")
+
+    def begin_diarization_activity(self):
+        """Main-thread-only display lifecycle; keep ticking during model calls."""
+        self.end_diarization_activity()
+        self.diarization_started = time.monotonic()
+        self.diarization_stage = "Loading diarisation model..."
+        self.diarization_fraction = None
+        self.diarization_last_logged_stage = None
+        self.diarization_tick = 0
+        self.tick_diarization_activity()
+
+    def tick_diarization_activity(self):
+        if self.diarization_started is None:
+            return
+        elapsed = sec_to_hms(time.monotonic() - self.diarization_started)
+        indicator = ("·", "··", "···")[self.diarization_tick % 3]
+        self.diarization_tick += 1
+        detail = self.diarization_stage
+        if self.diarization_fraction is not None:
+            completed, total = self.diarization_fraction
+            detail += f" {completed / total:.0%} of this stage"
+        if self.stop_event.is_set():
+            detail = "Stopping after the current processing step..."
+        display = f"{indicator} {detail} | Elapsed: {elapsed}"
+        self.diarization_activity.set(display)
+        self.status.set(display)
+        self.diarization_timer = self.root.after(500, self.tick_diarization_activity)
+
+    def update_diarization_activity(self, stage, completed=None, total=None):
+        if self.diarization_started is None:
+            return
+        self.diarization_stage = stage
+        self.diarization_fraction = (
+            (max(0, min(completed, total)), total)
+            if total is not None and total > 0 and completed is not None else None
+        )
+        if stage != self.diarization_last_logged_stage:
+            self.log_info(stage)
+            self.diarization_last_logged_stage = stage
+
+    def end_diarization_activity(self):
+        if self.diarization_timer is not None:
+            self.root.after_cancel(self.diarization_timer)
+        self.diarization_timer = None
+        self.diarization_started = None
+        self.diarization_activity.set("")
+
+    def log_diarization_summary(self, turns):
+        speakers = {turn["speaker"] for turn in turns}
+        self.log_info(f"Diarisation complete — {len(speakers)} speaker label(s) detected.")
+        # Bound the preview so long recordings do not flood the UI event queue.
+        for turn in turns[:20]:
+            self.log_info(f"{sec_to_hms(turn['start'])}–{sec_to_hms(turn['end'])} · {turn['speaker']}")
+        if len(turns) > 20:
+            self.log_info(f"Showing the first 20 of {len(turns)} speaker turns.")
+        self.log_info("Starting transcription...")
 
     def show_support(self, _event=None):
         messagebox.showinfo(
@@ -1206,6 +1298,7 @@ class RedScribeApp:
         self.root.after(0, self.status.set, "Saving reports...")
 
     def finish_run(self, cancelled: bool):
+        self.end_diarization_activity()
         with self.run_lock:
             self.run_phase = "idle"
         self.start_btn.config(state="normal")
@@ -1324,17 +1417,24 @@ class RedScribeApp:
         diarization_status = "Disabled"
 
         if diarization_enabled:
-            self.root.after(0, self.status.set, "Running speaker diarisation...")
+            self.root.after(0, self.begin_diarization_activity)
+
+            def report_diarization(stage, completed=None, total=None):
+                self.check_stop()
+                self.root.after(0, self.update_diarization_activity, stage, completed, total)
+
             try:
                 diarization_turns = run_diarization(
                     audio_path=audio_path,
                     hf_token=inputs["hf_token"],
                     preferred_device=actual_device,
-                    speaker_count_text=inputs["speaker_count"]
+                    speaker_count_text=inputs["speaker_count"],
+                    progress_callback=report_diarization
                 )
                 speakers = sorted({t["speaker"] for t in diarization_turns})
                 self.check_stop()
                 diarization_status = f"Completed ({len(speakers)} speaker label(s))"
+                self.root.after(0, self.log_diarization_summary, diarization_turns)
             except TranscriptionCancelled:
                 raise
             except Exception as e:
@@ -1347,6 +1447,8 @@ class RedScribeApp:
                     f"Reason: {e}\n"
                 )
                 diarization_turns = []
+            finally:
+                self.root.after(0, self.end_diarization_activity)
 
         self.check_stop()
 

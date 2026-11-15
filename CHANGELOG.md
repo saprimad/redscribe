@@ -6,6 +6,8 @@ All notable changes to RedScribe are documented in this file. The dated 2.0.0 en
 
 ### Added
 
+- Live English diarisation stages, animated activity and elapsed time, real per-stage progress from pyannote hooks, and a bounded speaker timeline preview before transcription.
+
 - Redesigned Hugging Face token controls with masked Show/Hide entry, Save Token and Remove Saved; persist tokens through native OS keyring backends, reject plaintext fallbacks, and retain session/environment/Hugging Face login support.
 
 - Applied a conservative CPU thread budget to Faster-Whisper (at most 70% of detected logical processors, leaving two unused when available); this is not a system-wide CPU percentage or memory limit.
