@@ -57,6 +57,10 @@ class DesktopLayoutTests(unittest.TestCase):
         self.assertTrue(self.app.diarization_enabled.get())
         self.assertFalse(hasattr(self.app, "token_entry"))
         self.assertGreater(self.app.live_box.winfo_width(), self.app.sidebar_canvas.winfo_width())
+        self.assertTrue(self.app.study_fields.winfo_ismapped())
+        self.assertLess(self.app.study_fields.winfo_rooty(), self.app.sidebar_canvas.winfo_rooty())
+        self.app.toggle_study_details()
+        self.root.update()
         self.assertFalse(self.app.study_fields.winfo_ismapped())
         self.app.toggle_study_details()
         self.root.update()
@@ -69,8 +73,6 @@ class DesktopLayoutTests(unittest.TestCase):
 
     def test_small_window_keeps_transcript_and_actions_visible(self):
         self.root.geometry("900x600")
-        self.root.update()
-        self.app.toggle_study_details()
         self.root.update()
         for widget in (self.app.live_box, self.app.start_btn, self.app.stop_btn, self.app.open_btn):
             self.assertTrue(widget.winfo_ismapped())

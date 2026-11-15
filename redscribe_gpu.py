@@ -909,7 +909,7 @@ class RedScribeApp:
         self.speaker_count = tk.StringVar()
         self.diarization_summary = tk.StringVar()
         self.file_summary = tk.StringVar(value="No file selected")
-        self.study_details_open = False
+        self.study_details_open = True
 
         self.base_output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "output")
         self.last_output_folder = None
@@ -961,7 +961,7 @@ class RedScribeApp:
         style.configure("RedScribe.Horizontal.TProgressbar", background=c["accent"],
                         troughcolor="#E8E3E8", bordercolor="#E8E3E8", thickness=7)
         self.root.columnconfigure(0, weight=1)
-        self.root.rowconfigure(1, weight=1)
+        self.root.rowconfigure(2, weight=1)
 
         header = tk.Frame(self.root, bg=c["surface"], padx=20, pady=14)
         header.grid(row=0, column=0, sticky="ew")
@@ -980,8 +980,33 @@ class RedScribeApp:
         tk.Label(header, text="Audio processed locally", bg="#EDF8EE", fg="#24623B",
                  padx=10, pady=7).pack(side="right", padx=14)
 
+        study = tk.Frame(self.root, bg="white", highlightbackground=c["border"], highlightthickness=1)
+        study.grid(row=1, column=0, sticky="ew", padx=16, pady=(12, 0))
+        self.study_toggle = ttk.Button(study, text="Study details  -", style="RedScribe.TButton", command=self.toggle_study_details)
+        self.study_toggle.pack(fill="x")
+        self.study_fields = tk.Frame(study, bg="white", padx=14, pady=8)
+        self.study_fields.pack(fill="x")
+        self.study_fields.columnconfigure(0, weight=1, uniform="study")
+        self.study_fields.columnconfigure(1, weight=1, uniform="study")
+        for row, column, label, variable in (
+            (0, 0, "Project / Study name", self.project),
+            (0, 1, "Researcher / Initials", self.researcher),
+            (1, 0, "Interview / Audio label", self.label),
+            (1, 1, "Month / Period", self.period),
+        ):
+            field = tk.Frame(self.study_fields, bg="white")
+            field.grid(row=row, column=column, sticky="ew", padx=(0, 12) if column == 0 else (12, 0), pady=3)
+            tk.Label(field, text=label, bg="white", fg=c["text"], width=20, anchor="w").pack(side="left")
+            entry = ttk.Entry(field, textvariable=variable, width=12, style="RedScribe.TEntry")
+            if variable is self.period:
+                ttk.Button(field, text="Pick...", style="RedScribe.TButton", command=self.pick_period).pack(side="right", padx=(6, 0))
+            entry.pack(side="left", fill="x", expand=True)
+            if variable is self.project:
+                self.project_entry = entry
+        self.root.after_idle(self.project_entry.focus_set)
+
         workspace = tk.Frame(self.root, bg=c["background"])
-        workspace.grid(row=1, column=0, sticky="nsew", padx=16, pady=16)
+        workspace.grid(row=2, column=0, sticky="nsew", padx=16, pady=16)
         workspace.rowconfigure(0, weight=1)
         workspace.columnconfigure(1, weight=1)
         sidebar = tk.Frame(workspace, bg=c["background"])
@@ -1036,21 +1061,6 @@ class RedScribeApp:
         self.token_badge.pack(fill="x", pady=(0, 8))
         ttk.Button(speakers, text="Diarisation settings", style="RedScribe.TButton", command=self.open_token_settings).pack(fill="x")
 
-        study = tk.Frame(self.sidebar_content, bg="white", highlightbackground=c["border"], highlightthickness=1)
-        study.pack(fill="x", pady=(0, 12))
-        self.study_toggle = ttk.Button(study, text="Study details  +", style="RedScribe.TButton", command=self.toggle_study_details)
-        self.study_toggle.pack(fill="x")
-        self.study_fields = tk.Frame(study, bg="white", padx=14, pady=8)
-        for label, variable in (("Project / Study name", self.project), ("Researcher / Initials", self.researcher),
-                                ("Interview / Audio label", self.label)):
-            tk.Label(self.study_fields, text=label, bg="white", fg=c["text"]).pack(anchor="w", pady=(0, 4))
-            ttk.Entry(self.study_fields, textvariable=variable, width=20, style="RedScribe.TEntry").pack(fill="x", pady=(0, 10))
-        tk.Label(self.study_fields, text="Month / Period (YYYY-MM)", bg="white", fg=c["text"]).pack(anchor="w", pady=(0, 4))
-        period_row = tk.Frame(self.study_fields, bg="white")
-        period_row.pack(fill="x")
-        ttk.Entry(period_row, textvariable=self.period, width=12, style="RedScribe.TEntry").pack(side="left", fill="x", expand=True)
-        ttk.Button(period_row, text="Pick...", style="RedScribe.TButton", command=self.pick_period).pack(side="left", padx=(6, 0))
-
         transcript = tk.Frame(workspace, bg="white", highlightbackground=c["border"], highlightthickness=1)
         transcript.grid(row=0, column=1, sticky="nsew")
         transcript.rowconfigure(2, weight=1)
@@ -1082,7 +1092,7 @@ class RedScribeApp:
         self.log_info("Your transcript will appear here.\nSelect an audio file, then choose Start transcription.")
 
         bottom = tk.Frame(self.root, bg="white", padx=16, pady=12, highlightbackground=c["border"], highlightthickness=1)
-        bottom.grid(row=2, column=0, sticky="ew")
+        bottom.grid(row=3, column=0, sticky="ew")
         bottom.columnconfigure(0, weight=1)
         self.status = tk.StringVar(value="Ready")
         self.status_label = tk.Label(bottom, textvariable=self.status, bg="white", fg=c["text"], anchor="w", justify="left", wraplength=600)
