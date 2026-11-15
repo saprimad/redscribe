@@ -28,7 +28,9 @@ from matplotlib.figure import Figure
 # CONFIG
 # =========================
 DEFAULT_MODEL_SIZE = "large-v3"
-WHISPER_MODELS = ("large-v3", "turbo", "medium", "small", "base")
+WHISPER_MODELS = ("large-v3", "turbo", "Malaysian Whisper Large-v3 Turbo v3 (Mesolitica)", "medium", "small", "base")
+MALAYSIAN_WHISPER_LABEL = "Malaysian Whisper Large-v3 Turbo v3 (Mesolitica)"
+MALAYSIAN_WHISPER_REPO = "mesolitica/Malaysian-whisper-large-v3-turbo-v3"
 
 # Whisper device priority: try the GPU first, then fall back to the CPU.
 WHISPER_DEVICE_PRIORITY = ["cuda", "cpu"]
@@ -229,6 +231,60 @@ def open_folder(path: str):
         pass
 
 
+def resolve_whisper_model(model_size: str) -> str:
+    """Prepare the Malaysian Transformers checkpoint for faster-whisper.
+
+    Conversion is cached locally; standard Whisper models are unaffected.
+    This optional model requires: pip install transformers huggingface_hub
+    """
+    if model_size != MALAYSIAN_WHISPER_LABEL:
+        return model_size
+
+    cache_dir = os.path.join(os.path.expanduser("~"), ".cache", "redscribe", "models", "mesolitica-whisper-turbo-v3")
+    if os.path.isfile(os.path.join(cache_dir, "model.bin")):
+        return cache_dir
+
+    try:
+        from ctranslate2.converters import TransformersConverter
+        from huggingface_hub import snapshot_download
+        import transformers  # noqa: F401 - required by the converter
+    except ImportError as exc:
+        raise RuntimeError(
+            "Malaysian Whisper requires optional packages. Run: "
+            "pip install transformers huggingface_hub"
+        ) from exc
+
+    source_dir = snapshot_download(repo_id=MALAYSIAN_WHISPER_REPO)
+    os.makedirs(os.path.dirname(cache_dir), exist_ok=True)
+    # Convert into a temporary directory so an interrupted conversion is not reused.
+    temporary_dir = cache_dir + ".incomplete"
+    if os.path.exists(temporary_dir):
+        shutil.rmtree(temporary_dir)
+    try:
+        converter = TransformersConverter(source_dir)
+        converter.convert(
+            output_dir=temporary_dir,
+            quantization="float16",
+            force=True,
+            copy_files=[
+                "tokenizer.json", "preprocessor_config.json",
+                "config.json", "generation_config.json",
+                "vocab.json", "merges.txt", "normalizer.json",
+                "tokenizer_config.json", "special_tokens_map.json",
+                "added_tokens.json",
+            ],
+        )
+        if not os.path.isfile(os.path.join(temporary_dir, "model.bin")):
+            raise RuntimeError("CTranslate2 conversion did not produce model.bin")
+        if os.path.isdir(cache_dir):
+            shutil.rmtree(cache_dir)
+        os.rename(temporary_dir, cache_dir)
+    finally:
+        if os.path.isdir(temporary_dir):
+            shutil.rmtree(temporary_dir, ignore_errors=True)
+    return cache_dir
+
+
 def create_whisper_model(model_size: str):
     """
     Load Whisper on the GPU when possible, with an automatic CPU fallback.
@@ -236,13 +292,14 @@ def create_whisper_model(model_size: str):
     Return:
         model, actual_device, actual_compute_type
     """
+    resolved_model_size = resolve_whisper_model(model_size)
     last_error = None
 
     for device in WHISPER_DEVICE_PRIORITY:
         compute_type = WHISPER_COMPUTE_TYPE.get(device, "int8")
         try:
             options = {"cpu_threads": cpu_thread_budget(), "num_workers": 1} if device == "cpu" else {}
-            model = WhisperModel(model_size, device=device, compute_type=compute_type, **options)
+            model = WhisperModel(resolved_model_size, device=device, compute_type=compute_type, **options)
             return model, device, compute_type
         except Exception as e:
             last_error = e
@@ -927,7 +984,7 @@ class RedScribeApp:
                                     values=WHISPER_MODELS, state="readonly", width=20)
         model_choice.pack(side="left")
         model_choice.bind("<<ComboboxSelected>>", self.save_selected_model)
-        tk.Label(model_fr, text="Large-v3 is the default; small/base suit CPU-only laptops.",
+        tk.Label(model_fr, text="Large-v3 is default; Mesolitica downloads/converts on first use.",
                  fg="gray").pack(side="left", padx=8)
 
         diar_fr = tk.LabelFrame(top, text="Speaker Diarisation")
