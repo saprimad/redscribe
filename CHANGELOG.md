@@ -22,6 +22,8 @@ All notable changes to RedScribe are documented in this file. The dated 2.0.0 en
 
 ### Changed
 
+- Redesigned the workflow figure in the RedScrap diagram style, separating run settings from the single recording input and showing Word and Excel as two branches from the shared export step.
+
 - Aligned the public website with the redesigned workspace, grouped live paragraphs, diarisation activity and shared report colours.
 - Replaced deprecated openpyxl font-copy calls with standard-library copying while preserving bold report headings.
 
