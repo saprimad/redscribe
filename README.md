@@ -2,7 +2,7 @@
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22941754.svg)](https://doi.org/10.5281/zenodo.22941754)
 
-RedScribe is a Windows and macOS desktop application for transcribing research interviews and other recorded speech. Version 2.0 uses Faster-Whisper for transcription and can optionally use pyannote.audio to distinguish between speakers. It exports an Excel workbook and an editable Word report for researcher-led verification and qualitative analysis.
+RedScribe is a Windows and macOS desktop application for transcribing research interviews and other recorded speech. Version 2.0 uses Faster-Whisper by default, with optional local ASR adapters for additional models and can optionally use pyannote.audio to distinguish between speakers. It exports an Excel workbook and an editable Word report for researcher-led verification and qualitative analysis.
 
 ## Current source version
 
@@ -14,7 +14,8 @@ The primary application is [`redscribe_gpu.py`](redscribe_gpu.py). The earlier Q
 
 ## Features
 
-- Selectable Faster-Whisper models: `large-v3` (default), `turbo`, `medium`, `small` and `base`
+- Selectable ASR models, including optional Mesolitica, MMS, Qwen3-ASR and BuzzASR backends (see [multi-model setup](docs/MULTI_MODEL_ASR.md))
+- Existing Faster-Whisper models: `large-v3` (default), `turbo`, `medium`, `small` and `base`
 - NVIDIA CUDA first, with automatic CPU fallback
 - Spoken-language choice: Auto detect (default), Bahasa Melayu or English; transcription does not translate the recording
 - Optional speaker diarisation using `pyannote/speaker-diarization-community-1`
@@ -39,7 +40,7 @@ The following diagram summarises RedScribe's input configuration, local processi
 
 *Figure 1. RedScribe system architecture and processing workflow (input, process and output).* 
 
-Select a recording, language and Whisper model, then configure optional speaker diarisation. When enabled, diarisation runs before Faster-Whisper transcription; a diarisation failure does not prevent transcription. RedScribe subsequently prepares timestamped utterances, descriptive summaries, and Excel and Word reports for researcher verification.
+Select a recording, language and ASR model, then configure optional speaker diarisation. When enabled, diarisation runs before transcription; a diarisation failure does not prevent transcription. RedScribe subsequently prepares timestamped utterances, descriptive summaries, and Excel and Word reports for researcher verification.
 
 During diarisation, the Live Transcript area logs the current processing stage. An animated activity line displays elapsed time even while model loading or grouping speakers provides no numerical progress. When pyannote reports completed/total work, the percentage applies only to that stage, not the whole recording or transcription run. Once diarisation finishes, RedScribe shows the speaker-label count and a preview of the first 20 speaker turns with timestamps, then begins transcription. These are automated speaker labels, not identified people; they still require researcher verification. No provisional speaker identities are displayed during segmentation or embedding extraction.
 
@@ -194,7 +195,9 @@ The repository's `.gitignore` excludes common audio, video, spreadsheet, transcr
 
 ## GPU acceleration and CPU fallback
 
-On Windows, RedScribe attempts to load Whisper with CUDA and `float16`. If CUDA is unavailable or loading fails, it falls back to CPU with `int8`. On macOS, the current version uses CPU mode with `int8`. Speaker diarisation is sent to CUDA only when CUDA is available; otherwise it runs on CPU. A diarisation failure does not stop transcription.
+The optional ASR backends require NVIDIA CUDA FP16 and never fall back silently to CPU or another precision. See [multi-model setup](docs/MULTI_MODEL_ASR.md) for installation, timing limitations and pending GPU validation.
+
+On Windows, RedScribe attempts to load the original Faster-Whisper choices with CUDA and `float16`. If CUDA is unavailable or loading fails, it falls back to CPU with `int8`. On macOS, the current version uses CPU mode with `int8`. Speaker diarisation is sent to CUDA only when CUDA is available; otherwise it runs on CPU. A diarisation failure does not stop transcription.
 
 ## Troubleshooting
 

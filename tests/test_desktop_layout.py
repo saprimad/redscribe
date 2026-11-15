@@ -20,6 +20,7 @@ except ImportError:
 
 from token_store import TokenSelection, TokenStoreError
 from speaker_styles import speaker_colour
+from asr_backends import EXTRA_MODELS, validate_language
 
 
 @unittest.skipUnless(tk is not None and os.environ.get("DISPLAY"), "A Tk display is required")
@@ -34,8 +35,9 @@ class DesktopLayoutTests(unittest.TestCase):
             tk=tk, ttk=ttk, tkfont=tkfont, scrolledtext=scrolledtext, os=os, speaker_colour=speaker_colour,
             time=__import__("time"), __file__=str(Path(__file__).resolve().parents[1] / "redscribe_gpu.py"),
             threading=SimpleNamespace(Lock=threading.Lock, Event=threading.Event, Thread=Mock()),
+            EXTRA_MODELS=EXTRA_MODELS, validate_language=validate_language,
             APP_TITLE="RedScribe - UI test", APP_VERSION="2.0.0",
-            WHISPER_MODELS=("large-v3", "turbo", "medium", "small", "base"),
+            WHISPER_MODELS=("large-v3", "turbo", "medium", "small", "base") + tuple(EXTRA_MODELS),
             TRANSCRIPTION_LANGUAGES={"Auto detect": None, "Bahasa Melayu": "ms", "English": "en"},
             load_model_preference=lambda: "large-v3", TokenStoreError=TokenStoreError,
             resolve_token=Mock(return_value=TokenSelection("example-test-only", "saved in system credential store")),

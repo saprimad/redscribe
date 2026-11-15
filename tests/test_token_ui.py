@@ -10,7 +10,9 @@ from token_store import TokenSelection, TokenStoreError
 # Load the actual class methods without importing the app's heavy AI dependencies.
 source = ast.parse(Path(__file__).resolve().parents[1].joinpath("redscribe_gpu.py").read_text())
 app_class = next(node for node in source.body if isinstance(node, ast.ClassDef) and node.name == "RedScribeApp")
-namespace = {"TokenStoreError": TokenStoreError, "messagebox": Mock(), "resolve_token": Mock(),
+from asr_backends import EXTRA_MODELS, validate_language
+
+namespace = {"EXTRA_MODELS": EXTRA_MODELS, "validate_language": validate_language, "TokenStoreError": TokenStoreError, "messagebox": Mock(), "resolve_token": Mock(),
              "save_token": Mock(), "remove_saved_token": Mock(), "os": Mock(),
              "TRANSCRIPTION_LANGUAGES": {"Auto detect": None}, "threading": Mock(),
              "tk": Mock(), "ttk": Mock()}

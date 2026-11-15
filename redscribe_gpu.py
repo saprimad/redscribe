@@ -16,6 +16,7 @@ from io import BytesIO
 from collections import Counter
 from copy import copy
 from speaker_styles import speaker_colour, speaker_fill
+from asr_backends import EXTRA_MODELS, LocalASR, validate_language
 from token_store import TokenStoreError, resolve_token, save_token, remove_saved_token
 
 from openpyxl import Workbook
@@ -32,7 +33,7 @@ from matplotlib.figure import Figure
 # CONFIG
 # =========================
 DEFAULT_MODEL_SIZE = "large-v3"
-WHISPER_MODELS = ("large-v3", "turbo", "medium", "small", "base")
+WHISPER_MODELS = ("large-v3", "turbo", "medium", "small", "base") + tuple(EXTRA_MODELS)
 
 # Whisper device priority: try the GPU first, then fall back to the CPU.
 WHISPER_DEVICE_PRIORITY = ["cuda", "cpu"]
@@ -88,7 +89,7 @@ def load_model_preference() -> str:
 
 def save_model_preference(selected: str) -> None:
     if selected not in WHISPER_MODELS:
-        raise ValueError("Unsupported Whisper model")
+        raise ValueError("Unsupported ASR model")
     path = model_settings_path()
     os.makedirs(os.path.dirname(path), exist_ok=True)
     # No token or study details are stored in this file.
@@ -556,6 +557,9 @@ def save_xlsx_with_early_report(
         ("Audio Duration", sec_to_hms(audio_duration_s)),
         ("Language (Detected/Selected)", detected_language or "Auto detect"),
         ("Model & Mode", f"{whisper_model} ({actual_device.upper()} | {actual_compute_type})"),
+        ("Checkpoint", meta_from_gui.get("checkpoint", whisper_model)),
+        ("Model Revision", meta_from_gui.get("model_revision", "Not recorded")),
+        ("Timing Method", meta_from_gui.get("timing_note", "Estimated sentence times from model segments")),
         ("Speaker Diarisation", "Enabled" if diarization_enabled else "Disabled"),
         ("Diarisation Status", diarization_status),
         ("Diarisation Model", diarization_model if diarization_enabled else "Not used"),
@@ -593,12 +597,12 @@ def save_xlsx_with_early_report(
     silence_s = max(0.0, audio_duration_s - speech_s)
 
     summary = [
-        ("Total Segments Detected", total_segments),
+        ("Audio Chunks Processed" if meta_from_gui.get("chunk_timing") else "Total Segments Detected", total_segments),
         ("Total Utterances", total_utterances),
         ("Total Words/Tokens", token_count),
         ("Average Tokens per Utterance", avg_tokens),
-        ("Speech Duration", sec_to_hms(speech_s)),
-        ("Silence Duration", sec_to_hms(silence_s)),
+        ("Speech Duration", "Not measured (audio chunks)" if meta_from_gui.get("chunk_timing") else sec_to_hms(speech_s)),
+        ("Silence Duration", "Not measured (audio chunks)" if meta_from_gui.get("chunk_timing") else sec_to_hms(silence_s)),
         ("Total Speakers Detected", len([s for s, _ in speaker_summary if s != "UNKNOWN"])),
     ]
 
@@ -624,35 +628,36 @@ def save_xlsx_with_early_report(
         rr_spk += 1
 
     r3 = max(rr_spk + 2, r2 + 5)
-    ws1[f"A{r3}"] = "Speech vs Silence Distribution"
-    heading_font = copy(ws1[f"A{r3}"].font)
-    heading_font.bold = True
-    ws1[f"A{r3}"].font = heading_font
+    if not meta_from_gui.get("chunk_timing"):
+        ws1[f"A{r3}"] = "Speech vs Silence Distribution"
+        heading_font = copy(ws1[f"A{r3}"].font)
+        heading_font.bold = True
+        ws1[f"A{r3}"].font = heading_font
 
-    ws1[f"A{r3+2}"] = "Category"
-    ws1[f"B{r3+2}"] = "Duration (minutes)"
+        ws1[f"A{r3+2}"] = "Category"
+        ws1[f"B{r3+2}"] = "Duration (minutes)"
 
-    speech_min = round(speech_s / 60.0, 3)
-    silence_min = round(silence_s / 60.0, 3)
+        speech_min = round(speech_s / 60.0, 3)
+        silence_min = round(silence_s / 60.0, 3)
 
-    ws1[f"A{r3+3}"] = "Speech"
-    ws1[f"B{r3+3}"] = speech_min
-    ws1[f"A{r3+4}"] = "Silence"
-    ws1[f"B{r3+4}"] = silence_min
+        ws1[f"A{r3+3}"] = "Speech"
+        ws1[f"B{r3+3}"] = speech_min
+        ws1[f"A{r3+4}"] = "Silence"
+        ws1[f"B{r3+4}"] = silence_min
 
-    chart1 = BarChart()
-    chart1.type = "col"
-    chart1.title = "Speech vs Silence Distribution"
-    chart1.y_axis.title = "Duration (minutes)"
-    chart1.x_axis.title = "Category"
-    chart1.dataLabels = DataLabelList()
-    chart1.dataLabels.showVal = True
+        chart1 = BarChart()
+        chart1.type = "col"
+        chart1.title = "Speech vs Silence Distribution"
+        chart1.y_axis.title = "Duration (minutes)"
+        chart1.x_axis.title = "Category"
+        chart1.dataLabels = DataLabelList()
+        chart1.dataLabels.showVal = True
 
-    data = Reference(ws1, min_col=2, min_row=r3+2, max_row=r3+4)
-    cats = Reference(ws1, min_col=1, min_row=r3+3, max_row=r3+4)
-    chart1.add_data(data, titles_from_data=True)
-    chart1.set_categories(cats)
-    ws1.add_chart(chart1, f"D{r3+2}")
+        data = Reference(ws1, min_col=2, min_row=r3+2, max_row=r3+4)
+        cats = Reference(ws1, min_col=1, min_row=r3+3, max_row=r3+4)
+        chart1.add_data(data, titles_from_data=True)
+        chart1.set_categories(cats)
+        ws1.add_chart(chart1, f"D{r3+2}")
 
     r4 = r3 + 7
     ws1[f"A{r4}"] = "Timeline Density (5-minute intervals)"
@@ -823,6 +828,9 @@ def save_docx_transcript(
         ("Audio Duration", sec_to_hms(audio_duration_s)),
         ("Language (Detected/Selected)", detected_language or "Auto detect"),
         ("Model & Mode", f"{whisper_model} ({actual_device.upper()} | {actual_compute_type})"),
+        ("Checkpoint", meta_from_gui.get("checkpoint", whisper_model)),
+        ("Model Revision", meta_from_gui.get("model_revision", "Not recorded")),
+        ("Timing Method", meta_from_gui.get("timing_note", "Estimated sentence times from model segments")),
         ("Speaker Diarisation", "Enabled" if diarization_enabled else "Disabled"),
         ("Diarisation Status", diarization_status),
         ("Diarisation Model", diarization_model if diarization_enabled else "Not used"),
@@ -842,12 +850,12 @@ def save_docx_transcript(
     speech_s = max(0.0, min(speech_s, audio_duration_s))
     silence_s = max(0.0, audio_duration_s - speech_s)
     summary = [
-        ("Total Segments Detected", len(segment_ranges)),
+        ("Audio Chunks Processed" if meta_from_gui.get("chunk_timing") else "Total Segments Detected", len(segment_ranges)),
         ("Total Utterances", total_utterances),
         ("Total Words/Tokens", len(tokens)),
         ("Average Tokens per Utterance", round(len(tokens) / total_utterances, 2) if total_utterances else 0.0),
-        ("Speech Duration", sec_to_hms(speech_s)),
-        ("Silence Duration", sec_to_hms(silence_s)),
+        ("Speech Duration", "Not measured (audio chunks)" if meta_from_gui.get("chunk_timing") else sec_to_hms(speech_s)),
+        ("Silence Duration", "Not measured (audio chunks)" if meta_from_gui.get("chunk_timing") else sec_to_hms(silence_s)),
         ("Total Speakers Detected", len([s for s, _ in speaker_summary if s != "UNKNOWN"])),
     ]
     document.add_heading("Transcription Summary", level=1)
@@ -860,15 +868,16 @@ def save_docx_transcript(
             run.bold = True
             run.font.color.rgb = RGBColor.from_string(speaker_colour(speaker))
 
-    speech_minutes = round(speech_s / 60.0, 3)
-    silence_minutes = round(silence_s / 60.0, 3)
-    document.add_heading("Speech vs Silence Distribution", level=1)
-    add_report_table(document, [
-        ("Category", "Duration (minutes)"),
-        ("Speech", speech_minutes),
-        ("Silence", silence_minutes),
-    ])
-    add_bar_chart(document, ["Speech", "Silence"], [speech_minutes, silence_minutes], "Duration (minutes)")
+    if not meta_from_gui.get("chunk_timing"):
+        speech_minutes = round(speech_s / 60.0, 3)
+        silence_minutes = round(silence_s / 60.0, 3)
+        document.add_heading("Speech vs Silence Distribution", level=1)
+        add_report_table(document, [
+            ("Category", "Duration (minutes)"),
+            ("Speech", speech_minutes),
+            ("Silence", silence_minutes),
+        ])
+        add_bar_chart(document, ["Speech", "Silence"], [speech_minutes, silence_minutes], "Duration (minutes)")
 
     density_rows = compute_timeline_density(utterance_rows, audio_duration_s, interval_sec=300)
     document.add_heading("Timeline Density (5-minute intervals)", level=1)
@@ -1072,11 +1081,14 @@ class RedScribeApp:
         tk.Label(transcription, text="Language", bg="white", fg=c["text"]).pack(anchor="w", pady=(0, 5))
         ttk.Combobox(transcription, textvariable=self.transcription_language, values=list(TRANSCRIPTION_LANGUAGES),
                      state="readonly", style="RedScribe.TCombobox", width=20).pack(fill="x", pady=(0, 8))
-        tk.Label(transcription, text="Whisper model", bg="white", fg=c["text"]).pack(anchor="w", pady=(0, 5))
+        tk.Label(transcription, text="ASR model", bg="white", fg=c["text"]).pack(anchor="w", pady=(0, 5))
         model_choice = ttk.Combobox(transcription, textvariable=self.whisper_model, values=WHISPER_MODELS,
                                     state="readonly", style="RedScribe.TCombobox", width=20)
         model_choice.pack(fill="x")
         model_choice.bind("<<ComboboxSelected>>", self.save_selected_model)
+
+        tk.Label(transcription, text="Extra models: CUDA FP16; optional install.\nFirst use downloads the selected model.",
+                 bg="white", fg=c["muted"], justify="left", wraplength=264).pack(anchor="w", pady=(7, 0))
 
         speakers = card("Speakers")
         self.diarization_badge = tk.Label(speakers, textvariable=self.diarization_summary, bg="white", fg="#24623B",
@@ -1410,7 +1422,7 @@ class RedScribeApp:
         try:
             save_model_preference(self.whisper_model.get())
         except OSError as exc:
-            messagebox.showwarning("Whisper Model", f"The model choice could not be saved for next time.\n\n{exc}")
+            messagebox.showwarning("ASR Model", f"The model choice could not be saved for next time.\n\n{exc}")
 
     def pick_period(self):
         win = tk.Toplevel(self.root)
@@ -1555,6 +1567,13 @@ class RedScribeApp:
             messagebox.showwarning("File not found", "The selected audio file no longer exists.")
             return
 
+        if inputs["whisper_model"] in EXTRA_MODELS:
+            try:
+                validate_language(EXTRA_MODELS[inputs["whisper_model"]], inputs["language"])
+            except ValueError as exc:
+                messagebox.showwarning("ASR Model", str(exc))
+                return
+
         if inputs["diarization_enabled"]:
             inputs["hf_token"] = resolve_token(inputs["hf_token"]).token
 
@@ -1622,7 +1641,11 @@ class RedScribeApp:
         xlsx_path, docx_path = available_output_paths(out_folder, filename_base)
 
         try:
-            model, actual_device, actual_compute_type = create_whisper_model(inputs["whisper_model"])
+            if inputs["whisper_model"] in EXTRA_MODELS:
+                model = LocalASR(inputs["whisper_model"], inputs.get("language"), self.check_stop)
+                actual_device, actual_compute_type = "cuda", "float16"
+            else:
+                model, actual_device, actual_compute_type = create_whisper_model(inputs["whisper_model"])
             self.check_stop()
             self.actual_whisper_device = actual_device
             self.actual_whisper_compute_type = actual_compute_type
@@ -1633,7 +1656,7 @@ class RedScribeApp:
             error_text = str(e)
             self.root.after(
                 0,
-                lambda error_text=error_text: messagebox.showerror("Whisper Error", f"The Whisper model could not be loaded.\n\n{error_text}")
+                lambda error_text=error_text: messagebox.showerror("ASR Model Error", f"The ASR model could not be prepared.\n\n{error_text}")
             )
             self.root.after(0, self.status.set, "Failed to load model")
             self.root.after(0, lambda: self.start_btn.config(state="normal"))
@@ -1685,6 +1708,10 @@ class RedScribeApp:
             f"Transcribing {inputs['whisper_model']} with {actual_device.upper()} ({actual_compute_type}) - 0% | ETA --:--"
         )
 
+        if isinstance(model, LocalASR):
+            model.turns = diarization_turns
+            self.root.after(0, self.log_info, "Timing: " + model.timing_note)
+
         try:
             segments, info = model.transcribe(
                 audio_path,
@@ -1720,50 +1747,55 @@ class RedScribeApp:
         segment_ranges = []
         last_end = 0.0
 
-        for seg in segments:
-            self.check_stop()
-            seg_text = (seg.text or "").strip()
-            st = float(seg.start)
-            en = float(seg.end)
+        try:
+            for seg in segments:
+                self.check_stop()
+                seg_text = (seg.text or "").strip()
+                st = float(seg.start)
+                en = float(seg.end)
 
-            if en > st:
-                segment_ranges.append((st, en))
-                last_end = max(last_end, en)
+                if en > st:
+                    segment_ranges.append((st, en))
+                    last_end = max(last_end, en)
 
-            if seg_text:
-                ts = sec_to_hms(st)
-                segment_speaker = assign_speaker(st, en, diarization_turns)
-                self.root.after(0, self.log_live_segment, ts, segment_speaker, seg_text)
+                if seg_text:
+                    ts = sec_to_hms(st)
+                    segment_speaker = assign_speaker(st, en, diarization_turns)
+                    self.root.after(0, self.log_live_segment, ts, segment_speaker, seg_text)
 
-                sents = split_sentences_universal(seg_text)
-                for ust, uen, s in distribute_times(st, en, sents):
-                    s_clean = (s or "").strip()
-                    if s_clean:
-                        utterance_speaker = assign_speaker(ust, uen, diarization_turns)
-                        utterance_rows.append({
-                            "speaker": utterance_speaker,
-                            "start_s": ust,
-                            "end_s": uen,
-                            "text": s_clean
-                        })
+                    sents = split_sentences_universal(seg_text)
+                    for ust, uen, s in distribute_times(st, en, sents):
+                        s_clean = (s or "").strip()
+                        if s_clean:
+                            utterance_speaker = assign_speaker(ust, uen, diarization_turns)
+                            utterance_rows.append({
+                                "speaker": utterance_speaker,
+                                "start_s": ust,
+                                "end_s": uen,
+                                "text": s_clean
+                            })
 
-            if duration_s > 0:
-                progress = min(100.0, (en / duration_s) * 100.0)
-                elapsed = time.time() - t0
+                if duration_s > 0:
+                    progress = min(100.0, (en / duration_s) * 100.0)
+                    elapsed = time.time() - t0
 
-                if progress > 0.5:
-                    total_est = elapsed * (100.0 / progress)
-                    eta = max(0.0, total_est - elapsed)
-                    eta_str = sec_to_mmss(eta)
-                else:
-                    eta_str = "--:--"
+                    if progress > 0.5:
+                        total_est = elapsed * (100.0 / progress)
+                        eta = max(0.0, total_est - elapsed)
+                        eta_str = sec_to_mmss(eta)
+                    else:
+                        eta_str = "--:--"
 
-                self.root.after(0, self.progress_var.set, progress)
-                self.root.after(
-                    0,
-                    self.status.set,
-                    f"Transcribing {inputs['whisper_model']} with {actual_device.upper()} ({actual_compute_type}) - {progress:.0f}% | ETA {eta_str}"
-                )
+                    self.root.after(0, self.progress_var.set, progress)
+                    self.root.after(
+                        0,
+                        self.status.set,
+                        f"Transcribing {inputs['whisper_model']} with {actual_device.upper()} ({actual_compute_type}) - {progress:.0f}% | ETA {eta_str}"
+                    )
+        finally:
+            close_segments = getattr(segments, "close", None)
+            if close_segments is not None:
+                close_segments()
 
         self.begin_saving()
         audio_duration_s = float(getattr(info, "duration", last_end))
@@ -1774,6 +1806,10 @@ class RedScribeApp:
             "researcher": inputs["researcher"],
             "label": inputs["label"],
             "period": period,
+            "checkpoint": EXTRA_MODELS[inputs["whisper_model"]].checkpoint if inputs["whisper_model"] in EXTRA_MODELS else inputs["whisper_model"],
+            "model_revision": getattr(model, "revision", "Managed by Faster-Whisper"),
+            "chunk_timing": isinstance(model, LocalASR),
+            "timing_note": getattr(info, "timing_note", "Whisper segment times; sentence times are distributed estimates."),
         }
 
         try:

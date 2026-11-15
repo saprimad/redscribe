@@ -30,11 +30,13 @@ def example_rows():
                                          "SPEAKER_02", "SPEAKER_00", "SPEAKER_04", "SPEAKER_03"))]
 
 
-def export_examples(directory):
+def export_examples(directory, chunk_timing=False):
     rows = example_rows()
     kwargs = dict(utterance_rows=rows, segment_ranges=[(row['start_s'], row['end_s']) for row in rows],
                   audio_path="example.wav", audio_duration_s=80, processing_minutes=1.2,
-                  detected_language="ms", meta_from_gui={"project": "Example study", "researcher": "Example researcher"},
+                  detected_language="ms", meta_from_gui={"project": "Example study", "researcher": "Example researcher",
+                                 "chunk_timing": chunk_timing, "checkpoint": "test/checkpoint",
+                                 "model_revision": "test-revision", "timing_note": "Test timing method"},
                   actual_device="cpu", actual_compute_type="int8", whisper_model="large-v3",
                   diarization_enabled=True, diarization_status="Completed", diarization_model=app.DIARIZATION_MODEL)
     xlsx = Path(directory) / "speaker_colours.xlsx"
@@ -71,6 +73,27 @@ class SpeakerExportTests(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         cls.tmp.cleanup()
+
+    def test_chunk_exports_omit_unmeasured_speech_silence_and_record_model(self):
+        with tempfile.TemporaryDirectory() as directory:
+            xlsx, docx = export_examples(directory, chunk_timing=True)
+            book = load_workbook(xlsx)
+            report = book["Early_Report"]
+            values = {row[0].value: row[1].value for row in report if len(row) >= 2}
+            self.assertEqual(values["Checkpoint"], "test/checkpoint")
+            self.assertEqual(values["Model Revision"], "test-revision")
+            self.assertEqual(values["Timing Method"], "Test timing method")
+            self.assertEqual(values["Speech Duration"], "Not measured (audio chunks)")
+            self.assertEqual(values["Silence Duration"], "Not measured (audio chunks)")
+            self.assertIn("Audio Chunks Processed", values)
+            self.assertEqual(len(report._charts), 1)
+            book.close()
+            document = Document(docx)
+            cells = [cell.text for table in document.tables for row in table.rows for cell in row.cells]
+            self.assertIn("test/checkpoint", cells)
+            self.assertIn("test-revision", cells)
+            self.assertEqual(cells.count("Not measured (audio chunks)"), 2)
+            self.assertNotIn("Speech vs Silence Distribution", [p.text for p in document.paragraphs])
 
     def test_excel_speaker_cells_match_shared_palette_and_preserve_values(self):
         book = load_workbook(self.xlsx)

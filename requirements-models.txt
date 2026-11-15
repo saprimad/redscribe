@@ -1,0 +1,4 @@
+# Optional Transformers adapters; existing requirements.txt remains sufficient for Faster-Whisper.
+transformers>=4.45,<5
+accelerate>=0.34,<2
+safetensors>=0.4.5
