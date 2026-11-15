@@ -28,7 +28,7 @@ Use the same seven model candidates and FP16 protocol, but score and report the 
 | whisper_large_v3_turbo | `openai/whisper-large-v3-turbo` | Within-family accuracy and processing-time comparison | Transformers/PyTorch Whisper adapter |
 | mesolitica_whisper_turbo_v3 | `mesolitica/Malaysian-whisper-large-v3-turbo-v3` | Malaysian-context adaptation of Whisper Turbo | Transformers/PyTorch, preserving its documented processor/task conventions |
 | mesolitica_xlsr_300m_mixed | `mesolitica/wav2vec2-xls-r-300m-mixed` | Locally adapted CTC model trained on Malay and other regional speech | Transformers/PyTorch CTC adapter |
-| meta_mms_1b_all | `facebook/mms-1b-all` | Multilingual CTC comparator using the Malay `zsm` adapter | Transformers/PyTorch MMS adapter |
+| meta_mms_1b_all | `facebook/mms-1b-all` | Multilingual CTC comparator using the Malay `zlm` adapter | Transformers/PyTorch MMS adapter |
 | qwen3_asr_1_7b | `Qwen/Qwen3-ASR-1.7B` | Additional ASR family with explicit Malay support | qwen-asr Transformers backend; FP16, not its BF16 example default |
 | buzzasr_malay | `BuzzASR/malay` | Malay-specific adaptation of Whisper Large-v3 | Transformers/PyTorch Whisper adapter |
 

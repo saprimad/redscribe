@@ -93,7 +93,7 @@
       "checkpoint": "facebook/mms-1b-all",
       "runtime": "transformers_mms",
       "language": "ms",
-      "language_adapter": "zsm",
+      "language_adapter": "zlm",
       "revision": null,
       "processor_revision": null,
       "precision": "float16",
