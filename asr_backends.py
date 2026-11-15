@@ -138,7 +138,13 @@ class LocalASR:
                 language = {"ms": "Malay", "en": "English"}.get(self.language)
                 result = self.model.transcribe(audio=(audio, 16000), language=language)
                 return result[0].text.strip()
-            batch = self.processor(audio, sampling_rate=16000, return_tensors="pt")
+            # Whisper's padded feature frames need an explicit encoder mask.
+            # Keep CTC preprocessing unchanged: those extractors have their own
+            # checkpoint-specific attention-mask defaults.
+            processor_options = {"return_attention_mask": True} if self.spec.engine == "whisper" else {}
+            batch = self.processor(audio, sampling_rate=16000, return_tensors="pt", **processor_options)
+            if self.spec.engine == "whisper" and batch.get("attention_mask") is None:
+                raise RuntimeError("Whisper processor did not return the requested attention mask. Generation was not started.")
             batch = {key: value.to(device="cuda", dtype=torch.float16) if value.is_floating_point()
                      else value.to("cuda") for key, value in batch.items()}
             if self.spec.engine == "whisper":

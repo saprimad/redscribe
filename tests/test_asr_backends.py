@@ -150,7 +150,9 @@ class AdapterTests(unittest.TestCase):
         adapter._load()
         tensor=Mock()
         tensor.is_floating_point.return_value=True
-        adapter.processor.return_value={"input_features":tensor}
+        mask=Mock()
+        mask.is_floating_point.return_value=False
+        adapter.processor.return_value={"input_features":tensor,"attention_mask":mask}
         adapter.processor.batch_decode.return_value=[" hasil "]
         self.assertEqual(adapter._decode([0.2]),"hasil")
         kwargs=adapter.model.generate.call_args.kwargs
@@ -158,6 +160,17 @@ class AdapterTests(unittest.TestCase):
         self.assertFalse(kwargs["return_timestamps"])
         self.assertEqual(kwargs["language"],"ms")
         tensor.to.assert_called_once_with(device="cuda",dtype="fp16")
+        mask.to.assert_called_once_with("cuda")
+        self.assertIs(kwargs["attention_mask"], mask.to.return_value)
+        adapter.processor.assert_called_once_with([0.2], sampling_rate=16000, return_tensors="pt", return_attention_mask=True)
+
+    def test_whisper_missing_requested_mask_stops_before_generation(self):
+        adapter=LocalASR("BuzzASR Malay", "ms")
+        adapter._load()
+        adapter.processor.return_value={"input_features":Mock()}
+        with self.assertRaisesRegex(RuntimeError,"requested attention mask"):
+            adapter._decode([0.2])
+        adapter.model.generate.assert_not_called()
 
 
 if __name__=="__main__":
