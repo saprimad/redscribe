@@ -7,6 +7,7 @@ import unittest
 from unittest.mock import Mock, patch
 
 from model_loading import model_preparation
+from model_options import model_label
 
 SOURCE=ast.parse(Path(__file__).resolve().parents[1].joinpath("redscribe_gpu.py").read_text())
 
@@ -37,7 +38,7 @@ class WhisperPreparationTests(unittest.TestCase):
         self.engine=Mock(return_value="loaded-model")
         self.os=Mock()
         self.os.path.isfile.return_value=True
-        self.ns=dict(os=self.os,WhisperModel=self.engine,model_preparation=model_preparation,
+        self.ns=dict(os=self.os,WhisperModel=self.engine,model_preparation=model_preparation,model_label=model_label,
                      WHISPER_DEVICE_PRIORITY=["cuda","cpu"],WHISPER_COMPUTE_TYPE={"cuda":"float16","cpu":"int8"},
                      cpu_thread_budget=lambda:4)
         node=next(n for n in SOURCE.body if isinstance(n,ast.FunctionDef) and n.name=="create_whisper_model")

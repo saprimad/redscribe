@@ -20,7 +20,7 @@ from asr_backends import EXTRA_MODELS, LocalASR, validate_language
 from model_loading import model_preparation
 from diarization_options import (DEFAULT_DIARIZATION_MODEL, DIARIZATION_MODELS,
                                   DEFAULT_DIARIZATION_CHOICE, describe_diarization)
-from model_options import describe_model, model_output_folder, preflight_model, ModelPreflightError, MODEL_FOLDERS
+from model_options import describe_model, model_output_folder, preflight_model, ModelPreflightError, MODEL_FOLDERS, ASR_MODEL_LABELS, model_label
 from token_store import TokenStoreError, resolve_token, save_token, remove_saved_token
 
 from openpyxl import Workbook
@@ -37,7 +37,7 @@ from matplotlib.figure import Figure
 # CONFIG
 # =========================
 DEFAULT_MODEL_SIZE = "large-v3"
-WHISPER_MODELS = ("large-v3", "turbo", "medium", "small", "base") + tuple(EXTRA_MODELS)
+WHISPER_MODELS = tuple(ASR_MODEL_LABELS)
 
 # Whisper device priority: try the GPU first, then fall back to the CPU.
 WHISPER_DEVICE_PRIORITY = ["cuda", "cpu"]
@@ -267,7 +267,7 @@ def create_whisper_model(model_size: str, status_callback=None):
     from faster_whisper.utils import download_model
     from huggingface_hub.errors import LocalEntryNotFoundError
     notify = status_callback or (lambda state, message: None)
-    with model_preparation(model_size, notify):
+    with model_preparation(model_label(model_size), notify):
         try:
             model_path = download_model(model_size, local_files_only=True)
             # A cached snapshot can exist after an interrupted partial download.
@@ -275,7 +275,7 @@ def create_whisper_model(model_size: str, status_callback=None):
                 raise LocalEntryNotFoundError("Cached model files are incomplete")
             notify("stage", "Using saved model files; loading into memory...")
         except LocalEntryNotFoundError:
-            notify("stage", f"Downloading model: {model_size}. First use only; please keep the app open...")
+            notify("stage", f"Downloading model: {model_label(model_size)}. First use only; please keep the app open...")
             model_path = download_model(model_size)
             notify("stage", "Download complete. Loading model into memory...")
         last_error = None
@@ -984,6 +984,7 @@ class RedScribeApp:
         self.audio_path = tk.StringVar()
         self.transcription_language = tk.StringVar(value="Auto detect")
         self.whisper_model = tk.StringVar(value=load_model_preference())
+        self.model_display = tk.StringVar(value=model_label(self.whisper_model.get()))
 
         self.diarization_enabled = tk.BooleanVar(value=True)
         self.diarization_choice = tk.StringVar(value=load_diarization_preference())
@@ -1041,6 +1042,8 @@ class RedScribeApp:
                   foreground=[("disabled", "#9895A0"), ("!disabled", "white")])
         style.configure("Stop.RedScribe.TButton", foreground="#B42318", background="white")
         style.map("Stop.RedScribe.TButton", foreground=[("disabled", "#9895A0"), ("!disabled", "#B42318")])
+        style.configure("RedScribe.TMenubutton", font=(self.ui_font, 11), padding=(8, 6),
+                        background="white", foreground=c["text"], bordercolor=c["border"])
         style.configure("RedScribe.TCombobox", padding=4, fieldbackground="white")
         style.map("RedScribe.TCombobox", fieldbackground=[("readonly", "white")], background=[("readonly", "white")])
         style.configure("RedScribe.TEntry", padding=6, fieldbackground="white")
@@ -1128,12 +1131,18 @@ class RedScribeApp:
         ttk.Combobox(transcription, textvariable=self.transcription_language, values=list(TRANSCRIPTION_LANGUAGES),
                      state="readonly", style="RedScribe.TCombobox", width=20).pack(fill="x", pady=(0, 8))
         tk.Label(transcription, text="ASR model", bg="white", fg=c["text"]).pack(anchor="w", pady=(0, 5))
-        model_choice = ttk.Combobox(transcription, textvariable=self.whisper_model, values=WHISPER_MODELS,
-                                    state="readonly", style="RedScribe.TCombobox", width=20)
-        model_choice.pack(fill="x")
-        model_choice.bind("<<ComboboxSelected>>", self.save_selected_model)
+        # A native menu sizes itself to the full labels instead of clipping
+        # the long model names to the narrow sidebar's combobox width.
+        self.model_choice = ttk.Menubutton(transcription, textvariable=self.model_display,
+                                           direction="below", width=20, style="RedScribe.TMenubutton")
+        self.model_menu = tk.Menu(self.model_choice, tearoff=False)
+        for key, label in ASR_MODEL_LABELS.items():
+            self.model_menu.add_radiobutton(label=label, value=key, variable=self.whisper_model,
+                                            command=self.save_selected_model)
+        self.model_choice.configure(menu=self.model_menu)
+        self.model_choice.pack(fill="x")
 
-        self.model_hint = tk.Label(transcription, text=describe_model(self.whisper_model.get()),
+        self.model_hint = tk.Label(transcription, text=model_label(self.whisper_model.get()) + "\n" + describe_model(self.whisper_model.get()),
                                    bg="white", fg=c["muted"], justify="left", wraplength=264)
         self.model_hint.pack(anchor="w", pady=(7, 0))
 
@@ -1502,7 +1511,8 @@ class RedScribeApp:
                             "This does not revoke the token on Hugging Face.")
 
     def save_selected_model(self, _event=None):
-        self.model_hint.configure(text=describe_model(self.whisper_model.get()))
+        self.model_display.set(model_label(self.whisper_model.get()))
+        self.model_hint.configure(text=model_label(self.whisper_model.get()) + "\n" + describe_model(self.whisper_model.get()))
         try:
             save_model_preference(self.whisper_model.get())
         except OSError as exc:
@@ -1810,7 +1820,7 @@ class RedScribeApp:
         self.root.after(
             0,
             self.status.set,
-            f"Transcribing {inputs['whisper_model']} with {actual_device.upper()} ({actual_compute_type}) - 0% | ETA --:--"
+            f"Transcribing {model_label(inputs['whisper_model'])} with {actual_device.upper()} ({actual_compute_type}) - 0% | ETA --:--"
         )
 
         if isinstance(model, LocalASR):
@@ -1895,7 +1905,7 @@ class RedScribeApp:
                     self.root.after(
                         0,
                         self.status.set,
-                        f"Transcribing {inputs['whisper_model']} with {actual_device.upper()} ({actual_compute_type}) - {progress:.0f}% | ETA {eta_str}"
+                        f"Transcribing {model_label(inputs['whisper_model'])} with {actual_device.upper()} ({actual_compute_type}) - {progress:.0f}% | ETA {eta_str}"
                     )
         finally:
             close_segments = getattr(segments, "close", None)
@@ -1929,7 +1939,7 @@ class RedScribeApp:
                 meta_from_gui=meta_from_gui,
                 actual_device=actual_device,
                 actual_compute_type=actual_compute_type,
-                whisper_model=inputs["whisper_model"],
+                whisper_model=model_label(inputs["whisper_model"]),
                 diarization_enabled=diarization_enabled,
                 diarization_status=diarization_status,
                 diarization_model=inputs.get("diarization_model", DIARIZATION_MODEL)
@@ -1957,7 +1967,7 @@ class RedScribeApp:
                 meta_from_gui=meta_from_gui,
                 actual_device=actual_device,
                 actual_compute_type=actual_compute_type,
-                whisper_model=inputs["whisper_model"],
+                whisper_model=model_label(inputs["whisper_model"]),
                 diarization_enabled=diarization_enabled,
                 diarization_status=diarization_status,
                 diarization_model=inputs.get("diarization_model", DIARIZATION_MODEL)

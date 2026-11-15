@@ -6,15 +6,24 @@ The desktop **ASR model** dropdown adds five optional backends alongside existin
 
 | Desktop choice | Checkpoint | Desktop runtime |
 | --- | --- | --- |
-| `large-v3` | `openai/whisper-large-v3` (converted Faster-Whisper weights) | Existing Faster-Whisper |
-| `turbo` | `openai/whisper-large-v3-turbo` (converted Faster-Whisper weights) | Existing Faster-Whisper |
-| `Mesolitica Whisper v3` | `mesolitica/Malaysian-whisper-large-v3-turbo-v3` | Transformers Whisper, standard `transcribe` task |
-| `Mesolitica XLS-R 300M` | `mesolitica/wav2vec2-xls-r-300m-mixed` | Transformers CTC, greedy decoding without external LM |
-| `Meta MMS 1B (Malay)` | `facebook/mms-1b-all` | Transformers CTC, `zsm` Malay adapter |
-| `Qwen3-ASR 1.7B` | `Qwen/Qwen3-ASR-1.7B` | Official `qwen-asr` Transformers backend |
-| `BuzzASR Malay` | `BuzzASR/malay` | Transformers Whisper |
+| OpenAI Whisper Large-v3 | `openai/whisper-large-v3` (converted Faster-Whisper weights) | Existing Faster-Whisper |
+| OpenAI Whisper Large-v3 Turbo | `openai/whisper-large-v3-turbo` (converted Faster-Whisper weights) | Existing Faster-Whisper |
+| Mesolitica Malaysian Whisper Large-v3 Turbo v3 | `mesolitica/Malaysian-whisper-large-v3-turbo-v3` | Transformers Whisper, standard `transcribe` task |
+| Mesolitica Wav2Vec2 XLS-R 300M Mixed | `mesolitica/wav2vec2-xls-r-300m-mixed` | Transformers CTC, greedy decoding without external LM |
+| Meta MMS-1B-All — Malay | `facebook/mms-1b-all` | Transformers CTC, `zsm` Malay adapter |
+| Qwen3-ASR 1.7B | `Qwen/Qwen3-ASR-1.7B` | Official `qwen-asr` Transformers backend |
+| BuzzASR Malay — Whisper Large-v3 | `BuzzASR/malay` | Transformers Whisper |
 
-The original `medium`, `small` and `base` choices remain available. This table names the model families; the two existing Faster-Whisper choices use converted weights rather than the Transformers runtime specified in the study plan.
+The model menu uses full English names and places those seven study candidates first. Four supplementary choices follow:
+
+- OpenAI Whisper Medium (Legacy)
+- OpenAI Whisper Small (Legacy)
+- OpenAI Whisper Base (Legacy)
+- OpenAI Whisper Tiny (Legacy)
+
+Here, Legacy means outside the seven-model study shortlist, not an upstream deprecation claim. Tiny uses the existing Faster-Whisper runtime, caching, CPU/CUDA policy and exports. The native selection menu sizes to full labels and the selected full name is repeated in the wrapped description below it. Status messages and report model names use the full label too. Stable internal keys, saved preferences and existing output folder names remain unchanged; Tiny adds `whisper_tiny` as its output folder.
+
+ This table names the model families; the two existing Faster-Whisper choices use converted weights rather than the Transformers runtime specified in the study plan.
 
 ## Installation and trial
 

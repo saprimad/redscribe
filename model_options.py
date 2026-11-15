@@ -4,7 +4,28 @@ from pathlib import Path
 
 from asr_backends import EXTRA_MODELS, validate_language
 
-LEGACY_MODELS = ("large-v3", "turbo", "medium", "small", "base")
+LEGACY_MODELS = ("large-v3", "turbo", "medium", "small", "base", "tiny")
+
+# Stable saved/runtime keys are separate from English names shown to users.
+# Seven study candidates first, then four supplementary legacy choices.
+ASR_MODEL_LABELS = {
+    "large-v3": "OpenAI Whisper Large-v3",
+    "turbo": "OpenAI Whisper Large-v3 Turbo",
+    "Mesolitica Whisper v3": "Mesolitica Malaysian Whisper Large-v3 Turbo v3",
+    "Mesolitica XLS-R 300M": "Mesolitica Wav2Vec2 XLS-R 300M Mixed",
+    "Meta MMS 1B (Malay)": "Meta MMS-1B-All — Malay",
+    "Qwen3-ASR 1.7B": "Qwen3-ASR 1.7B",
+    "BuzzASR Malay": "BuzzASR Malay — Whisper Large-v3",
+    "medium": "OpenAI Whisper Medium (Legacy)",
+    "small": "OpenAI Whisper Small (Legacy)",
+    "base": "OpenAI Whisper Base (Legacy)",
+    "tiny": "OpenAI Whisper Tiny (Legacy)",
+}
+
+
+def model_label(selected):
+    return ASR_MODEL_LABELS.get(selected, selected)
+
 MODEL_FOLDERS = {
     **{name: f"whisper_{name.replace('-', '_')}" for name in LEGACY_MODELS},
     "Mesolitica Whisper v3": "mesolitica_whisper_turbo_v3",

@@ -15,7 +15,8 @@ The primary application is [`redscribe_gpu.py`](redscribe_gpu.py). The earlier Q
 ## Features
 
 - Selectable ASR models, including optional Mesolitica, MMS, Qwen3-ASR and BuzzASR backends (see [multi-model setup](docs/MULTI_MODEL_ASR.md))
-- Existing Faster-Whisper models: `large-v3` (default), `turbo`, `medium`, `small` and `base`
+- Full English ASR model names: seven study candidates first, followed by OpenAI Whisper Medium, Small, Base and Tiny labelled `(Legacy)`
+- Existing saved model choices remain compatible; full display names do not change model checkpoints or output folders
 - NVIDIA CUDA first, with automatic CPU fallback
 - Spoken-language choice: Auto detect (default), Bahasa Melayu or English; transcription does not translate the recording
 - Optional speaker diarisation using `pyannote/speaker-diarization-community-1`

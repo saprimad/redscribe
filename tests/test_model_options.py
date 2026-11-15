@@ -8,10 +8,25 @@ from unittest.mock import Mock, patch
 
 from asr_backends import EXTRA_MODELS
 from model_options import (LEGACY_MODELS, MODEL_FOLDERS, ModelPreflightError,
-                           describe_model, model_output_folder, preflight_model)
+                           describe_model, model_output_folder, preflight_model, ASR_MODEL_LABELS, model_label)
 
 
 class ModelOptionsTests(unittest.TestCase):
+    def test_menu_labels_cover_all_runtimes_with_study_candidates_first(self):
+        keys=list(ASR_MODEL_LABELS)
+        self.assertEqual(len(keys),11)
+        self.assertEqual(set(keys),set(LEGACY_MODELS)|set(EXTRA_MODELS))
+        self.assertEqual(keys[-4:],['medium','small','base','tiny'])
+        self.assertEqual(sum(label.endswith('(Legacy)') for label in ASR_MODEL_LABELS.values()),4)
+        self.assertEqual(model_label('turbo'),'OpenAI Whisper Large-v3 Turbo')
+        self.assertEqual(model_label('tiny'),'OpenAI Whisper Tiny (Legacy)')
+
+    def test_tiny_uses_existing_runtime_and_has_its_own_output_folder(self):
+        with patch('model_options.importlib.import_module') as importer:
+            self.assertIn('CPU INT8',preflight_model('tiny'))
+            importer.assert_not_called()
+        self.assertEqual(Path(model_output_folder('output','2026-11','tiny')).name,'whisper_tiny')
+
     def test_distinct_stable_folders_for_every_choice(self):
         choices=(*LEGACY_MODELS,*EXTRA_MODELS)
         paths=[Path(model_output_folder('output','2026-11',name)) for name in choices]

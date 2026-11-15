@@ -21,7 +21,7 @@ except ImportError:
 from token_store import TokenSelection, TokenStoreError
 from speaker_styles import speaker_colour
 from asr_backends import EXTRA_MODELS, validate_language
-from model_options import describe_model
+from model_options import describe_model, ASR_MODEL_LABELS, model_label
 from diarization_options import DIARIZATION_MODELS, DEFAULT_DIARIZATION_CHOICE, describe_diarization
 
 
@@ -40,8 +40,9 @@ class DesktopLayoutTests(unittest.TestCase):
             EXTRA_MODELS=EXTRA_MODELS, validate_language=validate_language, describe_model=describe_model,
             DIARIZATION_MODELS=DIARIZATION_MODELS, describe_diarization=describe_diarization,
             load_diarization_preference=lambda: DEFAULT_DIARIZATION_CHOICE,
+            ASR_MODEL_LABELS=ASR_MODEL_LABELS, model_label=model_label,
             APP_TITLE="RedScribe - UI test", APP_VERSION="2.0.0",
-            WHISPER_MODELS=("large-v3", "turbo", "medium", "small", "base") + tuple(EXTRA_MODELS),
+            WHISPER_MODELS=tuple(ASR_MODEL_LABELS),
             TRANSCRIPTION_LANGUAGES={"Auto detect": None, "Bahasa Melayu": "ms", "English": "en"},
             load_model_preference=lambda: "large-v3", TokenStoreError=TokenStoreError,
             resolve_token=Mock(return_value=TokenSelection("example-test-only", "saved in system credential store")),

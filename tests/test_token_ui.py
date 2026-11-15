@@ -11,9 +11,10 @@ from token_store import TokenSelection, TokenStoreError
 source = ast.parse(Path(__file__).resolve().parents[1].joinpath("redscribe_gpu.py").read_text())
 app_class = next(node for node in source.body if isinstance(node, ast.ClassDef) and node.name == "RedScribeApp")
 from asr_backends import EXTRA_MODELS, validate_language
+from model_options import model_label, describe_model
 from diarization_options import DIARIZATION_MODELS, DEFAULT_DIARIZATION_CHOICE, describe_diarization
 
-namespace = {"DIARIZATION_MODELS": DIARIZATION_MODELS, "describe_diarization": describe_diarization, "EXTRA_MODELS": EXTRA_MODELS, "validate_language": validate_language, "TokenStoreError": TokenStoreError, "messagebox": Mock(), "resolve_token": Mock(),
+namespace = {"model_label": model_label, "describe_model": describe_model, "save_model_preference": Mock(), "DIARIZATION_MODELS": DIARIZATION_MODELS, "describe_diarization": describe_diarization, "EXTRA_MODELS": EXTRA_MODELS, "validate_language": validate_language, "TokenStoreError": TokenStoreError, "messagebox": Mock(), "resolve_token": Mock(),
              "save_token": Mock(), "remove_saved_token": Mock(), "os": Mock(),
              "TRANSCRIPTION_LANGUAGES": {"Auto detect": None}, "threading": Mock(),
              "tk": Mock(), "ttk": Mock()}
@@ -131,6 +132,17 @@ class TokenUITests(unittest.TestCase):
         self.assertIsNone(self.app.token_settings_window)
         self.assertEqual(self.app.hf_token.get(), "hf_example_only")
         self.app.close_token_settings()  # Closing again is safe.
+
+    def test_full_names_preserve_runtime_keys_when_selecting_models(self):
+        self.app.model_display=Value()
+        self.app.model_hint=Mock()
+        self.app.whisper_model=Value()
+        for key in ('turbo','Mesolitica Whisper v3','tiny'):
+            self.app.whisper_model.set(key)
+            self.app.save_selected_model()
+            self.assertEqual(self.app.model_display.get(),model_label(key))
+            self.assertTrue(self.app.model_hint.configure.call_args.kwargs['text'].startswith(model_label(key)))
+            namespace['save_model_preference'].assert_called_with(key)
 
     def test_worker_receives_resolved_saved_token_only_with_diarisation(self):
         for enabled, choice in ((enabled, choice) for enabled in (True, False) for choice in DIARIZATION_MODELS):
