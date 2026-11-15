@@ -35,7 +35,7 @@ RedScribe produces an automated draft. Sentence timestamps are estimates; speech
 
 One recording (MP3, WAV, M4A or MP4) produces two files. The Word report groups adjacent utterances by speaker for reading. The Excel workbook retains individual utterances and verification columns for checking against the recording.
 
-![Proposed RedScribe workflow showing the ASR choices, optional speaker diarisation and the Word and Excel outputs](docs/images/RedScribe_Workflow.svg)
+[![Proposed RedScribe workflow showing the ASR choices, optional speaker diarisation and the Word and Excel outputs](docs/images/RedScribe_Workflow-full.png)](docs/images/RedScribe_Workflow.svg)
 
 *Figure 1. Proposed model selection and processing workflow.* [Download the standalone HTML diagram](https://raw.githubusercontent.com/saprimad/redscribe/main/docs/RedScribe_Workflow.html).
 
