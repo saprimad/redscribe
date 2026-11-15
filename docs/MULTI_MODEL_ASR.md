@@ -10,7 +10,7 @@ The desktop **ASR model** dropdown adds five optional backends alongside existin
 | OpenAI Whisper Large-v3 Turbo | `openai/whisper-large-v3-turbo` (converted Faster-Whisper weights) | Existing Faster-Whisper |
 | Mesolitica Malaysian Whisper Large-v3 Turbo v3 | `mesolitica/Malaysian-whisper-large-v3-turbo-v3` | Transformers Whisper, standard `transcribe` task |
 | Mesolitica Wav2Vec2 XLS-R 300M Mixed | `mesolitica/wav2vec2-xls-r-300m-mixed` | Transformers CTC, greedy decoding without external LM |
-| Meta MMS-1B-All — Malay | `facebook/mms-1b-all` | Transformers CTC, `zsm` Malay adapter |
+| Meta MMS-1B-All — Malay | `facebook/mms-1b-all` | Transformers CTC, `zlm` Malay adapter |
 | Qwen3-ASR 1.7B | `Qwen/Qwen3-ASR-1.7B` | Official `qwen-asr` Transformers backend |
 | BuzzASR Malay — Whisper Large-v3 | `BuzzASR/malay` | Transformers Whisper |
 
@@ -91,6 +91,14 @@ A broken runtime now stops the run before processing so an enabled diarisation r
 
 Fixed-language extra decoders report **Configured decoder language**, rather than claiming their configured Malay decoder was automatically detected.
 
+## MMS Malay adapter correction
+
+The MMS checkpoint's Malay adapter is **`zlm`**. An earlier integration incorrectly requested `zsm`, which caused `adapter.zsm.bin` not found after the main 3.86 GB checkpoint downloaded. This is a configuration error, not evidence of a failed main-model download or insufficient GPU memory.
+
+MMS now uses `zlm` consistently for the processor vocabulary, model `target_lang` and adapter loading. It verifies that the downloaded tokenizer vocabulary supports `zlm` before loading the large weights, never substitutes another language and avoids forcing a duplicate adapter reload when Transformers already loaded it during `from_pretrained`. Existing checkpoint cache/output-folder names are unchanged, so previously downloaded valid weights can be reused. Source: [MMS supported language list](https://huggingface.co/facebook/mms-1b-all).
+
+Mocked regression checks cover target-language forwarding and early rejection of an unsupported vocabulary. Actual fixed MMS FP16 inference still needs a local smoke test.
+
 ## Model-loading notifications
 
 Live Transcript logs model preparation, explains first-use downloads and confirms readiness. A highlighted activity banner and bottom status line animate with elapsed time throughout preparation. Faster-Whisper distinguishes cached weights, actual downloads and loading into memory.
@@ -117,7 +125,7 @@ An already running app cannot acquire the new observer dynamically: finish/stop 
 - Extra models require CUDA and FP16, batch size one. They never silently retry in CPU, FP32, BF16 or quantised mode. Loading/inference errors fail the run rather than exporting incomplete reports.
 - Existing Faster-Whisper options retain their CUDA FP16 → CPU INT8 fallback for desktop compatibility. **This desktop path is not the strict study benchmark runner.**
 - Extra ASR weights load after pyannote has finished and released its pipeline, reducing simultaneous GPU allocations. There is no guarantee every model fits all audio workloads within 12 GB VRAM.
-- MMS uses the Malay `zsm` adapter. XLS-R uses its fixed mixed-language decoder. BuzzASR is Malay-specific. For these options, `Auto detect` means the configured Malay/mixed decoder; it does not perform language detection. Explicit English selection is rejected.
+- MMS uses the Malay `zlm` adapter. XLS-R uses its fixed mixed-language decoder. BuzzASR is Malay-specific. For these options, `Auto detect` means the configured Malay/mixed decoder; it does not perform language detection. Explicit English selection is rejected.
 - Qwen and Mesolitica Whisper allow Auto detect, Bahasa Melayu and English. No forced-aligner model is downloaded for Qwen. Mesolitica's optional `transcribeprecise` task is not used, and no global tokenizer task list is patched.
 - Stop is checked before/after model loading and each audio chunk. A running download or GPU inference step must return before cancellation completes.
 

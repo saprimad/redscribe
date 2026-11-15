@@ -41,7 +41,7 @@ def describe_model(selected):
         return ("Multilingual / Auto detect. CUDA FP16; CPU INT8 fallback.\n"
                 "Model segment timestamps; sentence times estimated.")
     spec = EXTRA_MODELS[selected]
-    language = ("Fixed Malay adapter (zsm)" if spec.engine == "mms" else
+    language = ("Fixed Malay adapter (zlm)" if spec.engine == "mms" else
                 "Fixed Malay / mixed decoder" if spec.engine == "ctc" else
                 "Malay-specific" if spec.default_language == "ms" else "Auto detect / Malay / English")
     return f"{language}. CUDA FP16 required.\nApproximate chunk timestamps. First use downloads model."

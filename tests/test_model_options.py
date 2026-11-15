@@ -44,7 +44,7 @@ class ModelOptionsTests(unittest.TestCase):
             text=describe_model(name)
             self.assertIn('CUDA FP16 required',text)
             self.assertIn('Approximate chunk timestamps',text)
-        self.assertIn('zsm',describe_model('Meta MMS 1B (Malay)'))
+        self.assertIn('zlm',describe_model('Meta MMS 1B (Malay)'))
         self.assertIn('Auto detect',describe_model('Qwen3-ASR 1.7B'))
 
     def test_legacy_checks_do_not_require_torch_or_optional_dependencies(self):

@@ -14,6 +14,7 @@ class AdapterTests(unittest.TestCase):
         self.torch.cuda.is_available.return_value = True
         self.transformers = SimpleNamespace(AutoProcessor=Mock(), AutoModelForCTC=Mock(),
                                             WhisperForConditionalGeneration=Mock())
+        self.transformers.AutoProcessor.from_pretrained.return_value.tokenizer.vocab={"eng":{},"zlm":{}}
         self.qwen = SimpleNamespace(Qwen3ASRModel=Mock())
         self.runtime = patch.dict(sys.modules, torch=self.torch, transformers=self.transformers, qwen_asr=self.qwen)
         self.runtime.start()
@@ -65,12 +66,33 @@ class AdapterTests(unittest.TestCase):
         model.config._commit_hash="revision-test"
         adapter._load()
         kwargs=self.transformers.AutoModelForCTC.from_pretrained.call_args.kwargs
-        self.assertEqual(kwargs["target_lang"], "zsm")
+        self.assertEqual(kwargs["target_lang"], "zlm")
         self.assertEqual(kwargs["torch_dtype"], "fp16")
-        model.load_adapter.assert_called_once_with("zsm")
+        model.load_adapter.assert_called_once_with("zlm", force_load=False)
         model.to.assert_called_once_with(device="cuda",dtype="fp16")
-        self.transformers.AutoProcessor.from_pretrained.return_value.tokenizer.set_target_lang.assert_called_once_with("zsm")
+        self.transformers.AutoProcessor.from_pretrained.return_value.tokenizer.set_target_lang.assert_called_once_with("zlm")
         self.assertEqual(adapter.revision, "revision-test")
+
+    def test_mms_rejects_unsupported_adapter_before_loading_large_weights(self):
+        adapter=LocalASR("Meta MMS 1B (Malay)")
+        self.transformers.AutoProcessor.from_pretrained.return_value.tokenizer.vocab={"eng":{}}
+        with self.assertRaisesRegex(RuntimeError,"configured Malay adapter 'zlm'"):
+            adapter._load()
+        self.transformers.AutoModelForCTC.from_pretrained.assert_not_called()
+
+    def test_mms_load_requests_real_checkpoint_malay_adapter_without_substitution(self):
+        calls=[]
+        def checkpoint_load(checkpoint, **kwargs):
+            self.assertEqual(checkpoint,"facebook/mms-1b-all")
+            if kwargs.get("target_lang") != "zlm":
+                raise OSError("checkpoint adapter not found")
+            calls.append(kwargs["target_lang"])
+            return Mock()
+        self.transformers.AutoModelForCTC.from_pretrained.side_effect=checkpoint_load
+        adapter=LocalASR("Meta MMS 1B (Malay)")
+        adapter._load()
+        self.assertEqual(calls,["zlm"])
+        self.assertEqual(adapter.spec.language_adapter,"zlm")
 
     def test_qwen_batch_one_fp16_and_malay_language(self):
         adapter=LocalASR("Qwen3-ASR 1.7B", "ms")

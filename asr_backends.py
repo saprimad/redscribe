@@ -14,12 +14,13 @@ class ModelSpec:
     checkpoint: str
     engine: str
     default_language: str | None = None
+    language_adapter: str | None = None
 
 
 EXTRA_MODELS = {
     "Mesolitica Whisper v3": ModelSpec("mesolitica/Malaysian-whisper-large-v3-turbo-v3", "whisper"),
     "Mesolitica XLS-R 300M": ModelSpec("mesolitica/wav2vec2-xls-r-300m-mixed", "ctc", "ms"),
-    "Meta MMS 1B (Malay)": ModelSpec("facebook/mms-1b-all", "mms", "ms"),
+    "Meta MMS 1B (Malay)": ModelSpec("facebook/mms-1b-all", "mms", "ms", language_adapter="zlm"),
     "Qwen3-ASR 1.7B": ModelSpec("Qwen/Qwen3-ASR-1.7B", "qwen"),
     "BuzzASR Malay": ModelSpec("BuzzASR/malay", "whisper", "ms"),
 }
@@ -106,12 +107,23 @@ class LocalASR:
                 # optional transcribeprecise task is not invoked or globally patched.
                 self.model.generation_config.forced_decoder_ids = None
             else:
-                options = {"target_lang": "zsm", "ignore_mismatched_sizes": True} if self.spec.engine == "mms" else {}
+                options = {}
+                if self.spec.engine == "mms":
+                    adapter = self.spec.language_adapter
+                    # The checkpoint uses zlm for Malay. zsm is not an available
+                    # MMS adapter: reject a mismatched vocabulary before weights load.
+                    if adapter not in self.processor.tokenizer.vocab:
+                        raise RuntimeError(f"MMS checkpoint vocabulary does not contain the configured Malay adapter {adapter!r}. No alternate language was selected.")
+                    self.processor.tokenizer.set_target_lang(adapter)
+                    if self.status_callback:
+                        self.status_callback("stage", f"Loading MMS Malay language adapter: {adapter}...")
+                    options = {"target_lang": adapter, "ignore_mismatched_sizes": True}
                 self.model = AutoModelForCTC.from_pretrained(
                     self.spec.checkpoint, torch_dtype=torch.float16, trust_remote_code=False, **options)
                 if self.spec.engine == "mms":
-                    self.processor.tokenizer.set_target_lang("zsm")
-                    self.model.load_adapter("zsm")
+                    # from_pretrained can already load it through tie_weights;
+                    # avoid forcing a duplicate adapter reload in that case.
+                    self.model.load_adapter(self.spec.language_adapter, force_load=False)
             # Also cast newly loaded MMS adapter weights to the requested dtype.
             self.model.to(device="cuda", dtype=torch.float16).eval()
         inner = getattr(self.model, "model", self.model) if self.spec.engine == "qwen" else self.model
