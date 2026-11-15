@@ -19,6 +19,7 @@ except ImportError:
     tk = None
 
 from token_store import TokenSelection, TokenStoreError
+from speaker_styles import speaker_colour
 
 
 @unittest.skipUnless(tk is not None and os.environ.get("DISPLAY"), "A Tk display is required")
@@ -30,7 +31,7 @@ class DesktopLayoutTests(unittest.TestCase):
             self.skipTest(str(exc))
         self.addCleanup(self.close_root)
         self.ns = dict(
-            tk=tk, ttk=ttk, tkfont=tkfont, scrolledtext=scrolledtext, os=os,
+            tk=tk, ttk=ttk, tkfont=tkfont, scrolledtext=scrolledtext, os=os, speaker_colour=speaker_colour,
             time=__import__("time"), __file__=str(Path(__file__).resolve().parents[1] / "redscribe_gpu.py"),
             threading=SimpleNamespace(Lock=threading.Lock, Event=threading.Event, Thread=Mock()),
             APP_TITLE="RedScribe - UI test", APP_VERSION="2.0.0",
@@ -126,6 +127,9 @@ class DesktopLayoutTests(unittest.TestCase):
         self.assertIn("Example transcript.", self.app.live_box.get("1.0", "end"))
         self.assertNotEqual(self.app.speaker_tags["SPEAKER_01"], self.app.speaker_tags["SPEAKER_02"])
         self.assertEqual(str(self.app.live_box.cget("state")), "disabled")
+        for speaker in ("SPEAKER_01", "SPEAKER_02"):
+            self.assertEqual(self.app.live_box.tag_cget(self.app.speaker_tags[speaker], "foreground"),
+                             f"#{speaker_colour(speaker)}")
 
     def test_start_hands_saved_token_and_metadata_to_worker(self):
         with tempfile.NamedTemporaryFile(suffix=".wav") as audio:

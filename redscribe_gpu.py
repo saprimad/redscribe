@@ -14,14 +14,17 @@ import json
 import math
 from io import BytesIO
 from collections import Counter
+from copy import copy
+from speaker_styles import speaker_colour, speaker_fill
 from token_store import TokenStoreError, resolve_token, save_token, remove_saved_token
 
 from openpyxl import Workbook
+from openpyxl.styles import PatternFill
 from openpyxl.utils import get_column_letter
 from openpyxl.chart import BarChart, Reference
 from openpyxl.chart.label import DataLabelList
 from docx import Document
-from docx.shared import Inches
+from docx.shared import Inches, RGBColor
 from matplotlib.figure import Figure
 
 
@@ -505,6 +508,15 @@ def assign_speaker(start: float, end: float, diarization_turns: list[dict]) -> s
 # =========================
 # EXCEL WRITER
 # =========================
+def style_speaker_cell(cell, speaker: str) -> None:
+    """Accent just the speaker cell; preserve the transcript and review columns."""
+    font = copy(cell.font)
+    font.bold = True
+    font.color = speaker_colour(speaker)
+    cell.font = font
+    cell.fill = PatternFill(fill_type="solid", fgColor=speaker_fill(speaker))
+
+
 def save_xlsx_with_early_report(
     xlsx_path: str,
     utterance_rows: list[dict],
@@ -602,6 +614,7 @@ def save_xlsx_with_early_report(
     for speaker, count in speaker_summary:
         ws1[f"A{rr_spk}"] = speaker
         ws1[f"B{rr_spk}"] = count
+        style_speaker_cell(ws1[f"A{rr_spk}"], speaker)
         rr_spk += 1
 
     r3 = max(rr_spk + 2, r2 + 5)
@@ -708,6 +721,7 @@ def save_xlsx_with_early_report(
             "",
             ""
         ])
+        style_speaker_cell(ws2.cell(row=ws2.max_row, column=2), rrow.get("speaker", "UNKNOWN"))
 
     widths = [14, 18, 20, 18, 70, 40, 25]
     for col_idx, w in enumerate(widths, start=1):
@@ -828,7 +842,11 @@ def save_docx_transcript(
     add_report_table(document, summary)
 
     document.add_heading("Speaker Utterance Count", level=1)
-    add_report_table(document, [("Speaker", "Utterances"), *speaker_summary])
+    speaker_table = add_report_table(document, [("Speaker", "Utterances"), *speaker_summary])
+    for table_row, (speaker, _count) in zip(speaker_table.rows[1:], speaker_summary):
+        for run in table_row.cells[0].paragraphs[0].runs:
+            run.bold = True
+            run.font.color.rgb = RGBColor.from_string(speaker_colour(speaker))
 
     speech_minutes = round(speech_s / 60.0, 3)
     silence_minutes = round(silence_s / 60.0, 3)
@@ -867,11 +885,12 @@ def save_docx_transcript(
 
     for row in group_consecutive_speaker_turns(utterance_rows):
         paragraph = document.add_paragraph()
-        heading = (
-            f"[{sec_to_hms(row['start_s'])}–{sec_to_hms(row['end_s'])}] "
-            f"{row.get('speaker', 'UNKNOWN')}: "
-        )
-        paragraph.add_run(heading).bold = True
+        timestamp = paragraph.add_run(f"[{sec_to_hms(row['start_s'])}–{sec_to_hms(row['end_s'])}] ")
+        timestamp.bold = True
+        speaker = row.get("speaker", "UNKNOWN")
+        label = paragraph.add_run(f"{speaker}: ")
+        label.bold = True
+        label.font.color.rgb = RGBColor.from_string(speaker_colour(speaker))
         paragraph.add_run(row["text"])
 
     document.save(docx_path)
@@ -936,17 +955,17 @@ class RedScribeApp:
         }
         c = self.colours
         self.root.configure(bg=c["background"])
-        self.root.option_add("*Font", (self.ui_font, 10))
+        self.root.option_add("*Font", (self.ui_font, 11))
         style = ttk.Style(self.root)
         if "clam" in style.theme_names():
             style.theme_use("clam")
-        style.configure(".", font=(self.ui_font, 10), background="white", foreground=c["text"])
+        style.configure(".", font=(self.ui_font, 11), background="white", foreground=c["text"])
         style.configure("TButton", padding=(10, 7))
         style.configure("TEntry", padding=5)
         style.configure("TLabelframe", background="white", bordercolor=c["border"])
         style.configure("TLabelframe.Label", background="white", foreground=c["text"])
         style.map("TCheckbutton", background=[("active", "white")])
-        style.configure("RedScribe.TButton", font=(self.ui_font, 10), padding=(12, 8),
+        style.configure("RedScribe.TButton", font=(self.ui_font, 11), padding=(12, 8),
                         background="#FFFFFF", foreground=c["text"], bordercolor=c["border"])
         style.map("RedScribe.TButton", background=[("active", "#F8ECF0")],
                   foreground=[("disabled", "#9895A0")])
@@ -1028,7 +1047,7 @@ class RedScribeApp:
                                 ("Audio label", self.label), ("Period", self.period)):
             field = tk.Frame(self.study_fields, bg="white")
             field.pack(fill="x", pady=3)
-            tk.Label(field, text=label, bg="white", fg=c["text"], width=12, anchor="w").pack(side="left")
+            tk.Label(field, text=label, bg="white", fg=c["text"], width=10, anchor="w").pack(side="left")
             entry = ttk.Entry(field, textvariable=variable, width=10, style="RedScribe.TEntry")
             if variable is self.period:
                 ttk.Button(field, text="Pick", width=4, style="RedScribe.TButton", command=self.pick_period).pack(side="right", padx=(6, 0))
@@ -1074,11 +1093,11 @@ class RedScribeApp:
         transcript.bind("<Configure>", lambda event: self.activity_label.configure(wraplength=max(180, event.width - 40)))
         self.live_box = scrolledtext.ScrolledText(transcript, height=8, width=30, state="disabled", wrap="word",
                                                   bg="white", fg=c["text"], relief="flat", borderwidth=0,
-                                                  font=(self.ui_font, 11), padx=18, pady=12, spacing3=10,
+                                                  font=(self.ui_font, 13), padx=18, pady=12, spacing3=4,
                                                   selectbackground="#F2CED9", selectforeground=c["text"])
         self.live_box.grid(row=2, column=0, sticky="nsew", padx=2, pady=(0, 10))
-        self.live_box.tag_configure("ts", foreground=c["muted"], font=(self.ui_font, 9))
-        self.live_box.tag_configure("speaker", foreground=c["accent"], font=(self.ui_font, 10, "bold"))
+        self.live_box.tag_configure("ts", foreground=c["muted"], font=(self.ui_font, 10), spacing1=6)
+        self.live_box.tag_configure("speaker", foreground=c["accent"], font=(self.ui_font, 11, "bold"))
         self.live_box.tag_configure("txt", foreground=c["text"])
         self.live_box.tag_configure("info", foreground="#52657D")
         self.live_box.tag_configure("warn", foreground="#B42318")
@@ -1432,14 +1451,13 @@ class RedScribeApp:
     def log_live_segment(self, ts: str, speaker: str, text: str):
         if speaker not in self.speaker_tags:
             tag = f"speaker_{len(self.speaker_tags)}"
-            palette = ("#8E1235", "#2458A6", "#24735B", "#8C4E12")
-            self.live_box.tag_configure(tag, foreground=palette[len(self.speaker_tags) % len(palette)],
-                                        font=(self.ui_font, 10, "bold"))
+            self.live_box.tag_configure(tag, foreground=f"#{speaker_colour(speaker)}",
+                                        font=(self.ui_font, 11, "bold"))
             self.speaker_tags[speaker] = tag
         self.live_box.configure(state="normal")
         self.live_box.insert("end", f"{ts}   ", ("ts",))
         self.live_box.insert("end", f"{speaker}\n", (self.speaker_tags[speaker],))
-        self.live_box.insert("end", f"{text}\n\n", ("txt",))
+        self.live_box.insert("end", f"{text}\n", ("txt",))
         self.live_box.see("end")
         self.live_box.configure(state="disabled")
 

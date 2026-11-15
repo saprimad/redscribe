@@ -22,6 +22,9 @@ All notable changes to RedScribe are documented in this file. The dated 2.0.0 en
 
 ### Changed
 
+- Increased UI/control fonts and the live transcript to 13 pt, with closer segment spacing.
+- Shared deterministic speaker-label colours across the live UI, Word transcript/summary and Excel Speaker cells/summary; UNKNOWN uses grey and transcript wording remains unchanged.
+
 - Redesigned the desktop workspace with white/maroon styling, a scrollable left configuration column, a larger live transcript, compact Study details below Audio file in the left column (open by default) and persistent bottom actions.
 - Moved all diarisation controls (enabled by default, expected speakers and token management) into Settings, with concise summaries on the main window.
 - Added consistent speaker colours in the live transcript and a system-font fallback for Windows, macOS and Linux.
