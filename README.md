@@ -2,7 +2,7 @@
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22941754.svg)](https://doi.org/10.5281/zenodo.22941754)
 
-RedScribe is a Windows and macOS desktop application for transcribing research interviews and other recorded speech. Version 2.0 uses Faster-Whisper for transcription and can optionally use pyannote.audio to distinguish between speakers. Each completed run takes one recording and exports an Excel workbook and an editable Word report for researcher-led verification and qualitative analysis.
+RedScribe is a Windows and macOS desktop application for transcribing research interviews and other recorded speech. Version 2.0 uses Faster-Whisper by default, with optional local ASR adapters for additional models and can optionally use pyannote.audio to distinguish between speakers. Each completed run takes one recording and exports an Excel workbook and an editable Word report for researcher-led verification and qualitative analysis.
 
 ## Current source version
 
@@ -14,13 +14,16 @@ The primary application is [`redscribe_gpu.py`](redscribe_gpu.py). The earlier Q
 
 ## Current features
 
-- Selectable Faster-Whisper models: `large-v3` (default), `turbo`, `medium`, `small` and `base`
-- NVIDIA CUDA first, with automatic CPU fallback
+- Selectable ASR models, including optional Mesolitica, MMS, Qwen3-ASR and BuzzASR backends (see [multi-model setup](docs/MULTI_MODEL_ASR.md))
+- Full English ASR model names: seven study candidates first, followed by OpenAI Whisper Medium, Small, Base and Tiny labelled `(Legacy)`
+- Existing saved model choices remain compatible; full display names do not change model checkpoints or output folders
+- Faster-Whisper tries NVIDIA CUDA FP16 first with CPU INT8 fallback; optional ASR backends require CUDA FP16
 - Spoken-language choice: Auto detect (default), Bahasa Melayu or English; transcription does not translate the recording
 - Optional speaker diarisation using `pyannote/speaker-diarization-community-1`
 - Optional expected-speaker count
 - Hugging Face token controls: masked entry, Show/Hide, Save Token, Remove Saved and a local Check Token button; saved tokens use the system credential store through `keyring`
 - Live timestamped transcript, detected-language notice, progress and estimated remaining time
+- Local per-run performance records in `output/performance/`: stage timings, actual device/precision and completed-ASR RTF/speed, including failed/cancelled run records
 - Live diarisation activity in English, with an animated indicator, elapsed time and stage progress where pyannote reports it; a speaker timeline preview appears before transcription
 - Speaker assignment and estimated sentence timestamps derived from Whisper segments
 - Excel export with study metadata, an utterance-level verification worksheet, speaker counts, approximate speech/silence durations, five-minute utterance density and token frequency
@@ -35,16 +38,11 @@ RedScribe produces an automated draft. Sentence timestamps are estimates; speech
 
 One recording (MP3, WAV, M4A or MP4) produces two files. The Word report groups adjacent utterances by speaker for reading. The Excel workbook retains individual utterances and verification columns for checking against the recording.
 
-[![Proposed RedScribe workflow showing the ASR choices, optional speaker diarisation and the Word and Excel outputs](docs/images/RedScribe_Workflow-full.png)](docs/images/RedScribe_Workflow.svg)
+[![RedScribe workflow showing the ASR choices, optional speaker diarisation and the Word and Excel outputs](docs/images/RedScribe_Workflow-full.png)](docs/images/RedScribe_Workflow.svg)
 
-*Figure 1. Proposed model selection and processing workflow.* [Download the standalone HTML diagram](https://raw.githubusercontent.com/saprimad/redscribe/main/docs/RedScribe_Workflow.html).
+*Figure 1. Model selection and processing workflow.* [Download the standalone HTML diagram](https://raw.githubusercontent.com/saprimad/redscribe/main/docs/RedScribe_Workflow.html).
 
-| Stage | Available in the desktop application | Proposed additions shown in Figure 1 |
-|---|---|---|
-| Speech recognition (ASR) | Faster-Whisper large-v3, turbo, medium, small and base | Mesolitica Malaysian Whisper Large-v3 Turbo V3, Mesolitica XLS-R 300M Mixed, Meta MMS-1B All, Qwen3-ASR 1.7B and BuzzASR Malay |
-| Speaker diarisation | Optional pyannote Community-1 with an expected speaker count if known | pyannote 3.1 as a selectable legacy alternative |
-
-For the current application, choose the recording, language and Whisper model. If diarisation is enabled, RedScribe estimates speaker turns before transcribing. If diarisation fails, transcription continues. Check the exported text, estimated timings and speaker assignments against the original recording.
+Select a recording, language and ASR model, then configure optional speaker diarisation. When enabled, diarisation runs before transcription. A broken diarisation runtime blocks processing with repair instructions; a later model-access/inference failure is explicitly recorded and transcription can continue without speaker labels. RedScribe subsequently prepares timestamped utterances, descriptive summaries, and Excel and Word reports for researcher verification.
 
 During diarisation, the Live Transcript area logs the current processing stage. An animated activity line displays elapsed time even while model loading or grouping speakers provides no numerical progress. When pyannote reports completed/total work, the percentage applies only to that stage, not the whole recording or transcription run. Once diarisation finishes, RedScribe shows the speaker-label count and a preview of the first 20 speaker turns with timestamps, then begins transcription. These are automated speaker labels, not identified people; they still require researcher verification. No provisional speaker identities are displayed during segmentation or embedding extraction.
 
@@ -134,7 +132,27 @@ RedScribe has been tested successfully on a Mac mini with an Apple M4 chip and 2
 
 The first launch may take longer while the selected Whisper model is downloaded. On a modern Apple Silicon Mac, use `large-v3` when prioritising transcription accuracy or `turbo` when prioritising faster processing. The `small` and `base` models remain useful for older Macs or systems with limited memory. If macOS asks for permission to access a folder containing the selected recording, allow access so RedScribe can read the file and save its reports.
 
+## Diarisation dependency repair
+
+If importing pyannote reports `cannot import name '_ExtendedAttributes' from 'opentelemetry.util.types'`, the failure is in its Python dependency stack, before any model download. RedScribe distinguishes this from pyannote itself being missing. With diarisation enabled, the runtime import check must pass before processing starts.
+
+Close RedScribe, open PowerShell in the project folder, and use the same project virtual environment explicitly:
+
+```powershell
+.\.venv\Scripts\python.exe -c "import sys; print(sys.executable)"
+.\.venv\Scripts\python.exe -m pip install --upgrade opentelemetry-api opentelemetry-sdk opentelemetry-exporter-otlp
+.\.venv\Scripts\python.exe -m pip check
+.\.venv\Scripts\python.exe -c "from pyannote.audio import Pipeline; print('pyannote import OK')"
+.\.venv\Scripts\python.exe redscribe_gpu.py
+```
+
+These commands assume the existing `.venv` contains your RedScribe/CUDA dependencies. A global `Python311/Lib/site-packages` path in a traceback can indicate a different interpreter or an environment exposing global packages; check VS Code's selected interpreter. If `pip check` or the import still fails, resolve the reported version conflicts before retrying. Upgrading the OpenTelemetry packages together lets pip resolve their compatibility, but it is not a guarantee that unrelated package constraints are satisfied. The app does not install packages automatically.
+
 ## Speaker diarisation setup
+
+Settings now offers **Community-1 (Recommended)** and **3.1 (Legacy / comparison)**. Community-1 remains the default, and diarisation stays on by default. The selected model is remembered separately from the ASR model and recorded in both reports. Both choices use the existing local pyannote runtime; no WSL or extra diarisation engine is added. The 3.1 option still needs a real inference/compatibility test on the current installation.
+
+For **3.1**, also accept the conditions for [`pyannote/speaker-diarization-3.1`](https://huggingface.co/pyannote/speaker-diarization-3.1) and [`pyannote/segmentation-3.0`](https://huggingface.co/pyannote/segmentation-3.0) using the same Hugging Face account/token. Selecting a model does not download it; loading starts with a transcription run. A failed model is reported rather than silently replaced with the other choice. For Community-1, follow these steps:
 
 1. Open the model page for [`pyannote/speaker-diarization-community-1`](https://huggingface.co/pyannote/speaker-diarization-community-1) and accept any required conditions.
 2. Create a Hugging Face token with read access.
@@ -167,6 +185,8 @@ Token availability does not guarantee diarisation access: accept the model condi
 
 The workspace uses a white and maroon theme. **Study details** is a compact panel in the left column, directly below **Audio file** and above **Transcription**. It is open by default for entering the study name, researcher, audio label and reporting period, and can be collapsed afterwards. The right-hand transcript retains the full workspace height. The left column scrolls when more space is needed, while the live transcript and bottom actions remain visible.
 
+Model downloads can show per-file percentage and downloaded/total size in Live Transcript when the installed Hugging Face HTTP/Xet runtime exposes byte progress. Parallel files get separate updating lines; unknown sizes keep an elapsed/bytes-only notice. These are file percentages, separate from transcription progress.
+
 The right panel uses larger transcript text with tighter spacing and shows English processing notices, diarisation activity and elapsed time, the speaker timeline preview, and timestamped transcription with consistent speaker colours. Consecutive segments from the same speaker append to one live paragraph, with the starting timestamp and coloured speaker label shown once inline. A speaker change starts a new paragraph. This display grouping preserves the underlying segment timestamps and existing Word and Excel exports. The bottom bar retains progress, status/ETA, **Open output folder**, **Stop** and **Start transcription**. During diarisation, percentages refer only to supported processing stages, not to completion of the entire recording.
 
 **Settings** opens the diarisation and Hugging Face controls in a separate window. A session's settings changes apply to the next run; the current run uses the choices captured when Start was pressed. Token availability is separate from model download or model access. Settings and the left column can be scrolled on smaller screens.
@@ -179,7 +199,7 @@ The right panel uses larger transcript text with tighter spacing and shows Engli
 python redscribe_gpu.py
 ```
 
-Select an audio or video file, complete the optional study metadata, choose whether to enable speaker diarisation, and start transcription. **Transcription Language** defaults to Auto detect; select Bahasa Melayu or English when detection is inaccurate. The app uses Whisper's transcription task, not translation. Mixed-language speech still needs checking against the recording. Matching `.xlsx` and `.docx` files are written to `output/YYYY-MM/`. Repeated runs create a numbered file pair rather than overwriting an earlier result. The Word file begins with the Excel `Early_Report` information and charts, followed by a transcript that combines adjacent utterances from the same speaker into one editable paragraph, labelled with the first start and last end time. The Excel workbook retains each utterance separately, along with verification columns. Speaker labels use the same colours in the live UI, Word transcript and speaker summary, and Excel Speaker cells and speaker summary. Word transcript text retains its normal colour; Excel Speaker cells have a pale matching fill. Colours are derived from the automatic label ID, not its order of appearance; UNKNOWN is grey. There are eight accent colours, so colours repeat after eight numeric IDs and do not establish a person’s identity across recordings. If a run stops with an unexpected Python error, details are written locally to `output/redscribe_error.log`; review the log before sharing it because paths may identify research files.
+Select an audio or video file, complete the optional study metadata, choose whether to enable speaker diarisation, and start transcription. **Transcription Language** defaults to Auto detect; select Bahasa Melayu or English when detection is inaccurate. Whisper-based choices use the transcription task rather than translation; optional backends use their own decoders. The description below ASR model explains each choice's language, precision and timestamp behaviour. A background requirements check runs before downloading models or starting diarisation; missing optional runtimes show an installation instruction. Mixed-language speech still needs checking against the recording. Matching `.xlsx` and `.docx` files are written to `output/YYYY-MM/<model>/`; both filenames also include the model name. Repeated runs create a numbered file pair rather than overwriting an earlier result. The Word file begins with the Excel `Early_Report` information and charts, followed by a transcript that combines adjacent utterances from the same speaker into one editable paragraph, labelled with the first start and last end time. The Excel workbook retains each utterance separately, along with verification columns. Speaker labels use the same colours in the live UI, Word transcript and speaker summary, and Excel Speaker cells and speaker summary. Word transcript text retains its normal colour; Excel Speaker cells have a pale matching fill. Colours are derived from the automatic label ID, not its order of appearance; UNKNOWN is grey. There are eight accent colours, so colours repeat after eight numeric IDs and do not establish a person’s identity across recordings. If a run stops with an unexpected Python error, details are written locally to `output/redscribe_error.log`; review the log before sharing it because paths may identify research files.
 
 With Auto detect, the detected language appears in the live transcript area before the first segment. If it is wrong (for example, Welsh for a Malay recording), click **Stop**, choose Bahasa Melayu or English under Transcription Language, and start again. Stop waits for the current model-loading, diarisation or transcription step to finish; it cannot interrupt a library call instantly. A stopped run does not save a partial Word or Excel report. Once report saving begins, Stop is disabled until both exports finish. Previously completed reports are preserved.
 
@@ -199,7 +219,11 @@ The repository's `.gitignore` excludes common audio, video, spreadsheet, transcr
 
 ## GPU acceleration and CPU fallback
 
-On Windows, RedScribe attempts to load Whisper with CUDA and `float16`. If CUDA is unavailable or loading fails, it falls back to CPU with `int8`. On macOS, the current version uses CPU mode with `int8`. Speaker diarisation is sent to CUDA only when CUDA is available; otherwise it runs on CPU. A diarisation failure does not stop transcription.
+The [pre-merge trial record](docs/PRE_MERGE_TEST_LOG.md) documents user-reported runs, the MMS Malay adapter correction and unresolved quality checks.
+
+The optional ASR backends require NVIDIA CUDA FP16 and never fall back silently to CPU or another precision. See [multi-model setup](docs/MULTI_MODEL_ASR.md) for installation, timing limitations and pending GPU validation.
+
+On Windows, RedScribe attempts to load the original Faster-Whisper choices with CUDA and `float16`. If CUDA is unavailable or loading fails, it falls back to CPU with `int8`. On macOS, the current version uses CPU mode with `int8`. Speaker diarisation is sent to CUDA only when CUDA is available; otherwise it runs on CPU. A diarisation failure does not stop transcription.
 
 ## Troubleshooting
 

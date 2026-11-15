@@ -16,6 +16,14 @@ from io import BytesIO
 from collections import Counter
 from copy import copy
 from speaker_styles import speaker_colour, speaker_fill
+from asr_backends import EXTRA_MODELS, LocalASR, validate_language
+from performance_log import RunPerformance, performance_summary, save_performance, print_performance
+from model_loading import model_preparation
+from download_progress import hub_download_progress, progress_text
+from diarization_options import (DEFAULT_DIARIZATION_MODEL, DIARIZATION_MODELS,
+                                  DEFAULT_DIARIZATION_CHOICE, describe_diarization,
+                                  DiarizationDependencyError, load_pyannote_pipeline_class)
+from model_options import describe_model, model_output_folder, preflight_model, ModelPreflightError, MODEL_FOLDERS, ASR_MODEL_LABELS, model_label
 from token_store import TokenStoreError, resolve_token, save_token, remove_saved_token
 
 from openpyxl import Workbook
@@ -32,7 +40,7 @@ from matplotlib.figure import Figure
 # CONFIG
 # =========================
 DEFAULT_MODEL_SIZE = "large-v3"
-WHISPER_MODELS = ("large-v3", "turbo", "medium", "small", "base")
+WHISPER_MODELS = tuple(ASR_MODEL_LABELS)
 
 # Whisper device priority: try the GPU first, then fall back to the CPU.
 WHISPER_DEVICE_PRIORITY = ["cuda", "cpu"]
@@ -59,7 +67,7 @@ def cpu_thread_budget() -> int:
 # 1. Install: pip install pyannote.audio
 # 2. Sign in to Hugging Face, or provide a token through the GUI or HF_TOKEN.
 # 3. Accept the model conditions on Hugging Face when required.
-DIARIZATION_MODEL = "pyannote/speaker-diarization-community-1"
+DIARIZATION_MODEL = DEFAULT_DIARIZATION_MODEL
 
 APP_VERSION = "2.0.0"
 APP_TITLE = f"RedScribe v{APP_VERSION} – Research Speech Transcription System"
@@ -88,12 +96,36 @@ def load_model_preference() -> str:
 
 def save_model_preference(selected: str) -> None:
     if selected not in WHISPER_MODELS:
-        raise ValueError("Unsupported Whisper model")
+        raise ValueError("Unsupported ASR model")
+    save_preference("whisper_model", selected)
+
+
+def load_diarization_preference():
+    try:
+        with open(model_settings_path(), encoding="utf-8") as settings_file:
+            selected = json.load(settings_file).get("diarization_model")
+        for choice, checkpoint in DIARIZATION_MODELS.items():
+            if checkpoint == selected:
+                return choice
+    except (OSError, ValueError, AttributeError):
+        pass
+    return DEFAULT_DIARIZATION_CHOICE
+
+
+def save_preference(key, value):
     path = model_settings_path()
+    try:
+        with open(path, encoding="utf-8") as settings_file:
+            settings = json.load(settings_file)
+        if not isinstance(settings, dict):
+            settings = {}
+    except (OSError, ValueError):
+        settings = {}
+    settings[key] = value
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    # No token or study details are stored in this file.
+    # Model preferences only; credentials remain in the system keyring.
     with open(path, "w", encoding="utf-8") as settings_file:
-        json.dump({"whisper_model": selected}, settings_file)
+        json.dump(settings, settings_file)
 
 
 # =========================
@@ -233,25 +265,34 @@ def open_folder(path: str):
         pass
 
 
-def create_whisper_model(model_size: str):
-    """
-    Load Whisper on the GPU when possible, with an automatic CPU fallback.
-
-    Return:
-        model, actual_device, actual_compute_type
-    """
-    last_error = None
-
-    for device in WHISPER_DEVICE_PRIORITY:
-        compute_type = WHISPER_COMPUTE_TYPE.get(device, "int8")
+def create_whisper_model(model_size: str, status_callback=None):
+    """Prepare cached/downloaded weights, then try CUDA FP16 and CPU INT8."""
+    from faster_whisper.utils import download_model
+    from huggingface_hub.errors import LocalEntryNotFoundError
+    notify = status_callback or (lambda state, message: None)
+    with model_preparation(model_label(model_size), notify):
         try:
-            options = {"cpu_threads": cpu_thread_budget(), "num_workers": 1} if device == "cpu" else {}
-            model = WhisperModel(model_size, device=device, compute_type=compute_type, **options)
-            return model, device, compute_type
-        except Exception as e:
-            last_error = e
-
-    raise RuntimeError(f"Unable to load the Whisper model on any available device. Last error: {last_error}")
+            model_path = download_model(model_size, local_files_only=True)
+            # A cached snapshot can exist after an interrupted partial download.
+            if not all(os.path.isfile(os.path.join(model_path, name)) for name in ("model.bin", "config.json")):
+                raise LocalEntryNotFoundError("Cached model files are incomplete")
+            notify("stage", "Using saved model files; loading into memory...")
+        except LocalEntryNotFoundError:
+            notify("stage", f"Downloading model: {model_label(model_size)}. First use only; please keep the app open...")
+            model_path = download_model(model_size)
+            notify("stage", "Download complete. Loading model into memory...")
+        last_error = None
+        for device in WHISPER_DEVICE_PRIORITY:
+            compute_type = WHISPER_COMPUTE_TYPE.get(device, "int8")
+            try:
+                options = {"cpu_threads": cpu_thread_budget(), "num_workers": 1} if device == "cpu" else {}
+                model = WhisperModel(model_path, device=device, compute_type=compute_type, **options)
+                return model, device, compute_type
+            except Exception as exc:
+                last_error = exc
+                if device == "cuda":
+                    notify("stage", "CUDA model loading failed; trying the existing CPU INT8 fallback...")
+        raise RuntimeError(f"Unable to load the Whisper model on any available device. Last error: {last_error}")
 
 
 def release_gpu_cache():
@@ -328,21 +369,17 @@ def load_audio_for_pyannote(audio_path: str):
             pass
 
 
-def create_diarization_pipeline(hf_token: str | None, preferred_device: str = "cpu"):
+def create_diarization_pipeline(hf_token: str | None, preferred_device: str = "cpu", model_id: str | None = None):
     """
     Load the pyannote speaker diarisation pipeline.
 
     The lazy import allows the application to open even when pyannote.audio is
     not installed. Transcription can therefore continue without diarisation.
     """
-    try:
-        from pyannote.audio import Pipeline
-    except Exception as e:
-        raise RuntimeError(
-            "pyannote.audio is not installed. Install it with:\n"
-            "pip install pyannote.audio\n\n"
-            f"Original error: {e}"
-        )
+    model_id = model_id or DIARIZATION_MODEL
+    if model_id not in DIARIZATION_MODELS.values():
+        raise ValueError("Unsupported pyannote diarisation checkpoint")
+    Pipeline = load_pyannote_pipeline_class()
 
     token = (
         (hf_token or "").strip()
@@ -353,21 +390,22 @@ def create_diarization_pipeline(hf_token: str | None, preferred_device: str = "c
 
     try:
         if token:
-            pipeline = Pipeline.from_pretrained(DIARIZATION_MODEL, token=token)
+            pipeline = Pipeline.from_pretrained(model_id, token=token)
         else:
             # Use the cached Hugging Face login when no token is entered.
-            pipeline = Pipeline.from_pretrained(DIARIZATION_MODEL, token=True)
+            pipeline = Pipeline.from_pretrained(model_id, token=True)
     except TypeError:
         # Compatibility fallback for older pyannote/huggingface_hub releases.
         if token:
-            pipeline = Pipeline.from_pretrained(DIARIZATION_MODEL, use_auth_token=token)
+            pipeline = Pipeline.from_pretrained(model_id, use_auth_token=token)
         else:
-            pipeline = Pipeline.from_pretrained(DIARIZATION_MODEL, use_auth_token=True)
+            pipeline = Pipeline.from_pretrained(model_id, use_auth_token=True)
 
     if pipeline is None:
         raise RuntimeError(
             "The speaker diarisation model could not be loaded. Confirm that the Hugging Face token "
-            "is valid and that the model conditions have been accepted."
+            f"is valid and that the selected model conditions have been accepted ({model_id}). "
+            "For 3.1, also accept pyannote/segmentation-3.0 conditions and check runtime compatibility."
         )
 
     # Use the GPU for pyannote when CUDA is available and Whisper loaded on CUDA.
@@ -383,7 +421,7 @@ def create_diarization_pipeline(hf_token: str | None, preferred_device: str = "c
 
 
 def run_diarization(audio_path: str, hf_token: str | None, preferred_device: str,
-                    speaker_count_text: str = "", progress_callback=None) -> list[dict]:
+                    speaker_count_text: str = "", progress_callback=None, model_id: str | None = None, download_callback=None) -> list[dict]:
     """
     Return list:
     [
@@ -395,8 +433,13 @@ def run_diarization(audio_path: str, hf_token: str | None, preferred_device: str
         if progress_callback is not None:
             progress_callback(stage, completed, total)
 
-    report("Loading diarisation model...")
-    pipeline = create_diarization_pipeline(hf_token, preferred_device)
+    report(f"Loading diarisation model: {model_id}..." if model_id else "Loading diarisation model...")
+    report("Checking cached diarisation files / automatically downloading missing model weights. First use may take several minutes; keep the app open...")
+    with hub_download_progress(download_callback):
+        if model_id is None:
+            pipeline = create_diarization_pipeline(hf_token, preferred_device)
+        else:
+            pipeline = create_diarization_pipeline(hf_token, preferred_device, model_id=model_id)
 
     kwargs = {}
     speaker_count_text = (speaker_count_text or "").strip()
@@ -430,6 +473,7 @@ def run_diarization(audio_path: str, hf_token: str | None, preferred_device: str
             last_update, last_stage = now, stage
 
     try:
+        report("Diarisation model ready. Cached/downloaded weights have loaded successfully.")
         report("Preparing audio for diarisation...")
         diarization_input = load_audio_for_pyannote(audio_path)
         report("Detecting speech...")
@@ -556,6 +600,9 @@ def save_xlsx_with_early_report(
         ("Audio Duration", sec_to_hms(audio_duration_s)),
         ("Language (Detected/Selected)", detected_language or "Auto detect"),
         ("Model & Mode", f"{whisper_model} ({actual_device.upper()} | {actual_compute_type})"),
+        ("Checkpoint", meta_from_gui.get("checkpoint", whisper_model)),
+        ("Model Revision", meta_from_gui.get("model_revision", "Not recorded")),
+        ("Timing Method", meta_from_gui.get("timing_note", "Estimated sentence times from model segments")),
         ("Speaker Diarisation", "Enabled" if diarization_enabled else "Disabled"),
         ("Diarisation Status", diarization_status),
         ("Diarisation Model", diarization_model if diarization_enabled else "Not used"),
@@ -593,12 +640,12 @@ def save_xlsx_with_early_report(
     silence_s = max(0.0, audio_duration_s - speech_s)
 
     summary = [
-        ("Total Segments Detected", total_segments),
+        ("Audio Chunks Processed" if meta_from_gui.get("chunk_timing") else "Total Segments Detected", total_segments),
         ("Total Utterances", total_utterances),
         ("Total Words/Tokens", token_count),
         ("Average Tokens per Utterance", avg_tokens),
-        ("Speech Duration", sec_to_hms(speech_s)),
-        ("Silence Duration", sec_to_hms(silence_s)),
+        ("Speech Duration", "Not measured (audio chunks)" if meta_from_gui.get("chunk_timing") else sec_to_hms(speech_s)),
+        ("Silence Duration", "Not measured (audio chunks)" if meta_from_gui.get("chunk_timing") else sec_to_hms(silence_s)),
         ("Total Speakers Detected", len([s for s, _ in speaker_summary if s != "UNKNOWN"])),
     ]
 
@@ -624,35 +671,36 @@ def save_xlsx_with_early_report(
         rr_spk += 1
 
     r3 = max(rr_spk + 2, r2 + 5)
-    ws1[f"A{r3}"] = "Speech vs Silence Distribution"
-    heading_font = copy(ws1[f"A{r3}"].font)
-    heading_font.bold = True
-    ws1[f"A{r3}"].font = heading_font
+    if not meta_from_gui.get("chunk_timing"):
+        ws1[f"A{r3}"] = "Speech vs Silence Distribution"
+        heading_font = copy(ws1[f"A{r3}"].font)
+        heading_font.bold = True
+        ws1[f"A{r3}"].font = heading_font
 
-    ws1[f"A{r3+2}"] = "Category"
-    ws1[f"B{r3+2}"] = "Duration (minutes)"
+        ws1[f"A{r3+2}"] = "Category"
+        ws1[f"B{r3+2}"] = "Duration (minutes)"
 
-    speech_min = round(speech_s / 60.0, 3)
-    silence_min = round(silence_s / 60.0, 3)
+        speech_min = round(speech_s / 60.0, 3)
+        silence_min = round(silence_s / 60.0, 3)
 
-    ws1[f"A{r3+3}"] = "Speech"
-    ws1[f"B{r3+3}"] = speech_min
-    ws1[f"A{r3+4}"] = "Silence"
-    ws1[f"B{r3+4}"] = silence_min
+        ws1[f"A{r3+3}"] = "Speech"
+        ws1[f"B{r3+3}"] = speech_min
+        ws1[f"A{r3+4}"] = "Silence"
+        ws1[f"B{r3+4}"] = silence_min
 
-    chart1 = BarChart()
-    chart1.type = "col"
-    chart1.title = "Speech vs Silence Distribution"
-    chart1.y_axis.title = "Duration (minutes)"
-    chart1.x_axis.title = "Category"
-    chart1.dataLabels = DataLabelList()
-    chart1.dataLabels.showVal = True
+        chart1 = BarChart()
+        chart1.type = "col"
+        chart1.title = "Speech vs Silence Distribution"
+        chart1.y_axis.title = "Duration (minutes)"
+        chart1.x_axis.title = "Category"
+        chart1.dataLabels = DataLabelList()
+        chart1.dataLabels.showVal = True
 
-    data = Reference(ws1, min_col=2, min_row=r3+2, max_row=r3+4)
-    cats = Reference(ws1, min_col=1, min_row=r3+3, max_row=r3+4)
-    chart1.add_data(data, titles_from_data=True)
-    chart1.set_categories(cats)
-    ws1.add_chart(chart1, f"D{r3+2}")
+        data = Reference(ws1, min_col=2, min_row=r3+2, max_row=r3+4)
+        cats = Reference(ws1, min_col=1, min_row=r3+3, max_row=r3+4)
+        chart1.add_data(data, titles_from_data=True)
+        chart1.set_categories(cats)
+        ws1.add_chart(chart1, f"D{r3+2}")
 
     r4 = r3 + 7
     ws1[f"A{r4}"] = "Timeline Density (5-minute intervals)"
@@ -823,6 +871,9 @@ def save_docx_transcript(
         ("Audio Duration", sec_to_hms(audio_duration_s)),
         ("Language (Detected/Selected)", detected_language or "Auto detect"),
         ("Model & Mode", f"{whisper_model} ({actual_device.upper()} | {actual_compute_type})"),
+        ("Checkpoint", meta_from_gui.get("checkpoint", whisper_model)),
+        ("Model Revision", meta_from_gui.get("model_revision", "Not recorded")),
+        ("Timing Method", meta_from_gui.get("timing_note", "Estimated sentence times from model segments")),
         ("Speaker Diarisation", "Enabled" if diarization_enabled else "Disabled"),
         ("Diarisation Status", diarization_status),
         ("Diarisation Model", diarization_model if diarization_enabled else "Not used"),
@@ -842,12 +893,12 @@ def save_docx_transcript(
     speech_s = max(0.0, min(speech_s, audio_duration_s))
     silence_s = max(0.0, audio_duration_s - speech_s)
     summary = [
-        ("Total Segments Detected", len(segment_ranges)),
+        ("Audio Chunks Processed" if meta_from_gui.get("chunk_timing") else "Total Segments Detected", len(segment_ranges)),
         ("Total Utterances", total_utterances),
         ("Total Words/Tokens", len(tokens)),
         ("Average Tokens per Utterance", round(len(tokens) / total_utterances, 2) if total_utterances else 0.0),
-        ("Speech Duration", sec_to_hms(speech_s)),
-        ("Silence Duration", sec_to_hms(silence_s)),
+        ("Speech Duration", "Not measured (audio chunks)" if meta_from_gui.get("chunk_timing") else sec_to_hms(speech_s)),
+        ("Silence Duration", "Not measured (audio chunks)" if meta_from_gui.get("chunk_timing") else sec_to_hms(silence_s)),
         ("Total Speakers Detected", len([s for s, _ in speaker_summary if s != "UNKNOWN"])),
     ]
     document.add_heading("Transcription Summary", level=1)
@@ -860,15 +911,16 @@ def save_docx_transcript(
             run.bold = True
             run.font.color.rgb = RGBColor.from_string(speaker_colour(speaker))
 
-    speech_minutes = round(speech_s / 60.0, 3)
-    silence_minutes = round(silence_s / 60.0, 3)
-    document.add_heading("Speech vs Silence Distribution", level=1)
-    add_report_table(document, [
-        ("Category", "Duration (minutes)"),
-        ("Speech", speech_minutes),
-        ("Silence", silence_minutes),
-    ])
-    add_bar_chart(document, ["Speech", "Silence"], [speech_minutes, silence_minutes], "Duration (minutes)")
+    if not meta_from_gui.get("chunk_timing"):
+        speech_minutes = round(speech_s / 60.0, 3)
+        silence_minutes = round(silence_s / 60.0, 3)
+        document.add_heading("Speech vs Silence Distribution", level=1)
+        add_report_table(document, [
+            ("Category", "Duration (minutes)"),
+            ("Speech", speech_minutes),
+            ("Silence", silence_minutes),
+        ])
+        add_bar_chart(document, ["Speech", "Silence"], [speech_minutes, silence_minutes], "Duration (minutes)")
 
     density_rows = compute_timeline_density(utterance_rows, audio_duration_s, interval_sec=300)
     document.add_heading("Timeline Density (5-minute intervals)", level=1)
@@ -931,8 +983,10 @@ class RedScribeApp:
         self.audio_path = tk.StringVar()
         self.transcription_language = tk.StringVar(value="Auto detect")
         self.whisper_model = tk.StringVar(value=load_model_preference())
+        self.model_display = tk.StringVar(value=model_label(self.whisper_model.get()))
 
         self.diarization_enabled = tk.BooleanVar(value=True)
+        self.diarization_choice = tk.StringVar(value=load_diarization_preference())
         self.hf_token = tk.StringVar()
         self.token_status = tk.StringVar(value="Token status: not checked")
         self.token_summary = tk.StringVar(value="Checking token...")
@@ -956,6 +1010,7 @@ class RedScribeApp:
         self.hf_token.trace_add("write", self.token_entry_changed)
         self.audio_path.trace_add("write", self.update_file_summary)
         self.diarization_enabled.trace_add("write", self.update_diarization_summary)
+        self.diarization_choice.trace_add("write", self.update_diarization_summary)
         self.speaker_count.trace_add("write", self.update_diarization_summary)
         self.update_diarization_summary()
         self.root.after(100, self.check_hf_token)
@@ -986,6 +1041,8 @@ class RedScribeApp:
                   foreground=[("disabled", "#9895A0"), ("!disabled", "white")])
         style.configure("Stop.RedScribe.TButton", foreground="#B42318", background="white")
         style.map("Stop.RedScribe.TButton", foreground=[("disabled", "#9895A0"), ("!disabled", "#B42318")])
+        style.configure("RedScribe.TMenubutton", font=(self.ui_font, 11), padding=(8, 6),
+                        background="white", foreground=c["text"], bordercolor=c["border"])
         style.configure("RedScribe.TCombobox", padding=4, fieldbackground="white")
         style.map("RedScribe.TCombobox", fieldbackground=[("readonly", "white")], background=[("readonly", "white")])
         style.configure("RedScribe.TEntry", padding=6, fieldbackground="white")
@@ -1072,11 +1129,21 @@ class RedScribeApp:
         tk.Label(transcription, text="Language", bg="white", fg=c["text"]).pack(anchor="w", pady=(0, 5))
         ttk.Combobox(transcription, textvariable=self.transcription_language, values=list(TRANSCRIPTION_LANGUAGES),
                      state="readonly", style="RedScribe.TCombobox", width=20).pack(fill="x", pady=(0, 8))
-        tk.Label(transcription, text="Whisper model", bg="white", fg=c["text"]).pack(anchor="w", pady=(0, 5))
-        model_choice = ttk.Combobox(transcription, textvariable=self.whisper_model, values=WHISPER_MODELS,
-                                    state="readonly", style="RedScribe.TCombobox", width=20)
-        model_choice.pack(fill="x")
-        model_choice.bind("<<ComboboxSelected>>", self.save_selected_model)
+        tk.Label(transcription, text="ASR model", bg="white", fg=c["text"]).pack(anchor="w", pady=(0, 5))
+        # A native menu sizes itself to the full labels instead of clipping
+        # the long model names to the narrow sidebar's combobox width.
+        self.model_choice = ttk.Menubutton(transcription, textvariable=self.model_display,
+                                           direction="below", width=20, style="RedScribe.TMenubutton")
+        self.model_menu = tk.Menu(self.model_choice, tearoff=False)
+        for key, label in ASR_MODEL_LABELS.items():
+            self.model_menu.add_radiobutton(label=label, value=key, variable=self.whisper_model,
+                                            command=self.save_selected_model)
+        self.model_choice.configure(menu=self.model_menu)
+        self.model_choice.pack(fill="x")
+
+        self.model_hint = tk.Label(transcription, text=model_label(self.whisper_model.get()) + "\n" + describe_model(self.whisper_model.get()),
+                                   bg="white", fg=c["muted"], justify="left", wraplength=264)
+        self.model_hint.pack(anchor="w", pady=(7, 0))
 
         speakers = card("Speakers")
         self.diarization_badge = tk.Label(speakers, textvariable=self.diarization_summary, bg="white", fg="#24623B",
@@ -1174,19 +1241,78 @@ class RedScribeApp:
         enabled = self.diarization_enabled.get()
         count = self.speaker_count.get().strip()
         detail = f"{count} expected speakers" if count else "Automatic speaker count"
-        self.diarization_summary.set(f"ON - {detail}" if enabled else "OFF - Transcription only")
+        self.diarization_summary.set(f"ON - {self.diarization_choice.get()}\n{detail}" if enabled else "OFF - Transcription only")
         self.diarization_badge.configure(fg="#24623B" if enabled else "#667085")
 
+    def save_selected_diarization(self, _event=None):
+        choice = self.diarization_choice.get()
+        self.diarization_hint.configure(text=describe_diarization(choice))
+        try:
+            save_preference("diarization_model", DIARIZATION_MODELS[choice])
+        except OSError:
+            messagebox.showwarning("Diarisation model", "The choice could not be saved; it will still apply to this session.")
+
     def begin_diarization_activity(self):
-        """Main-thread-only display lifecycle; keep ticking during model calls."""
+        self.begin_model_activity("Loading diarisation model...")
+
+    def begin_model_activity(self, stage):
+        """Main-thread-only banner; elapsed timer also covers model downloads."""
         self.end_diarization_activity()
         self.activity_label.grid()
         self.diarization_started = time.monotonic()
-        self.diarization_stage = "Loading diarisation model..."
+        self.diarization_stage = stage
         self.diarization_fraction = None
         self.diarization_last_logged_stage = None
         self.diarization_tick = 0
         self.tick_diarization_activity()
+
+    def show_model_notification(self, state, message):
+        """Called on the Tk thread, never directly from a loader worker."""
+        if state == "download":
+            self.show_download_progress(message)
+        elif state == "start":
+            self.begin_model_activity(message)
+            self.log_info(message)
+        elif state == "stage":
+            self.update_diarization_activity(message)
+        elif state == "info":
+            self.log_info(message)
+        elif state in ("ready", "failed"):
+            self.end_diarization_activity()
+            if state == "ready":
+                self.log_info(message)
+            else:
+                self.log_warning(message)
+            self.status.set(message)
+
+    def show_download_progress(self, progress):
+        """Main-thread only: replace one marked text line per transfer."""
+        if self.diarization_started is None:
+            return
+        if not hasattr(self, "download_lines"):
+            self.download_lines = {}
+        key = progress["id"]
+        text = progress_text(progress)
+        self.live_box.configure(state="normal")
+        if key not in self.download_lines:
+            self.finish_live_turn()
+            start, end = key + "_start", key + "_end"
+            self.live_box.mark_set(start, "end-1c")
+            self.live_box.mark_gravity(start, "left")
+            self.live_box.insert("end", text + "\n", ("info",))
+            self.live_box.mark_set(end, f"{start}+{len(text)}c")
+            self.live_box.mark_gravity(end, "left")
+            self.download_lines[key] = (start, end)
+        else:
+            start, end = self.download_lines[key]
+            self.live_box.delete(start, end)
+            self.live_box.insert(start, text, ("info",))
+            self.live_box.mark_set(end, f"{start}+{len(text)}c")
+        self.live_box.see("end")
+        self.live_box.configure(state="disabled")
+        # Update the existing banner without adding another log line.
+        self.diarization_stage = text
+        self.diarization_fraction = None
 
     def tick_diarization_activity(self):
         if self.diarization_started is None:
@@ -1278,6 +1404,14 @@ class RedScribeApp:
         speaker_options.pack(fill="x", pady=(0, 12))
         ttk.Checkbutton(speaker_options, text="Enable speaker diarisation",
                         variable=self.diarization_enabled).pack(anchor="w")
+        ttk.Label(speaker_options, text="Diarisation model").pack(anchor="w", pady=(8, 4))
+        diarization_choice = ttk.Combobox(speaker_options, textvariable=self.diarization_choice,
+                                          values=tuple(DIARIZATION_MODELS), state="readonly", width=30)
+        diarization_choice.pack(fill="x")
+        diarization_choice.bind("<<ComboboxSelected>>", self.save_selected_diarization)
+        self.diarization_hint = ttk.Label(speaker_options, text=describe_diarization(self.diarization_choice.get()),
+                                         wraplength=450, foreground="#52606D")
+        self.diarization_hint.pack(anchor="w", pady=(6, 2))
         count_row = ttk.Frame(speaker_options)
         count_row.pack(fill="x", pady=(8, 4))
         ttk.Label(count_row, text="Expected speakers").pack(side="left")
@@ -1407,10 +1541,12 @@ class RedScribeApp:
                             "This does not revoke the token on Hugging Face.")
 
     def save_selected_model(self, _event=None):
+        self.model_display.set(model_label(self.whisper_model.get()))
+        self.model_hint.configure(text=model_label(self.whisper_model.get()) + "\n" + describe_model(self.whisper_model.get()))
         try:
             save_model_preference(self.whisper_model.get())
         except OSError as exc:
-            messagebox.showwarning("Whisper Model", f"The model choice could not be saved for next time.\n\n{exc}")
+            messagebox.showwarning("ASR Model", f"The model choice could not be saved for next time.\n\n{exc}")
 
     def pick_period(self):
         win = tk.Toplevel(self.root)
@@ -1520,7 +1656,7 @@ class RedScribeApp:
             self.check_stop()
             self.run_phase = "saving"
         self.root.after(0, lambda: self.stop_btn.config(state="disabled"))
-        self.root.after(0, self.status.set, "Saving reports...")
+        self.root.after(0, self.begin_model_activity, "Saving Excel report...")
 
     def finish_run(self, cancelled: bool):
         self.end_diarization_activity()
@@ -1533,6 +1669,17 @@ class RedScribeApp:
             self.status.set("Stopped; no reports were saved for this run")
             self.log_warning("Stopped by user. No Word or Excel report was saved for this run.")
 
+    def show_run_error(self, title, detail, status):
+        self.status.set(status)
+        self.log_warning(detail)
+        messagebox.showerror(title, detail)
+
+    def complete_run(self, cancelled: bool, completion=None):
+        """Return to idle only after worker cleanup, before any modal dialog."""
+        self.finish_run(cancelled)
+        if completion is not None:
+            completion()
+
     def start(self):
         inputs = {
             "audio_path": self.audio_path.get().strip(),
@@ -1541,6 +1688,7 @@ class RedScribeApp:
             "label": self.label.get().strip(),
             "period": self.period.get().strip(),
             "diarization_enabled": bool(self.diarization_enabled.get()),
+            "diarization_model": DIARIZATION_MODELS[self.diarization_choice.get()],
             "hf_token": self.hf_token.get().strip(),
             "speaker_count": self.speaker_count.get().strip(),
             "language": TRANSCRIPTION_LANGUAGES[self.transcription_language.get()],
@@ -1554,6 +1702,13 @@ class RedScribeApp:
         if not os.path.isfile(inputs["audio_path"]):
             messagebox.showwarning("File not found", "The selected audio file no longer exists.")
             return
+
+        if inputs["whisper_model"] in EXTRA_MODELS:
+            try:
+                validate_language(EXTRA_MODELS[inputs["whisper_model"]], inputs["language"])
+            except ValueError as exc:
+                messagebox.showwarning("ASR Model", str(exc))
+                return
 
         if inputs["diarization_enabled"]:
             inputs["hf_token"] = resolve_token(inputs["hf_token"]).token
@@ -1569,9 +1724,12 @@ class RedScribeApp:
         self.live_box.configure(state="disabled")
 
         self.speaker_tags.clear()
+        for marks in getattr(self, "download_lines", {}).values():
+            self.live_box.mark_unset(*marks)
+        self.download_lines = {}
         self.last_live_speaker = None
         self.progress_var.set(0.0)
-        self.status.set(f"Loading {inputs['whisper_model']} model...")
+        self.status.set("Checking model requirements before starting...")
         self.start_btn.config(state="disabled")
         self.stop_btn.config(state="normal")
 
@@ -1579,10 +1737,34 @@ class RedScribeApp:
 
     def run_whisper(self, inputs: dict):
         cancelled = False
+        completion = None
+        inputs = dict(inputs)
+        performance = RunPerformance(model_label(inputs["whisper_model"]))
+        performance.details.update(language_requested=inputs.get("language"),
+                                   diarisation_requested=bool(inputs.get("diarization_enabled")))
+        inputs["_performance"] = performance
+        performance.begin("preflight")
         try:
-            self._run_whisper(inputs)
+            self.root.after(0, self.begin_model_activity, "Checking model requirements (no download yet)...")
+            self.root.after(0, self.log_info, "Checking selected model runtime and CUDA availability before processing...")
+            try:
+                result = preflight_model(inputs["whisper_model"], inputs.get("language"))
+                if inputs.get("diarization_enabled"):
+                    self.root.after(0, self.log_info, "Checking pyannote dependencies before automatic model download...")
+                    load_pyannote_pipeline_class()
+                    result += " Diarisation runtime import check passed; missing model weights will download automatically."
+                self.check_stop()
+            finally:
+                performance.end("preflight")
+                self.root.after(0, self.end_diarization_activity)
+            self.root.after(0, self.log_info, result)
+            completion = self._run_whisper(inputs)
+        except (ModelPreflightError, DiarizationDependencyError) as exc:
+            completion = lambda detail=str(exc): self.show_run_error(
+                "Model requirements", detail, "Requirements check failed; nothing processed")
         except TranscriptionCancelled:
             cancelled = True
+            performance.outcome = "cancelled"
         except Exception:
             error_text = traceback.format_exc()
             try:
@@ -1590,16 +1772,39 @@ class RedScribeApp:
                     log.write(f"\n{time.strftime('%Y-%m-%d %H:%M:%S')}\n{error_text}\n")
             except OSError:
                 pass
-            self.root.after(0, self.status.set, "Transcription failed")
-            self.root.after(0, lambda: self.start_btn.config(state="normal"))
-            self.root.after(0, lambda: messagebox.showerror(
-                "RedScribe Error", "The run stopped unexpectedly. See output/redscribe_error.log for details."))
+            self.root.after(0, self.log_warning, "Transcription stopped unexpectedly. Check the error notification and output/redscribe_error.log.")
+            completion = lambda: self.show_run_error(
+                "RedScribe Error", "The run stopped unexpectedly. See output/redscribe_error.log for details.",
+                "Transcription failed")
         finally:
-            release_gpu_cache()
-            self.root.after(0, self.finish_run, cancelled)
+            with self.run_lock:
+                self.run_phase = "finalising"
+            self.root.after(0, self.begin_model_activity, "Finalising run; releasing model memory...")
+            performance.begin("cleanup")
+            try:
+                release_gpu_cache()
+            except Exception as exc:
+                performance.details["cleanup_warning"] = True
+                self.root.after(0, self.log_warning, f"Model memory cleanup warning: {exc}")
+            finally:
+                performance.end("cleanup")
+                try:
+                    record = performance.finish()
+                    summary = performance_summary(record)
+                    self.root.after(0, self.log_info, summary)
+                    print_performance(summary)
+                    _, log_path = save_performance(record, self.base_output_dir)
+                    self.root.after(0, self.log_info, f"Performance log saved: {log_path}")
+                    print_performance(f"Performance log saved: {log_path}")
+                except Exception as exc:
+                    self.root.after(0, self.log_warning, f"Performance log could not be saved: {exc}")
+                    print_performance(f"Performance log could not be saved: {exc}")
+                finally:
+                    self.root.after(0, self.complete_run, cancelled, completion)
 
     def _run_whisper(self, inputs: dict):
         start_clock = time.time()
+        performance = inputs.get("_performance") or RunPerformance(model_label(inputs["whisper_model"]))
 
         audio_path = inputs["audio_path"]
         audio_base = os.path.splitext(os.path.basename(audio_path))[0]
@@ -1608,7 +1813,7 @@ class RedScribeApp:
         if not re.match(r"^\d{4}-\d{2}$", period):
             period = time.strftime("%Y-%m")
 
-        out_folder = os.path.join(self.base_output_dir, period)
+        out_folder = model_output_folder(self.base_output_dir, period, inputs["whisper_model"])
         ensure_dir(out_folder)
         self.last_output_folder = out_folder
 
@@ -1619,31 +1824,43 @@ class RedScribeApp:
             researcher=inputs["researcher"],
             audio_base=audio_base
         )
+        # Keep model identity if the pair is later copied out of its folder.
+        filename_base = f"{filename_base}_{MODEL_FOLDERS[inputs['whisper_model']]}"
         xlsx_path, docx_path = available_output_paths(out_folder, filename_base)
+        self.root.after(0, self.log_info, f"Output folder for this model: {out_folder}")
+
+        def notify_model(state, message):
+            if state == "start":
+                performance.begin("asr_model_preparation")
+            elif state in ("ready", "failed"):
+                performance.end("asr_model_preparation")
+            self.root.after(0, self.show_model_notification, state, message)
 
         try:
-            model, actual_device, actual_compute_type = create_whisper_model(inputs["whisper_model"])
+            if inputs["whisper_model"] in EXTRA_MODELS:
+                model = LocalASR(inputs["whisper_model"], inputs.get("language"), self.check_stop, notify_model)
+                actual_device, actual_compute_type = "cuda", "float16"
+            else:
+                model, actual_device, actual_compute_type = create_whisper_model(inputs["whisper_model"], notify_model)
             self.check_stop()
             self.actual_whisper_device = actual_device
             self.actual_whisper_compute_type = actual_compute_type
+            performance.details.update(actual_device=actual_device, actual_compute_type=actual_compute_type,
+                                       checkpoint=EXTRA_MODELS[inputs["whisper_model"]].checkpoint if inputs["whisper_model"] in EXTRA_MODELS else inputs["whisper_model"])
         except TranscriptionCancelled:
             raise
         except Exception as e:
             self.check_stop()
             error_text = str(e)
-            self.root.after(
-                0,
-                lambda error_text=error_text: messagebox.showerror("Whisper Error", f"The Whisper model could not be loaded.\n\n{error_text}")
-            )
-            self.root.after(0, self.status.set, "Failed to load model")
-            self.root.after(0, lambda: self.start_btn.config(state="normal"))
-            return
+            return lambda error_text=error_text: self.show_run_error(
+                "ASR Model Error", f"The ASR model could not be prepared.\n\n{error_text}", "Failed to load model")
 
         diarization_enabled = inputs["diarization_enabled"]
         diarization_turns = []
         diarization_status = "Disabled"
 
         if diarization_enabled:
+            performance.begin("diarisation")
             self.root.after(0, self.begin_diarization_activity)
 
             def report_diarization(stage, completed=None, total=None):
@@ -1656,7 +1873,9 @@ class RedScribeApp:
                     hf_token=inputs["hf_token"],
                     preferred_device=actual_device,
                     speaker_count_text=inputs["speaker_count"],
-                    progress_callback=report_diarization
+                    progress_callback=report_diarization,
+                    model_id=inputs.get("diarization_model", DIARIZATION_MODEL),
+                    download_callback=notify_model
                 )
                 speakers = sorted({t["speaker"] for t in diarization_turns})
                 self.check_stop()
@@ -1675,16 +1894,24 @@ class RedScribeApp:
                 )
                 diarization_turns = []
             finally:
+                performance.end("diarisation")
                 self.root.after(0, self.end_diarization_activity)
 
+        performance.details["diarisation_status"] = "completed" if diarization_status.startswith("Completed") else ("disabled" if not diarization_enabled else "failed")
+        performance.details["diarisation_model"] = inputs.get("diarization_model", DIARIZATION_MODEL) if diarization_enabled else None
         self.check_stop()
 
         self.root.after(
             0,
             self.status.set,
-            f"Transcribing {inputs['whisper_model']} with {actual_device.upper()} ({actual_compute_type}) - 0% | ETA --:--"
+            f"Transcribing {model_label(inputs['whisper_model'])} with {actual_device.upper()} ({actual_compute_type}) - 0% | ETA --:--"
         )
 
+        if isinstance(model, LocalASR):
+            model.turns = diarization_turns
+            self.root.after(0, self.log_info, "Timing: " + model.timing_note)
+
+        performance.begin("asr_pipeline")
         try:
             segments, info = model.transcribe(
                 audio_path,
@@ -1699,19 +1926,16 @@ class RedScribeApp:
                 language_name = {"cy": "Welsh", "ms": "Bahasa Melayu", "en": "English"}.get(
                     language_code, language_code
                 )
-                self.root.after(0, self.log_info, f"Auto detected language: {language_name} ({language_code})")
+                language_notice = "Configured decoder language" if getattr(info, "language_source", None) == "configured" else "Auto detected language"
+                self.root.after(0, self.log_info, f"{language_notice}: {language_name} ({language_code})")
         except TranscriptionCancelled:
             raise
         except Exception as e:
+            performance.end("asr_pipeline")
             self.check_stop()
             error_text = str(e)
-            self.root.after(
-                0,
-                lambda error_text=error_text: messagebox.showerror("Transcription Error", f"The audio could not be transcribed.\n\n{error_text}")
-            )
-            self.root.after(0, self.status.set, "Transcription failed")
-            self.root.after(0, lambda: self.start_btn.config(state="normal"))
-            return
+            return lambda error_text=error_text: self.show_run_error(
+                "Transcription Error", f"The audio could not be transcribed.\n\n{error_text}", "Transcription failed")
 
         duration_s = float(getattr(info, "duration", 0.0)) or 0.0
         t0 = time.time()
@@ -1720,51 +1944,63 @@ class RedScribeApp:
         segment_ranges = []
         last_end = 0.0
 
-        for seg in segments:
-            self.check_stop()
-            seg_text = (seg.text or "").strip()
-            st = float(seg.start)
-            en = float(seg.end)
+        try:
+            for seg in segments:
+                self.check_stop()
+                seg_text = (seg.text or "").strip()
+                st = float(seg.start)
+                en = float(seg.end)
 
-            if en > st:
-                segment_ranges.append((st, en))
-                last_end = max(last_end, en)
+                if en > st:
+                    segment_ranges.append((st, en))
+                    last_end = max(last_end, en)
 
-            if seg_text:
-                ts = sec_to_hms(st)
-                segment_speaker = assign_speaker(st, en, diarization_turns)
-                self.root.after(0, self.log_live_segment, ts, segment_speaker, seg_text)
+                if seg_text:
+                    ts = sec_to_hms(st)
+                    segment_speaker = assign_speaker(st, en, diarization_turns)
+                    self.root.after(0, self.log_live_segment, ts, segment_speaker, seg_text)
 
-                sents = split_sentences_universal(seg_text)
-                for ust, uen, s in distribute_times(st, en, sents):
-                    s_clean = (s or "").strip()
-                    if s_clean:
-                        utterance_speaker = assign_speaker(ust, uen, diarization_turns)
-                        utterance_rows.append({
-                            "speaker": utterance_speaker,
-                            "start_s": ust,
-                            "end_s": uen,
-                            "text": s_clean
-                        })
+                    sents = split_sentences_universal(seg_text)
+                    for ust, uen, s in distribute_times(st, en, sents):
+                        s_clean = (s or "").strip()
+                        if s_clean:
+                            utterance_speaker = assign_speaker(ust, uen, diarization_turns)
+                            utterance_rows.append({
+                                "speaker": utterance_speaker,
+                                "start_s": ust,
+                                "end_s": uen,
+                                "text": s_clean
+                            })
 
-            if duration_s > 0:
-                progress = min(100.0, (en / duration_s) * 100.0)
-                elapsed = time.time() - t0
+                if duration_s > 0:
+                    progress = min(100.0, (en / duration_s) * 100.0)
+                    elapsed = time.time() - t0
 
-                if progress > 0.5:
-                    total_est = elapsed * (100.0 / progress)
-                    eta = max(0.0, total_est - elapsed)
-                    eta_str = sec_to_mmss(eta)
-                else:
-                    eta_str = "--:--"
+                    if progress > 0.5:
+                        total_est = elapsed * (100.0 / progress)
+                        eta = max(0.0, total_est - elapsed)
+                        eta_str = sec_to_mmss(eta)
+                    else:
+                        eta_str = "--:--"
 
-                self.root.after(0, self.progress_var.set, progress)
-                self.root.after(
-                    0,
-                    self.status.set,
-                    f"Transcribing {inputs['whisper_model']} with {actual_device.upper()} ({actual_compute_type}) - {progress:.0f}% | ETA {eta_str}"
-                )
+                    self.root.after(0, self.progress_var.set, progress)
+                    self.root.after(
+                        0,
+                        self.status.set,
+                        f"Transcribing {model_label(inputs['whisper_model'])} with {actual_device.upper()} ({actual_compute_type}) - {progress:.0f}% | ETA {eta_str}"
+                    )
+        finally:
+            close_segments = getattr(segments, "close", None)
+            try:
+                if close_segments is not None:
+                    close_segments()
+            finally:
+                performance.end("asr_pipeline")
 
+        performance.asr_completed = True
+        performance.details.update(audio_duration_seconds=duration_s,
+                                   model_revision=getattr(model, "revision", "Managed by Faster-Whisper"))
+        self.root.after(0, self.log_info, "Transcription finished. Preparing Word and Excel reports...")
         self.begin_saving()
         audio_duration_s = float(getattr(info, "duration", last_end))
         elapsed_min = round((time.time() - start_clock) / 60, 2)
@@ -1774,8 +2010,13 @@ class RedScribeApp:
             "researcher": inputs["researcher"],
             "label": inputs["label"],
             "period": period,
+            "checkpoint": EXTRA_MODELS[inputs["whisper_model"]].checkpoint if inputs["whisper_model"] in EXTRA_MODELS else inputs["whisper_model"],
+            "model_revision": getattr(model, "revision", "Managed by Faster-Whisper"),
+            "chunk_timing": isinstance(model, LocalASR),
+            "timing_note": getattr(info, "timing_note", "Whisper segment times; sentence times are distributed estimates."),
         }
 
+        performance.begin("excel_export")
         try:
             save_xlsx_with_early_report(
                 xlsx_path=xlsx_path,
@@ -1788,22 +2029,22 @@ class RedScribeApp:
                 meta_from_gui=meta_from_gui,
                 actual_device=actual_device,
                 actual_compute_type=actual_compute_type,
-                whisper_model=inputs["whisper_model"],
+                whisper_model=model_label(inputs["whisper_model"]),
                 diarization_enabled=diarization_enabled,
                 diarization_status=diarization_status,
-                diarization_model=DIARIZATION_MODEL
+                diarization_model=inputs.get("diarization_model", DIARIZATION_MODEL)
             )
         except Exception as e:
             error_text = str(e)
-            self.root.after(
-                0,
-                lambda error_text=error_text: messagebox.showerror("Excel Error", f"The Excel workbook could not be saved.\n\n{error_text}")
-            )
-            self.root.after(0, self.status.set, "Excel save failed")
-            self.root.after(0, lambda: self.start_btn.config(state="normal"))
-            return
+            return lambda error_text=error_text: self.show_run_error(
+                "Excel Error", f"The Excel workbook could not be saved.\n\n{error_text}", "Excel save failed")
+        finally:
+            performance.end("excel_export")
 
+        self.root.after(0, self.log_info, f"Excel report saved: {xlsx_path}")
+        self.root.after(0, self.update_diarization_activity, "Saving Word report...")
         word_error = None
+        performance.begin("word_export")
         try:
             save_docx_transcript(
                 docx_path=docx_path,
@@ -1816,13 +2057,19 @@ class RedScribeApp:
                 meta_from_gui=meta_from_gui,
                 actual_device=actual_device,
                 actual_compute_type=actual_compute_type,
-                whisper_model=inputs["whisper_model"],
+                whisper_model=model_label(inputs["whisper_model"]),
                 diarization_enabled=diarization_enabled,
                 diarization_status=diarization_status,
-                diarization_model=DIARIZATION_MODEL
+                diarization_model=inputs.get("diarization_model", DIARIZATION_MODEL)
             )
         except Exception as exc:
             word_error = str(exc)
+            self.root.after(0, self.log_warning, f"Word report could not be saved: {word_error}")
+        else:
+            self.root.after(0, self.log_info, f"Word report saved: {docx_path}")
+        finally:
+            performance.end("word_export")
+        performance.outcome = "partial" if word_error else "completed"
 
         def done_popup():
             self.progress_var.set(100.0)
@@ -1830,7 +2077,6 @@ class RedScribeApp:
                 "Completed; Word export failed" if word_error
                 else f"Completed - 100% | {actual_device.upper()} ({actual_compute_type})"
             )
-            self.start_btn.config(state="normal")
 
             if word_error:
                 messagebox.showwarning(
@@ -1851,7 +2097,9 @@ class RedScribeApp:
                 )
             open_folder(out_folder)
 
-        self.root.after(0, done_popup)
+        # The worker returns first so its model/generator can be released before
+        # cleanup and before a modal popup starts Tk's nested event loop.
+        return done_popup
 
 
 if __name__ == "__main__":

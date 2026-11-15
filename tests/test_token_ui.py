@@ -10,7 +10,11 @@ from token_store import TokenSelection, TokenStoreError
 # Load the actual class methods without importing the app's heavy AI dependencies.
 source = ast.parse(Path(__file__).resolve().parents[1].joinpath("redscribe_gpu.py").read_text())
 app_class = next(node for node in source.body if isinstance(node, ast.ClassDef) and node.name == "RedScribeApp")
-namespace = {"TokenStoreError": TokenStoreError, "messagebox": Mock(), "resolve_token": Mock(),
+from asr_backends import EXTRA_MODELS, validate_language
+from model_options import model_label, describe_model
+from diarization_options import DIARIZATION_MODELS, DEFAULT_DIARIZATION_CHOICE, describe_diarization
+
+namespace = {"model_label": model_label, "describe_model": describe_model, "save_model_preference": Mock(), "DIARIZATION_MODELS": DIARIZATION_MODELS, "describe_diarization": describe_diarization, "EXTRA_MODELS": EXTRA_MODELS, "validate_language": validate_language, "TokenStoreError": TokenStoreError, "messagebox": Mock(), "resolve_token": Mock(),
              "save_token": Mock(), "remove_saved_token": Mock(), "os": Mock(),
              "TRANSCRIPTION_LANGUAGES": {"Auto detect": None}, "threading": Mock(),
              "tk": Mock(), "ttk": Mock()}
@@ -35,6 +39,7 @@ class TokenUITests(unittest.TestCase):
                 value.reset_mock(return_value=True, side_effect=True)
         self.app = namespace["RedScribeApp"].__new__(namespace["RedScribeApp"])
         self.app.ui_font = "Segoe UI"
+        self.app.diarization_choice = Value(DEFAULT_DIARIZATION_CHOICE)
         self.app.hf_token = Value("hf_example_only")
         self.app.token_status = Value()
         self.app.token_summary = Value()
@@ -128,9 +133,21 @@ class TokenUITests(unittest.TestCase):
         self.assertEqual(self.app.hf_token.get(), "hf_example_only")
         self.app.close_token_settings()  # Closing again is safe.
 
+    def test_full_names_preserve_runtime_keys_when_selecting_models(self):
+        self.app.model_display=Value()
+        self.app.model_hint=Mock()
+        self.app.whisper_model=Value()
+        for key in ('turbo','Mesolitica Whisper v3','tiny'):
+            self.app.whisper_model.set(key)
+            self.app.save_selected_model()
+            self.assertEqual(self.app.model_display.get(),model_label(key))
+            self.assertTrue(self.app.model_hint.configure.call_args.kwargs['text'].startswith(model_label(key)))
+            namespace['save_model_preference'].assert_called_with(key)
+
     def test_worker_receives_resolved_saved_token_only_with_diarisation(self):
-        for enabled in (True, False):
-            with self.subTest(diarisation=enabled):
+        for enabled, choice in ((enabled, choice) for enabled in (True, False) for choice in DIARIZATION_MODELS):
+            with self.subTest(diarisation=enabled, model=choice):
+                self.app.diarization_choice.set(choice)
                 namespace["resolve_token"].reset_mock()
                 self.app.hf_token.set("")
                 for name, value in (("audio_path", "example.wav"), ("project", ""), ("researcher", ""),
@@ -146,6 +163,7 @@ class TokenUITests(unittest.TestCase):
                 self.app.start()
                 inputs = namespace["threading"].Thread.call_args.kwargs["args"][0]
                 self.assertEqual(inputs["hf_token"], "hf_example_only" if enabled else "")
+                self.assertEqual(inputs["diarization_model"], DIARIZATION_MODELS[choice])
                 self.assertEqual(namespace["resolve_token"].call_count, int(enabled))
 
 

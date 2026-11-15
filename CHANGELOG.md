@@ -6,6 +6,12 @@ All notable changes to RedScribe are documented in this file. The dated 2.0.0 en
 
 ### Added
 
+- Optional local Mesolitica Whisper/XLS-R, Meta MMS-1B-All Malay (`zlm`), Qwen3-ASR and BuzzASR backends, model-specific output folders and checkpoint/precision/timing metadata. These CUDA FP16 adapters do not silently fall back to another precision or CPU.
+- Full English model names, supplementary Whisper Tiny/Medium/Small/Base Legacy choices, and pyannote Community-1/3.1 settings.
+- Requirements checks, model-preparation activity and real per-file download progress where the installed Hugging Face runtime exposes it.
+- Local per-run JSON/readable performance logs with stage timings and completed-ASR RTF/speed, mirrored in Live Transcript and the terminal.
+- A pre-merge Windows trial record covering observed results, dependency failures, fixes and outstanding model-quality checks.
+
 - Live English diarisation stages, animated activity and elapsed time, real per-stage progress from pyannote hooks, and a bounded speaker timeline preview before transcription.
 
 - Redesigned Hugging Face token controls with masked Show/Hide entry, Save Token and Remove Saved; persist tokens through native OS keyring backends, reject plaintext fallbacks, and retain session/environment/Hugging Face login support.
@@ -41,6 +47,13 @@ All notable changes to RedScribe are documented in this file. The dated 2.0.0 en
 - Kept the status and action buttons visible while the transcript panel resizes to fit the window.
 - Sized the initial window to the available screen area.
 - Listed all four RedScribe authors in the application support dialog and citation metadata.
+
+### Fixed
+
+- Use the supported MMS Malay adapter `zlm` rather than `zsm`, validate vocabulary support and retain CUDA FP16 after loading adapter weights.
+- Distinguish broken OpenTelemetry/pyannote imports from a missing package before model processing.
+- Reset run state and enable Start only after cleanup, before completion dialogs; show Excel/Word/finalisation activity and recover controls after cleanup/log-write warnings.
+- Explicitly request and forward the processor attention mask for optional Transformers Whisper backends, retaining its integer dtype.
 
 ## [2.0.0] - 2026-09-22
 
