@@ -27,13 +27,14 @@ Here, Legacy means outside the seven-model study shortlist, not an upstream depr
 
  This table names the model families; the two existing Faster-Whisper choices use converted weights rather than the Transformers runtime specified in the study plan.
 
-## Installation and trial
+## Installation and local trial
 
-Use the existing RedScribe virtual environment with working CUDA PyTorch. First fetch the feature branch (do not overwrite uncommitted local work):
+Use the existing RedScribe virtual environment with working CUDA PyTorch. Use the current main branch (preserve any uncommitted local work):
 
 ```powershell
 git fetch origin
-git switch feat/multi-model-local-asr
+git switch main
+git pull --ff-only
 ```
 
 Install the existing app dependencies if this is a new environment:
@@ -157,7 +158,7 @@ These are desktop diagnostics. First-run downloads, CPU fallback, caching, warm-
 
 ## Validation status and research use
 
-Automated tests cover chunk coverage, turn boundaries, language guards, lazy loading, FP16 and MMS adapter arguments, Qwen invocation, cancellation/failure cleanup, and existing export/token/UI logic without downloading model weights. **No independent GPU inference was run in the development workspace. User-supplied Windows trials include completed Whisper output and MMS output after the adapter correction, with poor MMS quality reported; they do not establish full model parity or accuracy.** This branch is for local trial before merging.
+Automated tests cover chunk coverage, turn boundaries, language guards, lazy loading, FP16 and MMS adapter arguments, Qwen invocation, cancellation/failure cleanup, and existing export/token/UI logic without downloading model weights. **No independent GPU inference was run in the development workspace. User-supplied Windows trials include completed Whisper output and MMS output after the adapter correction, with poor MMS quality reported; they do not establish full model parity or accuracy.** The optional backends remain subject to the validation limits recorded here; inclusion in the application does not establish model accuracy.
 
 Try a short non-sensitive Malay clip on each model, confirm both exports and the checkpoint metadata, then test Stop and a longer recording. Record failures instead of silently changing precision. No claim is made that these models have been ranked or validated on Kelantan dialect.
 

@@ -2,7 +2,7 @@
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22941754.svg)](https://doi.org/10.5281/zenodo.22941754)
 
-RedScribe is a Windows and macOS desktop application for transcribing research interviews and other recorded speech. Version 2.0 uses Faster-Whisper by default, with optional local ASR adapters for additional models and can optionally use pyannote.audio to distinguish between speakers. It exports an Excel workbook and an editable Word report for researcher-led verification and qualitative analysis.
+RedScribe is a Windows and macOS desktop application for transcribing research interviews and other recorded speech. Version 2.0 uses Faster-Whisper by default, with optional local ASR adapters for additional models and can optionally use pyannote.audio to distinguish between speakers. Each completed run takes one recording and exports an Excel workbook and an editable Word report for researcher-led verification and qualitative analysis.
 
 ## Current source version
 
@@ -12,12 +12,12 @@ No tagged GitHub Release has been published yet. The repository includes the cha
 
 The primary application is [`redscribe_gpu.py`](redscribe_gpu.py). The earlier Qwen/Ollama prototype, [`whisper_gui.py`](whisper_gui.py), is deprecated and retained only for historical reference. It is not supported or recommended for research use.
 
-## Features
+## Current features
 
 - Selectable ASR models, including optional Mesolitica, MMS, Qwen3-ASR and BuzzASR backends (see [multi-model setup](docs/MULTI_MODEL_ASR.md))
 - Full English ASR model names: seven study candidates first, followed by OpenAI Whisper Medium, Small, Base and Tiny labelled `(Legacy)`
 - Existing saved model choices remain compatible; full display names do not change model checkpoints or output folders
-- NVIDIA CUDA first, with automatic CPU fallback
+- Faster-Whisper tries NVIDIA CUDA FP16 first with CPU INT8 fallback; optional ASR backends require CUDA FP16
 - Spoken-language choice: Auto detect (default), Bahasa Melayu or English; transcription does not translate the recording
 - Optional speaker diarisation using `pyannote/speaker-diarization-community-1`
 - Optional expected-speaker count
@@ -36,13 +36,13 @@ RedScribe produces an automated draft. Sentence timestamps are estimates; speech
 
 ## Workflow
 
-The following diagram summarises RedScribe's input configuration, local processing pipeline, and research-oriented outputs.
+One recording (MP3, WAV, M4A or MP4) produces two files. The Word report groups adjacent utterances by speaker for reading. The Excel workbook retains individual utterances and verification columns for checking against the recording.
 
-![RedScribe system architecture and processing workflow](docs/images/redscribe-system-workflow.svg)
+[![RedScribe workflow showing the ASR choices, optional speaker diarisation and the Word and Excel outputs](docs/images/RedScribe_Workflow-full.png)](docs/images/RedScribe_Workflow.svg)
 
-*Figure 1. RedScribe system architecture and processing workflow (input, process and output).* 
+*Figure 1. Model selection and processing workflow.* [Download the standalone HTML diagram](https://raw.githubusercontent.com/saprimad/redscribe/main/docs/RedScribe_Workflow.html).
 
-Select a recording, language and ASR model, then configure optional speaker diarisation. When enabled, diarisation runs before transcription; a diarisation failure does not prevent transcription. RedScribe subsequently prepares timestamped utterances, descriptive summaries, and Excel and Word reports for researcher verification.
+Select a recording, language and ASR model, then configure optional speaker diarisation. When enabled, diarisation runs before transcription. A broken diarisation runtime blocks processing with repair instructions; a later model-access/inference failure is explicitly recorded and transcription can continue without speaker labels. RedScribe subsequently prepares timestamped utterances, descriptive summaries, and Excel and Word reports for researcher verification.
 
 During diarisation, the Live Transcript area logs the current processing stage. An animated activity line displays elapsed time even while model loading or grouping speakers provides no numerical progress. When pyannote reports completed/total work, the percentage applies only to that stage, not the whole recording or transcription run. Once diarisation finishes, RedScribe shows the speaker-label count and a preview of the first 20 speaker turns with timestamps, then begins transcription. These are automated speaker labels, not identified people; they still require researcher verification. No provisional speaker identities are displayed during segmentation or embedding extraction.
 

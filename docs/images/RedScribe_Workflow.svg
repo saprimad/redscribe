@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" id="redscribe-workflow-preview" width="884" height="790" viewBox="0 0 884 790" role="img"><title>RedScribe proposed workflow</title><style>
+    #redscribe-workflow-preview { color:#202e35; background:#fff;  }
+    #redscribe-workflow-preview text { fill:#202e35; font-family:Arial,Helvetica,sans-serif; font-size:14px; font-weight:400; }
+    #redscribe-workflow-preview .heading { font-weight:500; }
+    #redscribe-workflow-preview .secondary { fill:#52636d; }
+    #redscribe-workflow-preview .node { fill:#196079; stroke:#27554f; stroke-width:1.3; }
+    #redscribe-workflow-preview .source { fill:#929b9f; }
+    #redscribe-workflow-preview .optional { fill:#225d34; }
+    #redscribe-workflow-preview text.in-box { fill:#fff; }
+    #redscribe-workflow-preview .config { fill:#f5f8fa; stroke:#a7bac5; }
+    #redscribe-workflow-preview .connector { fill:none; stroke:#196079; stroke-width:1.5; }
+    #redscribe-workflow-preview .group { fill:none; stroke:#38474f; stroke-width:1.3; stroke-dasharray:7 5; }
+  #redscribe-workflow-preview text.section-title{font-size:21px;font-weight:600} </style><rect width="884" height="790" fill="white"/><text x="8" y="24" style="font-size:19px;font-weight:600">RedScribe — proposed workflow</text><g transform="translate(0 35)"><defs ><marker id="rs-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0L7 3.5L0 7Z" fill="#196079"/></marker></defs>
+<rect x="8" y="6" width="209" height="184" class="group"></rect>
+<rect x="245" y="6" width="349" height="655" class="group"></rect>
+<rect x="622" y="221" width="247" height="238" class="group"></rect>
+<rect x="20" y="18" width="185" height="30" fill="#fff" stroke="#a7bac5"></rect>
+<text x="112.5" y="39" text-anchor="middle" class="section-title">Input</text>
+<rect x="257" y="18" width="325" height="30" fill="#fff" stroke="#a7bac5"></rect>
+<text x="419.5" y="39" text-anchor="middle" class="section-title">Processing</text>
+<rect x="634" y="233" width="223" height="30" fill="#fff" stroke="#a7bac5"></rect>
+<text x="745.5" y="254" text-anchor="middle" class="section-title">Output</text>
+<rect x="20" y="66" width="185" height="100" rx="0" class="node source"></rect>
+<text x="112.5" y="87" text-anchor="middle" class="heading in-box">One recording file</text>
+<text x="112.5" y="106" text-anchor="middle" class="secondary in-box">MP3 · WAV · M4A · MP4</text>
+<text x="112.5" y="125" text-anchor="middle" class="secondary in-box">Audio / video</text>
+<rect x="257" y="66" width="325" height="188" rx="0" class="node"></rect>
+<text x="419.5" y="87" text-anchor="middle" class="heading in-box">Select and load ASR model</text>
+<text x="419.5" y="106" text-anchor="middle" class="secondary in-box">1. Whisper Large-v3</text>
+<text x="419.5" y="125" text-anchor="middle" class="secondary in-box">2. Whisper Large-v3 Turbo</text>
+<text x="419.5" y="144" text-anchor="middle" class="secondary in-box">3. Mesolitica Malaysian Whisper</text>
+<text x="419.5" y="163" text-anchor="middle" class="secondary in-box">Large-v3 Turbo V3</text>
+<text x="419.5" y="182" text-anchor="middle" class="secondary in-box">4. Mesolitica XLS-R 300M Mixed</text>
+<text x="419.5" y="201" text-anchor="middle" class="secondary in-box">5. Meta MMS-1B All</text>
+<text x="419.5" y="220" text-anchor="middle" class="secondary in-box">6. Qwen3-ASR 1.7B</text>
+<text x="419.5" y="239" text-anchor="middle" class="secondary in-box">7. BuzzASR Malay</text>
+<rect x="269" y="287.5" width="301" height="74" rx="0" class="node optional"></rect>
+<text x="419.5" y="308.5" text-anchor="middle" class="heading in-box">Optional speaker diarisation</text>
+<text x="419.5" y="327.5" text-anchor="middle" class="secondary in-box">1. pyannote Community-1 (default)</text>
+<text x="419.5" y="346.5" text-anchor="middle" class="secondary in-box">2. pyannote 3.1 (legacy)</text>
+<rect x="257" y="395" width="325" height="74" rx="0" class="node"></rect>
+<text x="419.5" y="416" text-anchor="middle" class="heading in-box">ASR transcription</text>
+<text x="419.5" y="435" text-anchor="middle" class="secondary in-box">Use one selected model</text>
+<text x="419.5" y="454" text-anchor="middle" class="secondary in-box">Timing where supported</text>
+<rect x="257" y="492" width="325" height="74" rx="0" class="node"></rect>
+<text x="419.5" y="513" text-anchor="middle" class="heading in-box">Structure transcript</text>
+<text x="419.5" y="532" text-anchor="middle" class="secondary in-box">and summaries</text>
+<text x="419.5" y="551" text-anchor="middle" class="secondary in-box">Available times / speakers</text>
+<rect x="257" y="590" width="325" height="58" rx="0" class="node"></rect>
+<text x="419.5" y="611" text-anchor="middle" class="heading in-box">Export both files</text>
+<rect x="634" y="276" width="223" height="74" rx="0" class="node"></rect>
+<text x="745.5" y="297" text-anchor="middle" class="heading in-box">Word (.docx)</text>
+<text x="745.5" y="316" text-anchor="middle" class="secondary in-box">Editable transcript</text>
+<text x="745.5" y="335" text-anchor="middle" class="secondary in-box">Report tables / charts</text>
+<rect x="634" y="366" width="223" height="74" rx="0" class="node"></rect>
+<text x="745.5" y="387" text-anchor="middle" class="heading in-box">Excel (.xlsx)</text>
+<text x="745.5" y="406" text-anchor="middle" class="secondary in-box">Utterance records</text>
+<text x="745.5" y="425" text-anchor="middle" class="secondary in-box">Verification columns</text>
+<path d="M205 116H239V160H257" class="connector" stroke-dasharray="none" marker-end="url(#rs-arrow)"></path>
+<path d="M419.5 254V287.5" class="connector" stroke-dasharray="none" marker-end="url(#rs-arrow)"></path>
+<path d="M419.5 361.5V395" class="connector" stroke-dasharray="none" marker-end="url(#rs-arrow)"></path>
+<path d="M419.5 469V492" class="connector" stroke-dasharray="none" marker-end="url(#rs-arrow)"></path>
+<path d="M419.5 566V590" class="connector" stroke-dasharray="none" marker-end="url(#rs-arrow)"></path>
+<path d="M419.5 270.75H582V378.25H419.5" class="connector" stroke-dasharray="5 4" marker-end="url(#rs-arrow)"></path>
+<path d="M582 619H608V313H634" class="connector" stroke-dasharray="none" marker-end="url(#rs-arrow)"></path>
+<path d="M608 619V403H634" class="connector" stroke-dasharray="none" marker-end="url(#rs-arrow)"></path>
+<rect x="20" y="310" width="185" height="150" rx="0" class="config"></rect>
+<text x="112.5" y="331" text-anchor="middle" class="heading">Run settings</text>
+<text x="112.5" y="350" text-anchor="middle" class="secondary">Study details</text>
+<text x="112.5" y="369" text-anchor="middle" class="secondary">Language</text>
+<text x="112.5" y="388" text-anchor="middle" class="secondary">ASR model</text>
+<text x="112.5" y="407" text-anchor="middle" class="secondary">Diarisation on / off</text>
+<text x="112.5" y="426" text-anchor="middle" class="secondary">Diarisation model</text>
+<text x="112.5" y="445" text-anchor="middle" class="secondary">Speaker count</text>
+<text x="442" y="702" text-anchor="middle" class="secondary">Dashed route: skip diarisation when disabled or unsuccessful.</text>
+<text x="442" y="733" text-anchor="middle" class="heading">Researcher verification against the original recording</text></g></svg>

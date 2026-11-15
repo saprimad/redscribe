@@ -1,0 +1,104 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>RedScribe workflow</title><style>body{max-width:920px;margin:auto;font-family:Arial,sans-serif}h3{margin:0 0 12px}</style><div id="redscribe-workflow-preview">
+  <style>
+    #redscribe-workflow-preview { color:#202e35; background:#fff; padding:18px; box-sizing:border-box; }
+    #redscribe-workflow-preview svg { display:block; width:100%; overflow:visible; }
+    #redscribe-workflow-preview text { fill:#202e35; font-family:Arial,Helvetica,sans-serif; font-size:14px; font-weight:400; }
+    #redscribe-workflow-preview .heading { font-weight:500; }
+    #redscribe-workflow-preview .secondary { fill:#52636d; }
+    #redscribe-workflow-preview .node { fill:#196079; stroke:#27554f; stroke-width:1.3; }
+    #redscribe-workflow-preview .source { fill:#929b9f; }
+    #redscribe-workflow-preview .optional { fill:#225d34; }
+    #redscribe-workflow-preview text.in-box { fill:#fff; }
+    #redscribe-workflow-preview .config { fill:#f5f8fa; stroke:#a7bac5; }
+    #redscribe-workflow-preview .connector { fill:none; stroke:#196079; stroke-width:1.5; }
+    #redscribe-workflow-preview .group { fill:none; stroke:#38474f; stroke-width:1.3; stroke-dasharray:7 5; }
+  #redscribe-workflow-preview text.section-title{font-size:21px;font-weight:600} </style>
+  <div style="display:flex;gap:8px;justify-content:flex-end;margin-bottom:10px"><button type="button" id="png">Save as PNG</button><button type="button" id="vector">Save as SVG</button></div><h3>RedScribe — proposed workflow</h3>
+  <svg role="img" aria-label="One recording input, model selection and optional speaker diarisation, followed by transcription and export to Word and Excel."></svg>
+</div>
+<script>
+(function(){
+ const root=document.getElementById('redscribe-workflow-preview');
+ const svg=root.querySelector('svg');
+ const asrLines=['Select and load ASR model','1. Whisper Large-v3','2. Whisper Large-v3 Turbo','3. Mesolitica Malaysian Whisper','Large-v3 Turbo V3','4. Mesolitica XLS-R 300M Mixed','5. Meta MMS-1B All','6. Qwen3-ASR 1.7B','7. BuzzASR Malay'];
+ const diarLines=['Optional speaker diarisation','1. pyannote Community-1 (default)','2. pyannote 3.1 (legacy)'];
+ const ns='http://www.w3.org/2000/svg';
+ function el(tag,attrs={},label){const e=document.createElementNS(ns,tag);Object.entries(attrs).forEach(([k,v])=>e.setAttribute(k,v));if(label!==undefined)e.textContent=label;svg.appendChild(e);return e;}
+ function text(x,y,s,cls='',headerWidth=0){
+  if(headerWidth){el('rect',{x:x-headerWidth/2,y:y-19,width:headerWidth,height:30,fill:'#fff',stroke:'#a7bac5'});cls='section-title';}
+  return el('text',{x,y:y+(headerWidth?2:0),'text-anchor':'middle',class:cls},s);
+ }
+ function box(x,y,w,lines,cls='node',height){const h=height||lines.length*19+17;el('rect',{x,y,width:w,height:h,rx:0,class:cls});lines.forEach((s,i)=>text(x+w/2,y+21+i*19,s,(i===0?'heading':'secondary')+(cls.includes('node')?' in-box':'')));return {x,y,w,h,cx:x+w/2,bottom:y+h};}
+ function group(x,y,w,h){el('rect',{x,y,width:w,height:h,class:'group'});}
+ function path(d,dashed=false){el('path',{d,class:'connector','stroke-dasharray':dashed?'5 4':'none','marker-end':'url(#rs-arrow)'});}
+ function down(a,b){path(`M${a.cx} ${a.bottom}V${b.y}`);}
+ function draw(){
+ const w=Math.round(svg.clientWidth);if(w<200)return;svg.replaceChildren();
+ const defs=el('defs');defs.innerHTML='<marker id="rs-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0L7 3.5L0 7Z" fill="#196079"/></marker>';
+ const mobile=w<880;
+ if(!mobile){
+ const left=20,lw=185,gap=52,mid=left+lw+gap,mw=325,right=mid+mw+gap,rw=Math.min(223,w-right-20);
+ group(left-12,6,lw+24,184);group(mid-12,6,mw+24,655);group(right-12,221,rw+24,238);
+ text(left+lw/2,37,'Input','heading',lw);text(mid+mw/2,37,'Processing','heading',mw);text(right+rw/2,252,'Output','heading',rw);
+ const input=box(left,66,lw,['One recording file','MP3 · WAV · M4A · MP4','Audio / video'],'node source',100);
+ const load=box(mid,66,mw,asrLines);
+ const gapToDiar=(395-load.bottom-(diarLines.length*19+17))/2;
+ const dia=box(mid+12,load.bottom+gapToDiar,mw-24,diarLines,'node optional');
+ const trans=box(mid,395,mw,['ASR transcription','Use one selected model','Timing where supported']);
+ const struct=box(mid,492,mw,['Structure transcript','and summaries','Available times / speakers']);
+ const exp=box(mid,590,mw,['Export both files'], 'node',58);
+ const word=box(right,276,rw,['Word (.docx)','Editable transcript','Report tables / charts']);
+ const excel=box(right,366,rw,['Excel (.xlsx)','Utterance records','Verification columns']);
+ const cy=input.y+input.h/2;path(`M${input.x+input.w} ${cy}H${mid-18}V${load.y+load.h/2}H${mid}`);
+ down(load,dia);down(dia,trans);down(trans,struct);down(struct,exp);
+ path(`M${load.cx} ${load.bottom+gapToDiar/2}H${mid+mw}V${trans.y-gapToDiar/2}H${trans.cx}`,true);
+ const j=right-26,ey=exp.y+exp.h/2;path(`M${exp.x+exp.w} ${ey}H${j}V${word.y+word.h/2}H${right}`);path(`M${j} ${ey}V${excel.y+excel.h/2}H${right}`);
+ box(left,310,lw,['Run settings','Study details','Language','ASR model','Diarisation on / off','Diarisation model','Speaker count'],'config');
+ text(w/2,702,'Dashed route: skip diarisation when disabled or unsuccessful.','secondary');
+ text(w/2,733,'Researcher verification against the original recording','heading');
+ svg.setAttribute('viewBox',`0 0 ${w} 755`);svg.setAttribute('height','755');
+ }else{
+ const x=20,bw=w-40;let y=39;
+ text(w/2,y,'Input','heading',bw);y+=22;
+ let last=box(x,y,bw,['One recording file','MP3 · WAV · M4A · MP4'],'node source');group(6,6,w-12,last.bottom+6);y=last.bottom+45;
+ const processTop=y-33;
+ text(w/2,y,'Processing','heading',bw);y+=24;
+ const stages=[asrLines,diarLines,['ASR transcription','Use one selected model','Timing where supported'],['Structure transcript and summaries','Available times / speakers'],['Export both research files']];
+ stages.forEach((ls,i)=>{const b=box(x,y,bw,ls,i===1?'node optional':'node');down(last,b);last=b;y=b.bottom+24;});
+ group(6,processTop,w-12,last.bottom-processTop+12);
+ text(w/2,y+18,'Output','heading',bw);const outputTop=y-14;y+=45;
+ const word=box(x,y,bw,['Word (.docx)','Editable transcript and report']);down(last,word);y=word.bottom+18;
+ const excel=box(x,y,bw,['Excel (.xlsx)','Utterance records and verification']);path(`M${last.cx} ${last.bottom}H${w-12}V${excel.y+excel.h/2}H${excel.x+excel.w}`);group(6,outputTop,w-12,excel.bottom-outputTop+12);y=excel.bottom+36;
+ box(x,y,bw,['Run settings','Optional study details · language','ASR model · diarisation model','Expected speaker count'],'config');y+=155;
+ text(w/2,y,'Verify against the source recording','heading');
+ svg.setAttribute('viewBox',`0 0 ${w} ${y+25}`);svg.setAttribute('height',y+25);
+ }
+ }
+ new ResizeObserver(draw).observe(root);draw();
+})();
+</script><script>
+const figure = "\u003csvg xmlns=\"http://www.w3.org/2000/svg\" id=\"redscribe-workflow-preview\" width=\"884\" height=\"790\" viewBox=\"0 0 884 790\" role=\"img\">\u003ctitle>RedScribe proposed workflow\u003c/title>\u003cstyle>\n    #redscribe-workflow-preview { color:#202e35; background:#fff; padding:18px; box-sizing:border-box; }\n    #redscribe-workflow-preview svg { display:block; width:100%; overflow:visible; }\n    #redscribe-workflow-preview text { fill:#202e35; font-family:Arial,Helvetica,sans-serif; font-size:14px; font-weight:400; }\n    #redscribe-workflow-preview .heading { font-weight:500; }\n    #redscribe-workflow-preview .secondary { fill:#52636d; }\n    #redscribe-workflow-preview .node { fill:#196079; stroke:#27554f; stroke-width:1.3; }\n    #redscribe-workflow-preview .source { fill:#929b9f; }\n    #redscribe-workflow-preview .optional { fill:#225d34; }\n    #redscribe-workflow-preview text.in-box { fill:#fff; }\n    #redscribe-workflow-preview .config { fill:#f5f8fa; stroke:#a7bac5; }\n    #redscribe-workflow-preview .connector { fill:none; stroke:#196079; stroke-width:1.5; }\n    #redscribe-workflow-preview .group { fill:none; stroke:#38474f; stroke-width:1.3; stroke-dasharray:7 5; }\n  #redscribe-workflow-preview text.section-title{font-size:21px;font-weight:600} \u003c/style>\u003crect width=\"884\" height=\"790\" fill=\"white\"/>\u003ctext x=\"8\" y=\"24\" style=\"font-size:19px;font-weight:600\">RedScribe — proposed workflow\u003c/text>\u003cg transform=\"translate(0 35)\">\u003cdefs >\u003cmarker id=\"rs-arrow\" markerWidth=\"7\" markerHeight=\"7\" refX=\"6\" refY=\"3.5\" orient=\"auto\">\u003cpath d=\"M0 0L7 3.5L0 7Z\" fill=\"#196079\"/>\u003c/marker>\u003c/defs>\n\u003crect x=\"8\" y=\"6\" width=\"209\" height=\"184\" class=\"group\">\u003c/rect>\n\u003crect x=\"245\" y=\"6\" width=\"349\" height=\"655\" class=\"group\">\u003c/rect>\n\u003crect x=\"622\" y=\"221\" width=\"247\" height=\"238\" class=\"group\">\u003c/rect>\n\u003crect x=\"20\" y=\"18\" width=\"185\" height=\"30\" fill=\"#fff\" stroke=\"#a7bac5\">\u003c/rect>\n\u003ctext x=\"112.5\" y=\"39\" text-anchor=\"middle\" class=\"section-title\">Input\u003c/text>\n\u003crect x=\"257\" y=\"18\" width=\"325\" height=\"30\" fill=\"#fff\" stroke=\"#a7bac5\">\u003c/rect>\n\u003ctext x=\"419.5\" y=\"39\" text-anchor=\"middle\" class=\"section-title\">Processing\u003c/text>\n\u003crect x=\"634\" y=\"233\" width=\"223\" height=\"30\" fill=\"#fff\" stroke=\"#a7bac5\">\u003c/rect>\n\u003ctext x=\"745.5\" y=\"254\" text-anchor=\"middle\" class=\"section-title\">Output\u003c/text>\n\u003crect x=\"20\" y=\"66\" width=\"185\" height=\"100\" rx=\"0\" class=\"node source\">\u003c/rect>\n\u003ctext x=\"112.5\" y=\"87\" text-anchor=\"middle\" class=\"heading in-box\">One recording file\u003c/text>\n\u003ctext x=\"112.5\" y=\"106\" text-anchor=\"middle\" class=\"secondary in-box\">MP3 · WAV · M4A · MP4\u003c/text>\n\u003ctext x=\"112.5\" y=\"125\" text-anchor=\"middle\" class=\"secondary in-box\">Audio / video\u003c/text>\n\u003crect x=\"257\" y=\"66\" width=\"325\" height=\"188\" rx=\"0\" class=\"node\">\u003c/rect>\n\u003ctext x=\"419.5\" y=\"87\" text-anchor=\"middle\" class=\"heading in-box\">Select and load ASR model\u003c/text>\n\u003ctext x=\"419.5\" y=\"106\" text-anchor=\"middle\" class=\"secondary in-box\">1. Whisper Large-v3\u003c/text>\n\u003ctext x=\"419.5\" y=\"125\" text-anchor=\"middle\" class=\"secondary in-box\">2. Whisper Large-v3 Turbo\u003c/text>\n\u003ctext x=\"419.5\" y=\"144\" text-anchor=\"middle\" class=\"secondary in-box\">3. Mesolitica Malaysian Whisper\u003c/text>\n\u003ctext x=\"419.5\" y=\"163\" text-anchor=\"middle\" class=\"secondary in-box\">Large-v3 Turbo V3\u003c/text>\n\u003ctext x=\"419.5\" y=\"182\" text-anchor=\"middle\" class=\"secondary in-box\">4. Mesolitica XLS-R 300M Mixed\u003c/text>\n\u003ctext x=\"419.5\" y=\"201\" text-anchor=\"middle\" class=\"secondary in-box\">5. Meta MMS-1B All\u003c/text>\n\u003ctext x=\"419.5\" y=\"220\" text-anchor=\"middle\" class=\"secondary in-box\">6. Qwen3-ASR 1.7B\u003c/text>\n\u003ctext x=\"419.5\" y=\"239\" text-anchor=\"middle\" class=\"secondary in-box\">7. BuzzASR Malay\u003c/text>\n\u003crect x=\"269\" y=\"287.5\" width=\"301\" height=\"74\" rx=\"0\" class=\"node optional\">\u003c/rect>\n\u003ctext x=\"419.5\" y=\"308.5\" text-anchor=\"middle\" class=\"heading in-box\">Optional speaker diarisation\u003c/text>\n\u003ctext x=\"419.5\" y=\"327.5\" text-anchor=\"middle\" class=\"secondary in-box\">1. pyannote Community-1 (default)\u003c/text>\n\u003ctext x=\"419.5\" y=\"346.5\" text-anchor=\"middle\" class=\"secondary in-box\">2. pyannote 3.1 (legacy)\u003c/text>\n\u003crect x=\"257\" y=\"395\" width=\"325\" height=\"74\" rx=\"0\" class=\"node\">\u003c/rect>\n\u003ctext x=\"419.5\" y=\"416\" text-anchor=\"middle\" class=\"heading in-box\">ASR transcription\u003c/text>\n\u003ctext x=\"419.5\" y=\"435\" text-anchor=\"middle\" class=\"secondary in-box\">Use one selected model\u003c/text>\n\u003ctext x=\"419.5\" y=\"454\" text-anchor=\"middle\" class=\"secondary in-box\">Timing where supported\u003c/text>\n\u003crect x=\"257\" y=\"492\" width=\"325\" height=\"74\" rx=\"0\" class=\"node\">\u003c/rect>\n\u003ctext x=\"419.5\" y=\"513\" text-anchor=\"middle\" class=\"heading in-box\">Structure transcript\u003c/text>\n\u003ctext x=\"419.5\" y=\"532\" text-anchor=\"middle\" class=\"secondary in-box\">and summaries\u003c/text>\n\u003ctext x=\"419.5\" y=\"551\" text-anchor=\"middle\" class=\"secondary in-box\">Available times / speakers\u003c/text>\n\u003crect x=\"257\" y=\"590\" width=\"325\" height=\"58\" rx=\"0\" class=\"node\">\u003c/rect>\n\u003ctext x=\"419.5\" y=\"611\" text-anchor=\"middle\" class=\"heading in-box\">Export both files\u003c/text>\n\u003crect x=\"634\" y=\"276\" width=\"223\" height=\"74\" rx=\"0\" class=\"node\">\u003c/rect>\n\u003ctext x=\"745.5\" y=\"297\" text-anchor=\"middle\" class=\"heading in-box\">Word (.docx)\u003c/text>\n\u003ctext x=\"745.5\" y=\"316\" text-anchor=\"middle\" class=\"secondary in-box\">Editable transcript\u003c/text>\n\u003ctext x=\"745.5\" y=\"335\" text-anchor=\"middle\" class=\"secondary in-box\">Report tables / charts\u003c/text>\n\u003crect x=\"634\" y=\"366\" width=\"223\" height=\"74\" rx=\"0\" class=\"node\">\u003c/rect>\n\u003ctext x=\"745.5\" y=\"387\" text-anchor=\"middle\" class=\"heading in-box\">Excel (.xlsx)\u003c/text>\n\u003ctext x=\"745.5\" y=\"406\" text-anchor=\"middle\" class=\"secondary in-box\">Utterance records\u003c/text>\n\u003ctext x=\"745.5\" y=\"425\" text-anchor=\"middle\" class=\"secondary in-box\">Verification columns\u003c/text>\n\u003cpath d=\"M205 116H239V160H257\" class=\"connector\" stroke-dasharray=\"none\" marker-end=\"url(#rs-arrow)\">\u003c/path>\n\u003cpath d=\"M419.5 254V287.5\" class=\"connector\" stroke-dasharray=\"none\" marker-end=\"url(#rs-arrow)\">\u003c/path>\n\u003cpath d=\"M419.5 361.5V395\" class=\"connector\" stroke-dasharray=\"none\" marker-end=\"url(#rs-arrow)\">\u003c/path>\n\u003cpath d=\"M419.5 469V492\" class=\"connector\" stroke-dasharray=\"none\" marker-end=\"url(#rs-arrow)\">\u003c/path>\n\u003cpath d=\"M419.5 566V590\" class=\"connector\" stroke-dasharray=\"none\" marker-end=\"url(#rs-arrow)\">\u003c/path>\n\u003cpath d=\"M419.5 270.75H582V378.25H419.5\" class=\"connector\" stroke-dasharray=\"5 4\" marker-end=\"url(#rs-arrow)\">\u003c/path>\n\u003cpath d=\"M582 619H608V313H634\" class=\"connector\" stroke-dasharray=\"none\" marker-end=\"url(#rs-arrow)\">\u003c/path>\n\u003cpath d=\"M608 619V403H634\" class=\"connector\" stroke-dasharray=\"none\" marker-end=\"url(#rs-arrow)\">\u003c/path>\n\u003crect x=\"20\" y=\"310\" width=\"185\" height=\"150\" rx=\"0\" class=\"config\">\u003c/rect>\n\u003ctext x=\"112.5\" y=\"331\" text-anchor=\"middle\" class=\"heading\">Run settings\u003c/text>\n\u003ctext x=\"112.5\" y=\"350\" text-anchor=\"middle\" class=\"secondary\">Study details\u003c/text>\n\u003ctext x=\"112.5\" y=\"369\" text-anchor=\"middle\" class=\"secondary\">Language\u003c/text>\n\u003ctext x=\"112.5\" y=\"388\" text-anchor=\"middle\" class=\"secondary\">ASR model\u003c/text>\n\u003ctext x=\"112.5\" y=\"407\" text-anchor=\"middle\" class=\"secondary\">Diarisation on / off\u003c/text>\n\u003ctext x=\"112.5\" y=\"426\" text-anchor=\"middle\" class=\"secondary\">Diarisation model\u003c/text>\n\u003ctext x=\"112.5\" y=\"445\" text-anchor=\"middle\" class=\"secondary\">Speaker count\u003c/text>\n\u003ctext x=\"442\" y=\"702\" text-anchor=\"middle\" class=\"secondary\">Dashed route: skip diarisation when disabled or unsuccessful.\u003c/text>\n\u003ctext x=\"442\" y=\"733\" text-anchor=\"middle\" class=\"heading\">Researcher verification against the original recording\u003c/text>\u003c/g>\u003c/svg>";
+function download(blob, extension) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'RedScribe_Workflow.' + extension;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+function vectorFile() { return new Blob([figure], {type:'image/svg+xml;charset=utf-8'}); }
+document.getElementById('vector').onclick = () => download(vectorFile(), 'svg');
+document.getElementById('png').onclick = async () => {
+  const url = URL.createObjectURL(vectorFile());
+  try {
+    const img = new Image();
+    img.src = url;
+    await img.decode();
+    const canvas = document.createElement('canvas');
+    canvas.width = 2652;
+    canvas.height = 2370;
+    canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+    canvas.toBlob(blob => { if(blob) download(blob, 'png'); }, 'image/png');
+  } finally { URL.revokeObjectURL(url); }
+};
+</script></html>
