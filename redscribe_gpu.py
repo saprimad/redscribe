@@ -17,6 +17,7 @@ from collections import Counter
 from copy import copy
 from speaker_styles import speaker_colour, speaker_fill
 from asr_backends import EXTRA_MODELS, LocalASR, validate_language
+from performance_log import RunPerformance, performance_summary, save_performance
 from model_loading import model_preparation
 from download_progress import hub_download_progress, progress_text
 from diarization_options import (DEFAULT_DIARIZATION_MODEL, DIARIZATION_MODELS,
@@ -1737,6 +1738,12 @@ class RedScribeApp:
     def run_whisper(self, inputs: dict):
         cancelled = False
         completion = None
+        inputs = dict(inputs)
+        performance = RunPerformance(model_label(inputs["whisper_model"]))
+        performance.details.update(language_requested=inputs.get("language"),
+                                   diarisation_requested=bool(inputs.get("diarization_enabled")))
+        inputs["_performance"] = performance
+        performance.begin("preflight")
         try:
             self.root.after(0, self.begin_model_activity, "Checking model requirements (no download yet)...")
             self.root.after(0, self.log_info, "Checking selected model runtime and CUDA availability before processing...")
@@ -1748,6 +1755,7 @@ class RedScribeApp:
                     result += " Diarisation runtime import check passed; missing model weights will download automatically."
                 self.check_stop()
             finally:
+                performance.end("preflight")
                 self.root.after(0, self.end_diarization_activity)
             self.root.after(0, self.log_info, result)
             completion = self._run_whisper(inputs)
@@ -1756,6 +1764,7 @@ class RedScribeApp:
                 "Model requirements", detail, "Requirements check failed; nothing processed")
         except TranscriptionCancelled:
             cancelled = True
+            performance.outcome = "cancelled"
         except Exception:
             error_text = traceback.format_exc()
             try:
@@ -1771,15 +1780,27 @@ class RedScribeApp:
             with self.run_lock:
                 self.run_phase = "finalising"
             self.root.after(0, self.begin_model_activity, "Finalising run; releasing model memory...")
+            performance.begin("cleanup")
             try:
                 release_gpu_cache()
             except Exception as exc:
+                performance.details["cleanup_warning"] = True
                 self.root.after(0, self.log_warning, f"Model memory cleanup warning: {exc}")
             finally:
-                self.root.after(0, self.complete_run, cancelled, completion)
+                performance.end("cleanup")
+                try:
+                    record = performance.finish()
+                    self.root.after(0, self.log_info, performance_summary(record))
+                    _, log_path = save_performance(record, self.base_output_dir)
+                    self.root.after(0, self.log_info, f"Performance log saved: {log_path}")
+                except Exception as exc:
+                    self.root.after(0, self.log_warning, f"Performance log could not be saved: {exc}")
+                finally:
+                    self.root.after(0, self.complete_run, cancelled, completion)
 
     def _run_whisper(self, inputs: dict):
         start_clock = time.time()
+        performance = inputs.get("_performance") or RunPerformance(model_label(inputs["whisper_model"]))
 
         audio_path = inputs["audio_path"]
         audio_base = os.path.splitext(os.path.basename(audio_path))[0]
@@ -1805,6 +1826,10 @@ class RedScribeApp:
         self.root.after(0, self.log_info, f"Output folder for this model: {out_folder}")
 
         def notify_model(state, message):
+            if state == "start":
+                performance.begin("asr_model_preparation")
+            elif state in ("ready", "failed"):
+                performance.end("asr_model_preparation")
             self.root.after(0, self.show_model_notification, state, message)
 
         try:
@@ -1816,6 +1841,8 @@ class RedScribeApp:
             self.check_stop()
             self.actual_whisper_device = actual_device
             self.actual_whisper_compute_type = actual_compute_type
+            performance.details.update(actual_device=actual_device, actual_compute_type=actual_compute_type,
+                                       checkpoint=EXTRA_MODELS[inputs["whisper_model"]].checkpoint if inputs["whisper_model"] in EXTRA_MODELS else inputs["whisper_model"])
         except TranscriptionCancelled:
             raise
         except Exception as e:
@@ -1829,6 +1856,7 @@ class RedScribeApp:
         diarization_status = "Disabled"
 
         if diarization_enabled:
+            performance.begin("diarisation")
             self.root.after(0, self.begin_diarization_activity)
 
             def report_diarization(stage, completed=None, total=None):
@@ -1862,8 +1890,11 @@ class RedScribeApp:
                 )
                 diarization_turns = []
             finally:
+                performance.end("diarisation")
                 self.root.after(0, self.end_diarization_activity)
 
+        performance.details["diarisation_status"] = "completed" if diarization_status.startswith("Completed") else ("disabled" if not diarization_enabled else "failed")
+        performance.details["diarisation_model"] = inputs.get("diarization_model", DIARIZATION_MODEL) if diarization_enabled else None
         self.check_stop()
 
         self.root.after(
@@ -1876,6 +1907,7 @@ class RedScribeApp:
             model.turns = diarization_turns
             self.root.after(0, self.log_info, "Timing: " + model.timing_note)
 
+        performance.begin("asr_pipeline")
         try:
             segments, info = model.transcribe(
                 audio_path,
@@ -1895,6 +1927,7 @@ class RedScribeApp:
         except TranscriptionCancelled:
             raise
         except Exception as e:
+            performance.end("asr_pipeline")
             self.check_stop()
             error_text = str(e)
             return lambda error_text=error_text: self.show_run_error(
@@ -1954,9 +1987,15 @@ class RedScribeApp:
                     )
         finally:
             close_segments = getattr(segments, "close", None)
-            if close_segments is not None:
-                close_segments()
+            try:
+                if close_segments is not None:
+                    close_segments()
+            finally:
+                performance.end("asr_pipeline")
 
+        performance.asr_completed = True
+        performance.details.update(audio_duration_seconds=duration_s,
+                                   model_revision=getattr(model, "revision", "Managed by Faster-Whisper"))
         self.root.after(0, self.log_info, "Transcription finished. Preparing Word and Excel reports...")
         self.begin_saving()
         audio_duration_s = float(getattr(info, "duration", last_end))
@@ -1973,6 +2012,7 @@ class RedScribeApp:
             "timing_note": getattr(info, "timing_note", "Whisper segment times; sentence times are distributed estimates."),
         }
 
+        performance.begin("excel_export")
         try:
             save_xlsx_with_early_report(
                 xlsx_path=xlsx_path,
@@ -1994,10 +2034,13 @@ class RedScribeApp:
             error_text = str(e)
             return lambda error_text=error_text: self.show_run_error(
                 "Excel Error", f"The Excel workbook could not be saved.\n\n{error_text}", "Excel save failed")
+        finally:
+            performance.end("excel_export")
 
         self.root.after(0, self.log_info, f"Excel report saved: {xlsx_path}")
         self.root.after(0, self.update_diarization_activity, "Saving Word report...")
         word_error = None
+        performance.begin("word_export")
         try:
             save_docx_transcript(
                 docx_path=docx_path,
@@ -2020,6 +2063,9 @@ class RedScribeApp:
             self.root.after(0, self.log_warning, f"Word report could not be saved: {word_error}")
         else:
             self.root.after(0, self.log_info, f"Word report saved: {docx_path}")
+        finally:
+            performance.end("word_export")
+        performance.outcome = "partial" if word_error else "completed"
 
         def done_popup():
             self.progress_var.set(100.0)

@@ -8,6 +8,7 @@ import threading
 import time
 import traceback
 import unittest
+from performance_log import RunPerformance, performance_summary, save_performance
 from unittest.mock import Mock
 
 SOURCE = ast.parse(Path(__file__).resolve().parents[1].joinpath('redscribe_gpu.py').read_text())
@@ -21,9 +22,10 @@ class CompletionTests(unittest.TestCase):
         self.queue = []
         self.events = []
         self.model = Mock()
+        self.model.revision = "test-revision"
         self.model.transcribe.return_value = (iter([SimpleNamespace(start=0, end=2, text='Hello.')]),
                                               SimpleNamespace(duration=3, language='en'))
-        self.ns = dict(time=time, os=os, re=__import__('re'), traceback=traceback,
+        self.ns = dict(RunPerformance=RunPerformance, performance_summary=performance_summary, save_performance=save_performance, time=time, os=os, re=__import__('re'), traceback=traceback,
                        ModelPreflightError=type('PreflightError', (Exception,), {}),
                        DiarizationDependencyError=type('DependencyError', (Exception,), {}),
                        preflight_model=Mock(return_value='Runtime ready'),
@@ -86,6 +88,31 @@ class CompletionTests(unittest.TestCase):
         self.app.begin_model_activity.assert_any_call('Saving Excel report...')
         self.app.update_diarization_activity.assert_any_call('Saving Word report...')
         self.app.status.set.assert_called_with('Completed - 100% | CUDA (float16)')
+
+    def test_actual_worker_saves_performance_without_serialising_private_inputs(self):
+        self.inputs.update(hf_token='SECRET_TOKEN', project='PRIVATE_STUDY', researcher='PRIVATE_NAME')
+        self.app.run_whisper(self.inputs)
+        self.flush()
+        files = list(Path(self.temp.name, 'performance').glob('*.json'))
+        self.assertEqual(len(files), 1)
+        raw = files[0].read_text()
+        record = __import__('json').loads(raw)
+        self.assertEqual(record['outcome'], 'completed')
+        self.assertEqual(record['actual_compute_type'], 'float16')
+        self.assertEqual(record['audio_duration_seconds'], 3)
+        self.assertTrue(record['asr_completed'])
+        for private in ('SECRET_TOKEN', 'PRIVATE_STUDY', 'PRIVATE_NAME', 'Hello.', 'clip.wav'):
+            self.assertNotIn(private, raw)
+        self.assertIn('excel_export', record['stage_seconds'])
+        self.assertIn('word_export', record['stage_seconds'])
+
+    def test_performance_write_failure_does_not_block_completion(self):
+        self.ns['save_performance'] = Mock(side_effect=PermissionError('read only'))
+        self.app.run_whisper(self.inputs)
+        self.flush()
+        self.assertEqual(self.app.run_phase, 'idle')
+        self.ns['messagebox'].showinfo.assert_called_once()
+        self.app.log_warning.assert_called_with('Performance log could not be saved: read only')
 
     def test_two_consecutive_runs_each_finish_idle(self):
         for index in range(2):

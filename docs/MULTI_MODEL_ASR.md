@@ -143,6 +143,18 @@ Existing Word/Excel exports and shared speaker colours remain in use. Metadata r
 
 When transcript generation ends, the app logs that report preparation has started, shows elapsed activity for Excel and Word saving, logs each successfully saved path and displays final memory cleanup. Start remains disabled until cleanup finishes and the run returns to idle. The completion/error dialog appears after that reset. A cleanup exception is shown as a warning and does not strand the controls. These messages identify the active stage; they do not guarantee that an underlying export or GPU call cannot block. The reported Legacy next-run stall still needs a Windows re-test after this ordering fix.
 
+## Local performance records
+
+Every run writes a uniquely named `.json` record and readable `.log` under `output/performance/`, and prints a performance summary plus log location in Live Transcript. This includes failed/cancelled runs and partial export success. If the log cannot be saved, a warning appears and normal completion/control reset still proceeds.
+
+Records include UTC start time, outcome, selected model/checkpoint, available revision, actual device/precision once known, requested language/diarisation, audio duration once ASR completes, and wall-clock timings for requirements checks, ASR model preparation, diarisation, ASR processing, Excel, Word and final cleanup. They do not serialise GUI inputs, Hugging Face tokens, study/researcher names, audio filenames or transcript text.
+
+Model preparation combines cache checks, downloads if necessary and loading; **download-only time is not measured separately**. Diarisation includes its own loading/download and cleanup. For lazy ASR backends, preparation happens inside the ASR pipeline interval: overlap is subtracted for the reported ASR processing time. Raw stage durations can overlap and must not be summed.
+
+For completed ASR with a positive audio duration and processing time, `RTF = ASR processing seconds / audio seconds`, and speed is its reciprocal. Failed/cancelled ASR has no speed claim. A later export failure may still have completed ASR timings. ASR processing includes audio decoding, VAD where supported, segment iteration, UI dispatch and backend cleanup; it is not GPU kernel-only timing. Total time runs from worker start through final cleanup, excluding performance-file writing and completion-dialog time. No RAM/VRAM sampling or accuracy scoring is added. Existing Word/Excel processing-minutes fields retain their prior scope; use the explicit performance record for stage comparisons.
+
+These are desktop diagnostics. First-run downloads, CPU fallback, caching, warm-up, different diarisation settings and background workload can affect comparisons. They are not a substitute for the controlled 25-recording benchmark protocol.
+
 ## Validation status and research use
 
 Automated tests cover chunk coverage, turn boundaries, language guards, lazy loading, FP16 and MMS adapter arguments, Qwen invocation, cancellation/failure cleanup, and existing export/token/UI logic without downloading model weights. **No independent GPU inference was run in the development workspace. User-supplied Windows trials include completed Whisper output and MMS output after the adapter correction, with poor MMS quality reported; they do not establish full model parity or accuracy.** This branch is for local trial before merging.

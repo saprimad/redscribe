@@ -23,6 +23,7 @@ The primary application is [`redscribe_gpu.py`](redscribe_gpu.py). The earlier Q
 - Optional expected-speaker count
 - Hugging Face token controls: masked entry, Show/Hide, Save Token, Remove Saved and a local Check Token button; saved tokens use the system credential store through `keyring`
 - Live timestamped transcript, detected-language notice, progress and estimated remaining time
+- Local per-run performance records in `output/performance/`: stage timings, actual device/precision and completed-ASR RTF/speed, including failed/cancelled run records
 - Live diarisation activity in English, with an animated indicator, elapsed time and stage progress where pyannote reports it; a speaker timeline preview appears before transcription
 - Speaker assignment and estimated sentence timestamps derived from Whisper segments
 - Excel export with study metadata, an utterance-level verification worksheet, speaker counts, approximate speech/silence durations, five-minute utterance density and token frequency

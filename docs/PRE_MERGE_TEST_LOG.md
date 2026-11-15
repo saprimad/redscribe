@@ -78,3 +78,11 @@ The branch now returns the completion callback to the outer worker, releases mod
 Regression checks exercise the real worker/export orchestration with mocked inference and queued Tk callbacks: successful completion, two consecutive runs, cleanup failure, Excel failure, Word partial success, preflight failure, cancellation and inference-generator cleanup. They do not simulate an actual Windows CUDA hang. A new short Legacy run followed by a second run on the user's PC remains necessary; if it still stalls, the last visible saving/finalising stage is the next diagnostic evidence.
 
 Follow-up validation: the full suite ran 110 tests: 102 passed and 8 display-dependent tests were skipped. Python compilation and `git diff --check` passed. Actual Windows Legacy completion/re-run remains pending.
+
+## Follow-up: local performance logging
+
+The user requested timing/performance records similar to the RedScrap workflow. The branch now saves a readable `.log` and machine-readable `.json` for each run under `output/performance/`, with a Live Transcript summary. Records distinguish ASR preparation (cache/download/load), diarisation, ASR processing, exports and final cleanup; full details and overlap rules are documented in [the model guide](MULTI_MODEL_ASR.md#local-performance-records). Completed-ASR real-time factor and speed are calculated from full audio duration and ASR processing time excluding overlapping model preparation. Failed/cancelled ASR does not receive a speed estimate. No transcript, token, study name or audio filename is serialised into these records. This does not change study precision or add a benchmark runner.
+
+Deterministic timing tests cover eager/lazy preparation, overlap subtraction, interrupted stages, zero/missing duration and real JSON/log writes. Worker tests check private GUI fields are excluded and a log-write failure does not strand completion. Actual Windows timing accuracy/overhead remains to be trialled; no GPU performance result is claimed from mocked tests.
+
+Performance-log validation: 118 tests ran; 110 passed and 8 display-dependent tests were skipped. Python compilation and `git diff --check` passed.
