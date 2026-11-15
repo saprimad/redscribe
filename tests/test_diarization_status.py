@@ -66,6 +66,7 @@ class DiarizationStatusTests(unittest.TestCase):
         app.diarization_timer = None
         app.diarization_started = None
         app.diarization_activity = Mock()
+        app.activity_label = Mock()
         app.status = Mock()
         app.stop_event = Mock()
         app.stop_event.is_set.return_value = False

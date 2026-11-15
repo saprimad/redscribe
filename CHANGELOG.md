@@ -22,6 +22,10 @@ All notable changes to RedScribe are documented in this file. The dated 2.0.0 en
 
 ### Changed
 
+- Redesigned the desktop workspace with white/maroon styling, a scrollable left configuration column, a larger live transcript, collapsible Study details and persistent bottom actions.
+- Moved all diarisation controls (enabled by default, expected speakers and token management) into Settings, with concise summaries on the main window.
+- Added consistent speaker colours in the live transcript and a system-font fallback for Windows, macOS and Linux.
+
 - Preserve previous Excel/Word output pairs by numbering filenames on repeated runs; show the original error when export fails.
 - Grouped adjacent utterances from the same speaker into one paragraph in the Word transcript.
 - Kept the status and action buttons visible while the transcript panel resizes to fit the window.

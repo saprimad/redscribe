@@ -12,7 +12,8 @@ source = ast.parse(Path(__file__).resolve().parents[1].joinpath("redscribe_gpu.p
 app_class = next(node for node in source.body if isinstance(node, ast.ClassDef) and node.name == "RedScribeApp")
 namespace = {"TokenStoreError": TokenStoreError, "messagebox": Mock(), "resolve_token": Mock(),
              "save_token": Mock(), "remove_saved_token": Mock(), "os": Mock(),
-             "TRANSCRIPTION_LANGUAGES": {"Auto detect": None}, "threading": Mock()}
+             "TRANSCRIPTION_LANGUAGES": {"Auto detect": None}, "threading": Mock(),
+             "tk": Mock(), "ttk": Mock()}
 exec(compile(ast.Module(body=[app_class], type_ignores=[]), "redscribe_gpu.py", "exec"), namespace)
 
 
@@ -33,8 +34,13 @@ class TokenUITests(unittest.TestCase):
             if isinstance(value, Mock):
                 value.reset_mock(return_value=True, side_effect=True)
         self.app = namespace["RedScribeApp"].__new__(namespace["RedScribeApp"])
+        self.app.ui_font = "Segoe UI"
         self.app.hf_token = Value("hf_example_only")
         self.app.token_status = Value()
+        self.app.token_summary = Value()
+        self.app.token_settings_window = None
+        self.app.root = Mock()
+        self.app.speaker_tags = {}
         self.app.token_entry = Mock()
         self.app.show_token_btn = Mock()
         namespace["resolve_token"].return_value = TokenSelection("hf_example_only", "saved in system credential store")
@@ -69,6 +75,58 @@ class TokenUITests(unittest.TestCase):
             self.app.token_entry.cget.return_value = before
             self.app.toggle_token_visibility()
             self.app.token_entry.configure.assert_called_with(show=after)
+
+    def test_summary_distinguishes_saved_available_and_missing_tokens(self):
+        for token, source, expected in (
+            ("example", "saved in system credential store", "Token saved"),
+            ("example", "found in environment", "Token available"),
+            ("example", "entered in app (session only)", "Session token"),
+            (None, "no token found", "Token not configured"),
+        ):
+            with self.subTest(source=source):
+                namespace["resolve_token"].return_value = TokenSelection(token, source)
+                self.app.check_hf_token()
+                self.assertIn(expected, self.app.token_summary.get())
+                self.assertNotIn("example", self.app.token_summary.get())
+
+    def test_open_settings_constructs_masked_entry_and_close_handlers(self):
+        self.app.root.winfo_rootx.return_value = 0
+        self.app.root.winfo_rooty.return_value = 0
+        self.app.root.winfo_width.return_value = 1100
+        self.app.root.winfo_height.return_value = 760
+        self.app.root.winfo_screenwidth.return_value = 1440
+        self.app.root.winfo_screenheight.return_value = 900
+        self.app.diarization_enabled = Value(True)
+        self.app.speaker_count = Value("")
+        namespace["ttk"].Frame.return_value.winfo_reqheight.return_value = 620
+        win = namespace["tk"].Toplevel.return_value
+        self.app.open_token_settings()
+        self.assertIs(self.app.token_settings_window, win)
+        self.assertEqual(namespace["ttk"].Entry.call_count, 2)
+        self.assertEqual(namespace["ttk"].Entry.call_args.kwargs["show"], "*")
+        win.protocol.assert_called_with("WM_DELETE_WINDOW", self.app.close_token_settings)
+        win.grab_set.assert_called_once()
+        win.geometry.assert_called_with("560x624+270+68")
+
+    def test_reopening_settings_focuses_existing_window(self):
+        window = Mock()
+        window.winfo_exists.return_value = True
+        self.app.token_settings_window = window
+        self.app.open_token_settings()
+        window.lift.assert_called_once()
+        window.focus_set.assert_called_once()
+        namespace["tk"].Toplevel.assert_not_called()
+
+    def test_closing_settings_masks_entry_and_preserves_session(self):
+        window = Mock()
+        self.app.token_settings_window = window
+        self.app.close_token_settings()
+        self.app.token_entry.configure.assert_called_with(show="*")
+        window.grab_release.assert_called_once()
+        window.destroy.assert_called_once()
+        self.assertIsNone(self.app.token_settings_window)
+        self.assertEqual(self.app.hf_token.get(), "hf_example_only")
+        self.app.close_token_settings()  # Closing again is safe.
 
     def test_worker_receives_resolved_saved_token_only_with_diarisation(self):
         for enabled in (True, False):

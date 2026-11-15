@@ -133,10 +133,12 @@ The first launch may take longer while the selected Whisper model is downloaded.
 
 1. Open the model page for [`pyannote/speaker-diarization-community-1`](https://huggingface.co/pyannote/speaker-diarization-community-1) and accept any required conditions.
 2. Create a Hugging Face token with read access.
-3. Start RedScribe and paste the token into **Hugging Face Token**. It is masked by default; **Show/Hide** toggles visibility for the typed token.
-4. Click **Save Token** to remember it on this computer. The field clears after confirmed storage. Leave it blank on future launches: RedScribe retrieves its saved token automatically when diarisation starts.
+3. Start RedScribe and click **Settings** in the header or **Diarisation settings** in the Speakers panel. Paste the token into **Enter or replace token** in the Settings window. It is masked by default; **Show/Hide** toggles visibility for the typed token.
+4. Click **Save Token** to remember it on this computer, then **Done** to return to transcription. The field clears after confirmed storage. Leave it blank on future launches: RedScribe retrieves its saved token automatically when diarisation starts.
 
 **Save Token** uses `keyring` with Windows Credential Manager, macOS Keychain or a supported Linux desktop credential store (Secret Service, KWallet or libsecret). It never writes tokens to RedScribe's JSON settings or another application configuration file. Plaintext and third-party fallback backends are rejected. An operating-system prompt may ask you to unlock or allow access to the store. If the store is missing, locked or unavailable, the app shows a warning; you can still paste a token for the current session without saving it. Existing installations should run `pip install -r requirements.txt` to add the dependency.
+
+The Speakers panel shows only a token summary (**Token saved**, **Session token**, **Token available** or **Token not configured**). Diarisation is enabled by default at each app launch. Its enable checkbox and expected-speaker count are inside Settings, and the main Speakers panel reflects those choices. Model selection stays on the main window. Token entry, Show/Hide, Save Token, Remove Saved and Check Token are inside **Settings**; closing Settings keeps any unsaved token for the current app session and reopening masks it again.
 
 **Check Token** reports local availability and the source that will be used. It does not display the token, contact Hugging Face or validate model access. The priority is: typed session token → RedScribe's saved keyring token → `HF_TOKEN` / `HUGGINGFACE_HUB_TOKEN` environment variable → existing Hugging Face login. A saved token is not copied back into the visible entry field.
 
@@ -151,6 +153,20 @@ python -c "from huggingface_hub import interpreter_login; interpreter_login()"
 Enter the token at the hidden prompt and answer `n` when asked **Add token as git credential?**. This separate Hugging Face login manages its own local cache; **Remove Saved** does not delete it. There is no automatic migration of an existing login into RedScribe's keyring.
 
 Token availability does not guarantee diarisation access: accept the model conditions and ensure the token has read access. Never commit a token, participant recording or identifiable transcript to GitHub.
+
+## Desktop workspace
+
+![RedScribe desktop workspace](docs/images/redscribe-desktop.png)
+
+*Actual Tkinter UI with illustrative transcript text and simulated token availability; no participant data or real token is shown. Fonts and window decorations vary by operating system.*
+
+The workspace uses a white and maroon theme. Audio selection, transcription language and Whisper model sit in the left column; **Study details** expands to reveal the optional project, researcher, interview label and reporting period. The left column scrolls when more space is needed, while the live transcript and bottom actions remain visible.
+
+The right panel shows English processing notices, diarisation activity and elapsed time, the speaker timeline preview, and timestamped transcription with consistent speaker colours. The bottom bar retains progress, status/ETA, **Open output folder**, **Stop** and **Start transcription**. During diarisation, percentages refer only to supported processing stages, not to completion of the entire recording.
+
+**Settings** opens the diarisation and Hugging Face controls in a separate window. A session's settings changes apply to the next run; the current run uses the choices captured when Start was pressed. Token availability is separate from model download or model access. Settings and the left column can be scrolled on smaller screens.
+
+![RedScribe diarisation settings](docs/images/redscribe-settings.png)
 
 ## Running RedScribe
 
