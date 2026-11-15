@@ -1,0 +1,283 @@
+{
+  "schema_version": 1,
+  "status": "template_only_not_executable",
+  "expected_recordings": 25,
+  "reference_status": "User-confirmed existing human-verified verbatim transcripts; file mapping and extraction checks pending.",
+  "records": [
+    {
+      "recording_id": "R01",
+      "audio_path": null,
+      "reference_text_path": null,
+      "audio_sha256": null,
+      "reference_sha256": null,
+      "duration_seconds": null,
+      "declared_scoring_interval": null,
+      "reference_version": null,
+      "mapping_and_extraction_checked": false
+    },
+    {
+      "recording_id": "R02",
+      "audio_path": null,
+      "reference_text_path": null,
+      "audio_sha256": null,
+      "reference_sha256": null,
+      "duration_seconds": null,
+      "declared_scoring_interval": null,
+      "reference_version": null,
+      "mapping_and_extraction_checked": false
+    },
+    {
+      "recording_id": "R03",
+      "audio_path": null,
+      "reference_text_path": null,
+      "audio_sha256": null,
+      "reference_sha256": null,
+      "duration_seconds": null,
+      "declared_scoring_interval": null,
+      "reference_version": null,
+      "mapping_and_extraction_checked": false
+    },
+    {
+      "recording_id": "R04",
+      "audio_path": null,
+      "reference_text_path": null,
+      "audio_sha256": null,
+      "reference_sha256": null,
+      "duration_seconds": null,
+      "declared_scoring_interval": null,
+      "reference_version": null,
+      "mapping_and_extraction_checked": false
+    },
+    {
+      "recording_id": "R05",
+      "audio_path": null,
+      "reference_text_path": null,
+      "audio_sha256": null,
+      "reference_sha256": null,
+      "duration_seconds": null,
+      "declared_scoring_interval": null,
+      "reference_version": null,
+      "mapping_and_extraction_checked": false
+    },
+    {
+      "recording_id": "R06",
+      "audio_path": null,
+      "reference_text_path": null,
+      "audio_sha256": null,
+      "reference_sha256": null,
+      "duration_seconds": null,
+      "declared_scoring_interval": null,
+      "reference_version": null,
+      "mapping_and_extraction_checked": false
+    },
+    {
+      "recording_id": "R07",
+      "audio_path": null,
+      "reference_text_path": null,
+      "audio_sha256": null,
+      "reference_sha256": null,
+      "duration_seconds": null,
+      "declared_scoring_interval": null,
+      "reference_version": null,
+      "mapping_and_extraction_checked": false
+    },
+    {
+      "recording_id": "R08",
+      "audio_path": null,
+      "reference_text_path": null,
+      "audio_sha256": null,
+      "reference_sha256": null,
+      "duration_seconds": null,
+      "declared_scoring_interval": null,
+      "reference_version": null,
+      "mapping_and_extraction_checked": false
+    },
+    {
+      "recording_id": "R09",
+      "audio_path": null,
+      "reference_text_path": null,
+      "audio_sha256": null,
+      "reference_sha256": null,
+      "duration_seconds": null,
+      "declared_scoring_interval": null,
+      "reference_version": null,
+      "mapping_and_extraction_checked": false
+    },
+    {
+      "recording_id": "R10",
+      "audio_path": null,
+      "reference_text_path": null,
+      "audio_sha256": null,
+      "reference_sha256": null,
+      "duration_seconds": null,
+      "declared_scoring_interval": null,
+      "reference_version": null,
+      "mapping_and_extraction_checked": false
+    },
+    {
+      "recording_id": "R11",
+      "audio_path": null,
+      "reference_text_path": null,
+      "audio_sha256": null,
+      "reference_sha256": null,
+      "duration_seconds": null,
+      "declared_scoring_interval": null,
+      "reference_version": null,
+      "mapping_and_extraction_checked": false
+    },
+    {
+      "recording_id": "R12",
+      "audio_path": null,
+      "reference_text_path": null,
+      "audio_sha256": null,
+      "reference_sha256": null,
+      "duration_seconds": null,
+      "declared_scoring_interval": null,
+      "reference_version": null,
+      "mapping_and_extraction_checked": false
+    },
+    {
+      "recording_id": "R13",
+      "audio_path": null,
+      "reference_text_path": null,
+      "audio_sha256": null,
+      "reference_sha256": null,
+      "duration_seconds": null,
+      "declared_scoring_interval": null,
+      "reference_version": null,
+      "mapping_and_extraction_checked": false
+    },
+    {
+      "recording_id": "R14",
+      "audio_path": null,
+      "reference_text_path": null,
+      "audio_sha256": null,
+      "reference_sha256": null,
+      "duration_seconds": null,
+      "declared_scoring_interval": null,
+      "reference_version": null,
+      "mapping_and_extraction_checked": false
+    },
+    {
+      "recording_id": "R15",
+      "audio_path": null,
+      "reference_text_path": null,
+      "audio_sha256": null,
+      "reference_sha256": null,
+      "duration_seconds": null,
+      "declared_scoring_interval": null,
+      "reference_version": null,
+      "mapping_and_extraction_checked": false
+    },
+    {
+      "recording_id": "R16",
+      "audio_path": null,
+      "reference_text_path": null,
+      "audio_sha256": null,
+      "reference_sha256": null,
+      "duration_seconds": null,
+      "declared_scoring_interval": null,
+      "reference_version": null,
+      "mapping_and_extraction_checked": false
+    },
+    {
+      "recording_id": "R17",
+      "audio_path": null,
+      "reference_text_path": null,
+      "audio_sha256": null,
+      "reference_sha256": null,
+      "duration_seconds": null,
+      "declared_scoring_interval": null,
+      "reference_version": null,
+      "mapping_and_extraction_checked": false
+    },
+    {
+      "recording_id": "R18",
+      "audio_path": null,
+      "reference_text_path": null,
+      "audio_sha256": null,
+      "reference_sha256": null,
+      "duration_seconds": null,
+      "declared_scoring_interval": null,
+      "reference_version": null,
+      "mapping_and_extraction_checked": false
+    },
+    {
+      "recording_id": "R19",
+      "audio_path": null,
+      "reference_text_path": null,
+      "audio_sha256": null,
+      "reference_sha256": null,
+      "duration_seconds": null,
+      "declared_scoring_interval": null,
+      "reference_version": null,
+      "mapping_and_extraction_checked": false
+    },
+    {
+      "recording_id": "R20",
+      "audio_path": null,
+      "reference_text_path": null,
+      "audio_sha256": null,
+      "reference_sha256": null,
+      "duration_seconds": null,
+      "declared_scoring_interval": null,
+      "reference_version": null,
+      "mapping_and_extraction_checked": false
+    },
+    {
+      "recording_id": "R21",
+      "audio_path": null,
+      "reference_text_path": null,
+      "audio_sha256": null,
+      "reference_sha256": null,
+      "duration_seconds": null,
+      "declared_scoring_interval": null,
+      "reference_version": null,
+      "mapping_and_extraction_checked": false
+    },
+    {
+      "recording_id": "R22",
+      "audio_path": null,
+      "reference_text_path": null,
+      "audio_sha256": null,
+      "reference_sha256": null,
+      "duration_seconds": null,
+      "declared_scoring_interval": null,
+      "reference_version": null,
+      "mapping_and_extraction_checked": false
+    },
+    {
+      "recording_id": "R23",
+      "audio_path": null,
+      "reference_text_path": null,
+      "audio_sha256": null,
+      "reference_sha256": null,
+      "duration_seconds": null,
+      "declared_scoring_interval": null,
+      "reference_version": null,
+      "mapping_and_extraction_checked": false
+    },
+    {
+      "recording_id": "R24",
+      "audio_path": null,
+      "reference_text_path": null,
+      "audio_sha256": null,
+      "reference_sha256": null,
+      "duration_seconds": null,
+      "declared_scoring_interval": null,
+      "reference_version": null,
+      "mapping_and_extraction_checked": false
+    },
+    {
+      "recording_id": "R25",
+      "audio_path": null,
+      "reference_text_path": null,
+      "audio_sha256": null,
+      "reference_sha256": null,
+      "duration_seconds": null,
+      "declared_scoring_interval": null,
+      "reference_version": null,
+      "mapping_and_extraction_checked": false
+    }
+  ]
+}
