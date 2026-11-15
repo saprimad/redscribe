@@ -1,9 +1,12 @@
 """Deterministic timing and real local log serialization, without models."""
 import json
+import io
+from contextlib import redirect_stdout
+from unittest.mock import patch
 from pathlib import Path
 import tempfile
 import unittest
-from performance_log import RunPerformance, performance_summary, save_performance
+from performance_log import RunPerformance, performance_summary, save_performance, print_performance
 
 
 class PerformanceTests(unittest.TestCase):
@@ -13,6 +16,16 @@ class PerformanceTests(unittest.TestCase):
 
     def tick(self, seconds):
         self.now += seconds
+
+    def test_console_notice_is_printed_and_closed_stdout_is_tolerated(self):
+        capture = io.StringIO()
+        with redirect_stdout(capture):
+            print_performance('Performance [completed]: total 99.79s')
+        self.assertEqual(capture.getvalue(), 'Performance [completed]: total 99.79s\n')
+        with patch('builtins.print', side_effect=OSError('closed terminal')):
+            print_performance('Performance summary')
+        with patch('builtins.print', side_effect=ValueError('closed stream')):
+            print_performance('Performance summary')
 
     def test_lazy_preparation_excluded_from_asr_and_total_counted_once(self):
         self.perf.begin('preflight'); self.tick(1); self.perf.end('preflight')

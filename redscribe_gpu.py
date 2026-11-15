@@ -17,7 +17,7 @@ from collections import Counter
 from copy import copy
 from speaker_styles import speaker_colour, speaker_fill
 from asr_backends import EXTRA_MODELS, LocalASR, validate_language
-from performance_log import RunPerformance, performance_summary, save_performance
+from performance_log import RunPerformance, performance_summary, save_performance, print_performance
 from model_loading import model_preparation
 from download_progress import hub_download_progress, progress_text
 from diarization_options import (DEFAULT_DIARIZATION_MODEL, DIARIZATION_MODELS,
@@ -1790,11 +1790,15 @@ class RedScribeApp:
                 performance.end("cleanup")
                 try:
                     record = performance.finish()
-                    self.root.after(0, self.log_info, performance_summary(record))
+                    summary = performance_summary(record)
+                    self.root.after(0, self.log_info, summary)
+                    print_performance(summary)
                     _, log_path = save_performance(record, self.base_output_dir)
                     self.root.after(0, self.log_info, f"Performance log saved: {log_path}")
+                    print_performance(f"Performance log saved: {log_path}")
                 except Exception as exc:
                     self.root.after(0, self.log_warning, f"Performance log could not be saved: {exc}")
+                    print_performance(f"Performance log could not be saved: {exc}")
                 finally:
                     self.root.after(0, self.complete_run, cancelled, completion)
 

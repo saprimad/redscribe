@@ -145,7 +145,7 @@ When transcript generation ends, the app logs that report preparation has starte
 
 ## Local performance records
 
-Every run writes a uniquely named `.json` record and readable `.log` under `output/performance/`, and prints a performance summary plus log location in Live Transcript. This includes failed/cancelled runs and partial export success. If the log cannot be saved, a warning appears and normal completion/control reset still proceeds.
+Every run writes a uniquely named `.json` record and readable `.log` under `output/performance/`, and prints a performance summary plus log location in Live Transcript and the attached VS Code/PowerShell terminal. A detached or closed console does not prevent reports from finishing. This includes failed/cancelled runs and partial export success. If the log cannot be saved, a warning appears and normal completion/control reset still proceeds.
 
 Records include UTC start time, outcome, selected model/checkpoint, available revision, actual device/precision once known, requested language/diarisation, audio duration once ASR completes, and wall-clock timings for requirements checks, ASR model preparation, diarisation, ASR processing, Excel, Word and final cleanup. They do not serialise GUI inputs, Hugging Face tokens, study/researcher names, audio filenames or transcript text.
 

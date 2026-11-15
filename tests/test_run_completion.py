@@ -25,7 +25,7 @@ class CompletionTests(unittest.TestCase):
         self.model.revision = "test-revision"
         self.model.transcribe.return_value = (iter([SimpleNamespace(start=0, end=2, text='Hello.')]),
                                               SimpleNamespace(duration=3, language='en'))
-        self.ns = dict(RunPerformance=RunPerformance, performance_summary=performance_summary, save_performance=save_performance, time=time, os=os, re=__import__('re'), traceback=traceback,
+        self.ns = dict(RunPerformance=RunPerformance, performance_summary=performance_summary, save_performance=save_performance, print_performance=Mock(), time=time, os=os, re=__import__('re'), traceback=traceback,
                        ModelPreflightError=type('PreflightError', (Exception,), {}),
                        DiarizationDependencyError=type('DependencyError', (Exception,), {}),
                        preflight_model=Mock(return_value='Runtime ready'),
@@ -105,6 +105,9 @@ class CompletionTests(unittest.TestCase):
             self.assertNotIn(private, raw)
         self.assertIn('excel_export', record['stage_seconds'])
         self.assertIn('word_export', record['stage_seconds'])
+        console = [c.args[0] for c in self.ns['print_performance'].call_args_list]
+        self.assertTrue(console[0].startswith('Performance [completed]:'))
+        self.assertTrue(console[1].startswith('Performance log saved:'))
 
     def test_performance_write_failure_does_not_block_completion(self):
         self.ns['save_performance'] = Mock(side_effect=PermissionError('read only'))

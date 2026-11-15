@@ -80,3 +80,12 @@ def save_performance(record, output_directory):
                         f"Model: {record['model']}\nStarted (UTC): {record['started_utc']}\n" +
                         record['timing_scope'] + '\n' + record['stage_overlap_note'] + '\n', encoding='utf-8')
     return json_path, log_path
+
+
+def print_performance(message):
+    """Mirror notices to an attached terminal without requiring a console."""
+    try:
+        print(message, flush=True)
+    except (OSError, ValueError):
+        # A detached/closed terminal must not break exports or control reset.
+        pass

@@ -107,7 +107,7 @@ class WorkerPreflightTests(unittest.TestCase):
             pass
         self.cancelled=Cancelled
         self.check=Mock(return_value='Checks passed')
-        self.ns=dict(RunPerformance=RunPerformance, performance_summary=performance_summary, save_performance=save_performance, model_label=lambda model:model, preflight_model=self.check,ModelPreflightError=ModelPreflightError,
+        self.ns=dict(RunPerformance=RunPerformance, performance_summary=performance_summary, save_performance=save_performance, print_performance=Mock(), model_label=lambda model:model, preflight_model=self.check,ModelPreflightError=ModelPreflightError,
                      DiarizationDependencyError=DiarizationDependencyError,load_pyannote_pipeline_class=Mock(),
                      TranscriptionCancelled=Cancelled,release_gpu_cache=Mock())
         source=ast.parse(Path(__file__).resolve().parents[1].joinpath('redscribe_gpu.py').read_text())

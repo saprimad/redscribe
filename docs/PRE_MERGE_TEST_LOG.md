@@ -86,3 +86,9 @@ The user requested timing/performance records similar to the RedScrap workflow. 
 Deterministic timing tests cover eager/lazy preparation, overlap subtraction, interrupted stages, zero/missing duration and real JSON/log writes. Worker tests check private GUI fields are excluded and a log-write failure does not strand completion. Actual Windows timing accuracy/overhead remains to be trialled; no GPU performance result is claimed from mocked tests.
 
 Performance-log validation: 118 tests ran; 110 passed and 8 display-dependent tests were skipped. Python compilation and `git diff --check` passed.
+
+## Follow-up: Windows performance output and terminal mirroring
+
+The user supplied a completed Whisper Large-v3 run with total 99.79 s, model preparation 12.56 s, diarisation 20.52 s, ASR processing 63.16 s, RTF 0.058, speed 17.18x realtime, Excel 0.06 s, Word 0.13 s and final cleanup 0.12 s. Both exports and a performance-log path appeared in Live Transcript. These are rounded values from one user run, not a controlled benchmark; no accuracy conclusion follows.
+
+The user noted the summary did not appear in the VS Code terminal. The branch now mirrors the performance summary and saved-log location (or log-save warning) to an attached terminal with immediate flushing. A closed/detached console does not block report completion. This requires updating and restarting the application; previous runs are not replayed automatically.
