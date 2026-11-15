@@ -1,69 +1,77 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1480" height="1000" viewBox="0 0 1480 1000" role="img" aria-labelledby="title desc">
-<title id="title">RedScribe workflow: one recording, two research files</title>
-<desc id="desc">One recording enters local processing, configured by run settings. Optional speaker diarisation precedes transcription and can be bypassed. A structured transcript and descriptive summaries are exported to both Word and Excel for researcher verification.</desc>
-<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 8 4 0 8Z" fill="#196079"/></marker><style>text{font-family:Arial,Helvetica,sans-serif}.flow{fill:none;stroke:#196079;stroke-width:2.5;marker-end:url(#arrow)}</style></defs>
-<rect x="0" y="0" width="1480" height="1000" fill="#fff" stroke="none" stroke-width="1.5" rx="0"/>
-<rect x="30" y="30" width="7" height="54" fill="#8b2443" stroke="none" stroke-width="1.5" rx="3"/>
-<text x="54" y="54" text-anchor="start" font-size="30" fill="#202e35" font-weight="700">RedScribe processing workflow</text>
-<text x="54" y="84" text-anchor="start" font-size="20" fill="#52636d">One recording → local processing → Word and Excel</text>
-<rect x="30" y="130" width="350" height="290" fill="#fff" stroke="#52636d" stroke-width="1.5" rx="0" stroke-dasharray="9 7"/>
-<rect x="46" y="146" width="318" height="49" fill="#f5f8fa" stroke="#a7bac5" stroke-width="1.5" rx="0"/>
-<text x="205.0" y="179" text-anchor="middle" font-size="24" fill="#202e35" font-weight="700">Input</text>
-<rect x="54" y="229" width="302" height="125" fill="#929b9f" stroke="#24424f" stroke-width="1.5" rx="0"/>
-<text x="205.0" y="263" text-anchor="middle" font-size="22" fill="#fff" font-weight="700">One recording file</text>
-<text x="205.0" y="294" text-anchor="middle" font-size="18" fill="#fff">MP3 · WAV · M4A · MP4</text>
-<text x="205.0" y="321" text-anchor="middle" font-size="18" fill="#fff">Audio, or audio from video</text>
-<text x="205" y="391" text-anchor="middle" font-size="18" fill="#52636d">One file per transcription run</text>
-<rect x="30" y="477" width="350" height="353" fill="#f5f8fa" stroke="#b6c5cc" stroke-width="1.5" rx="8"/>
-<text x="54" y="515" text-anchor="start" font-size="24" fill="#202e35" font-weight="700">Run settings</text>
-<text x="54" y="556" text-anchor="start" font-size="20" fill="#202e35">Study details (optional)</text>
-<text x="54" y="588" text-anchor="start" font-size="18" fill="#52636d">Project · researcher · label · period</text>
-<text x="54" y="643" text-anchor="start" font-size="20" fill="#202e35">Language and Whisper model</text>
-<text x="54" y="675" text-anchor="start" font-size="18" fill="#52636d">Auto detect · Malay · English</text>
-<text x="54" y="733" text-anchor="start" font-size="20" fill="#202e35">Speaker diarisation settings</text>
-<text x="54" y="765" text-anchor="start" font-size="18" fill="#52636d">Enable / disable · speaker count</text>
-<text x="54" y="796" text-anchor="start" font-size="18" fill="#52636d">Hugging Face access if enabled</text>
-<path d="M54 608H356" stroke="#d4dfe4"/>
-<path d="M54 697H356" stroke="#d4dfe4"/>
-<rect x="430" y="130" width="600" height="700" fill="#fff" stroke="#52636d" stroke-width="1.5" rx="0" stroke-dasharray="9 7"/>
-<rect x="446" y="146" width="568" height="49" fill="#f5f8fa" stroke="#a7bac5" stroke-width="1.5" rx="0"/>
-<text x="730.0" y="179" text-anchor="middle" font-size="24" fill="#202e35" font-weight="700">Local processing</text>
-<path d="M356 291H405V258H478" class="flow"/>
-<rect x="478" y="219" width="504" height="78" fill="#196079" stroke="#24424f" stroke-width="1.5" rx="0"/>
-<text x="730.0" y="253" text-anchor="middle" font-size="22" fill="#fff" font-weight="700">Prepare session and load model</text>
-<text x="730.0" y="284" text-anchor="middle" font-size="18" fill="#fff">CUDA where available · CPU fallback</text>
-<path d="M730 297V335" class="flow"/>
-<rect x="478" y="335" width="504" height="90" fill="#28643d" stroke="#24424f" stroke-width="1.5" rx="0"/>
-<text x="730.0" y="369" text-anchor="middle" font-size="22" fill="#fff" font-weight="700">Optional speaker diarisation</text>
-<text x="730.0" y="400" text-anchor="middle" font-size="18" fill="#fff">pyannote.audio · estimate speaker turns</text>
-<path d="M730 315H1007V448H730" class="flow" stroke-dasharray="7 5"/>
-<path d="M730 425V465" class="flow"/>
-<rect x="478" y="465" width="504" height="78" fill="#196079" stroke="#24424f" stroke-width="1.5" rx="0"/>
-<text x="730.0" y="499" text-anchor="middle" font-size="22" fill="#fff" font-weight="700">Faster-Whisper transcription</text>
-<text x="730.0" y="530" text-anchor="middle" font-size="18" fill="#fff">Speech to text · segment timestamps</text>
-<path d="M730 543V583" class="flow"/>
-<rect x="478" y="583" width="504" height="103" fill="#196079" stroke="#24424f" stroke-width="1.5" rx="0"/>
-<text x="730.0" y="617" text-anchor="middle" font-size="22" fill="#fff" font-weight="700">Structure transcript and summaries</text>
-<text x="730.0" y="648" text-anchor="middle" font-size="18" fill="#fff">Utterances · estimated times · speaker labels*</text>
-<text x="730.0" y="675" text-anchor="middle" font-size="18" fill="#fff">Descriptive tables · charts · token frequencies</text>
-<path d="M730 686V727" class="flow"/>
-<rect x="478" y="727" width="504" height="67" fill="#196079" stroke="#24424f" stroke-width="1.5" rx="0"/>
-<text x="730.0" y="761" text-anchor="middle" font-size="22" fill="#fff" font-weight="700">Export both research files</text>
-<rect x="1080" y="400" width="370" height="430" fill="#fff" stroke="#52636d" stroke-width="1.5" rx="0" stroke-dasharray="9 7"/>
-<rect x="1096" y="416" width="338" height="49" fill="#f5f8fa" stroke="#a7bac5" stroke-width="1.5" rx="0"/>
-<text x="1265.0" y="449" text-anchor="middle" font-size="24" fill="#202e35" font-weight="700">Two outputs</text>
-<path d="M982 760H1054V557H1104" class="flow"/>
-<path d="M1054 760V727H1104" class="flow"/>
-<rect x="1104" y="493" width="322" height="129" fill="#196079" stroke="#24424f" stroke-width="1.5" rx="0"/>
-<text x="1265.0" y="527" text-anchor="middle" font-size="22" fill="#fff" font-weight="700">Word report (.docx)</text>
-<text x="1265.0" y="558" text-anchor="middle" font-size="18" fill="#fff">Editable grouped transcript</text>
-<text x="1265.0" y="585" text-anchor="middle" font-size="18" fill="#fff">Early report tables and charts</text>
-<rect x="1104" y="663" width="322" height="129" fill="#196079" stroke="#24424f" stroke-width="1.5" rx="0"/>
-<text x="1265.0" y="697" text-anchor="middle" font-size="22" fill="#fff" font-weight="700">Excel workbook (.xlsx)</text>
-<text x="1265.0" y="728" text-anchor="middle" font-size="18" fill="#fff">Utterances and verification</text>
-<text x="1265.0" y="755" text-anchor="middle" font-size="18" fill="#fff">Early_Report + Transcription</text>
-<text x="30" y="870" text-anchor="start" font-size="18" fill="#52636d">Green stage: optional. Dashed route: bypass when disabled or unsuccessful.</text>
-<text x="30" y="899" text-anchor="start" font-size="18" fill="#52636d">*Speaker labels depend on successful diarisation; timestamps are estimates.</text>
-<rect x="30" y="925" width="1420" height="51" fill="#faf0f3" stroke="none" stroke-width="1.5" rx="6"/>
-<text x="740" y="958" text-anchor="middle" font-size="20" fill="#78233d">Researcher verification: check words, timestamps and speaker labels against the original recording.</text>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" id="redscribe-workflow-preview" viewBox="0 0 884 790" role="img"><title>RedScribe proposed workflow</title><style>
+    #redscribe-workflow-preview { color:#202e35; background:#fff; padding:18px; box-sizing:border-box; }
+    #redscribe-workflow-preview svg { display:block; width:100%; overflow:visible; }
+    #redscribe-workflow-preview text { fill:#202e35; font-family:Arial,Helvetica,sans-serif; font-size:14px; font-weight:400; }
+    #redscribe-workflow-preview .heading { font-weight:500; }
+    #redscribe-workflow-preview .secondary { fill:#52636d; }
+    #redscribe-workflow-preview .node { fill:#196079; stroke:#27554f; stroke-width:1.3; }
+    #redscribe-workflow-preview .source { fill:#929b9f; }
+    #redscribe-workflow-preview .optional { fill:#225d34; }
+    #redscribe-workflow-preview text.in-box { fill:#fff; }
+    #redscribe-workflow-preview .config { fill:#f5f8fa; stroke:#a7bac5; }
+    #redscribe-workflow-preview .connector { fill:none; stroke:#196079; stroke-width:1.5; }
+    #redscribe-workflow-preview .group { fill:none; stroke:#38474f; stroke-width:1.3; stroke-dasharray:7 5; }
+  #redscribe-workflow-preview text.section-title{font-size:21px;font-weight:600} </style><rect width="884" height="790" fill="white"/><text x="8" y="24" style="font-size:19px;font-weight:600">RedScribe — proposed workflow</text><g transform="translate(0 35)"><defs ><marker id="rs-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0L7 3.5L0 7Z" fill="#196079"/></marker></defs>
+<rect x="8" y="6" width="209" height="184" class="group"></rect>
+<rect x="245" y="6" width="349" height="655" class="group"></rect>
+<rect x="622" y="221" width="247" height="238" class="group"></rect>
+<rect x="20" y="18" width="185" height="30" fill="#fff" stroke="#a7bac5"></rect>
+<text x="112.5" y="39" text-anchor="middle" class="section-title">Input</text>
+<rect x="257" y="18" width="325" height="30" fill="#fff" stroke="#a7bac5"></rect>
+<text x="419.5" y="39" text-anchor="middle" class="section-title">Processing</text>
+<rect x="634" y="233" width="223" height="30" fill="#fff" stroke="#a7bac5"></rect>
+<text x="745.5" y="254" text-anchor="middle" class="section-title">Output</text>
+<rect x="20" y="66" width="185" height="100" rx="0" class="node source"></rect>
+<text x="112.5" y="87" text-anchor="middle" class="heading in-box">One recording file</text>
+<text x="112.5" y="106" text-anchor="middle" class="secondary in-box">MP3 · WAV · M4A · MP4</text>
+<text x="112.5" y="125" text-anchor="middle" class="secondary in-box">Audio / video</text>
+<rect x="257" y="66" width="325" height="188" rx="0" class="node"></rect>
+<text x="419.5" y="87" text-anchor="middle" class="heading in-box">Select and load ASR model</text>
+<text x="419.5" y="106" text-anchor="middle" class="secondary in-box">1. Whisper Large-v3</text>
+<text x="419.5" y="125" text-anchor="middle" class="secondary in-box">2. Whisper Large-v3 Turbo</text>
+<text x="419.5" y="144" text-anchor="middle" class="secondary in-box">3. Mesolitica Malaysian Whisper</text>
+<text x="419.5" y="163" text-anchor="middle" class="secondary in-box">Large-v3 Turbo V3</text>
+<text x="419.5" y="182" text-anchor="middle" class="secondary in-box">4. Mesolitica XLS-R 300M Mixed</text>
+<text x="419.5" y="201" text-anchor="middle" class="secondary in-box">5. Meta MMS-1B All</text>
+<text x="419.5" y="220" text-anchor="middle" class="secondary in-box">6. Qwen3-ASR 1.7B</text>
+<text x="419.5" y="239" text-anchor="middle" class="secondary in-box">7. BuzzASR Malay</text>
+<rect x="269" y="287.5" width="301" height="74" rx="0" class="node optional"></rect>
+<text x="419.5" y="308.5" text-anchor="middle" class="heading in-box">Optional speaker diarisation</text>
+<text x="419.5" y="327.5" text-anchor="middle" class="secondary in-box">1. pyannote Community-1 (default)</text>
+<text x="419.5" y="346.5" text-anchor="middle" class="secondary in-box">2. pyannote 3.1 (legacy)</text>
+<rect x="257" y="395" width="325" height="74" rx="0" class="node"></rect>
+<text x="419.5" y="416" text-anchor="middle" class="heading in-box">ASR transcription</text>
+<text x="419.5" y="435" text-anchor="middle" class="secondary in-box">Use one selected model</text>
+<text x="419.5" y="454" text-anchor="middle" class="secondary in-box">Timing where supported</text>
+<rect x="257" y="492" width="325" height="74" rx="0" class="node"></rect>
+<text x="419.5" y="513" text-anchor="middle" class="heading in-box">Structure transcript</text>
+<text x="419.5" y="532" text-anchor="middle" class="secondary in-box">and summaries</text>
+<text x="419.5" y="551" text-anchor="middle" class="secondary in-box">Available times / speakers</text>
+<rect x="257" y="590" width="325" height="58" rx="0" class="node"></rect>
+<text x="419.5" y="611" text-anchor="middle" class="heading in-box">Export both files</text>
+<rect x="634" y="276" width="223" height="74" rx="0" class="node"></rect>
+<text x="745.5" y="297" text-anchor="middle" class="heading in-box">Word (.docx)</text>
+<text x="745.5" y="316" text-anchor="middle" class="secondary in-box">Editable transcript</text>
+<text x="745.5" y="335" text-anchor="middle" class="secondary in-box">Report tables / charts</text>
+<rect x="634" y="366" width="223" height="74" rx="0" class="node"></rect>
+<text x="745.5" y="387" text-anchor="middle" class="heading in-box">Excel (.xlsx)</text>
+<text x="745.5" y="406" text-anchor="middle" class="secondary in-box">Utterance records</text>
+<text x="745.5" y="425" text-anchor="middle" class="secondary in-box">Verification columns</text>
+<path d="M205 116H239V160H257" class="connector" stroke-dasharray="none" marker-end="url(#rs-arrow)"></path>
+<path d="M419.5 254V287.5" class="connector" stroke-dasharray="none" marker-end="url(#rs-arrow)"></path>
+<path d="M419.5 361.5V395" class="connector" stroke-dasharray="none" marker-end="url(#rs-arrow)"></path>
+<path d="M419.5 469V492" class="connector" stroke-dasharray="none" marker-end="url(#rs-arrow)"></path>
+<path d="M419.5 566V590" class="connector" stroke-dasharray="none" marker-end="url(#rs-arrow)"></path>
+<path d="M419.5 270.75H582V378.25H419.5" class="connector" stroke-dasharray="5 4" marker-end="url(#rs-arrow)"></path>
+<path d="M582 619H608V313H634" class="connector" stroke-dasharray="none" marker-end="url(#rs-arrow)"></path>
+<path d="M608 619V403H634" class="connector" stroke-dasharray="none" marker-end="url(#rs-arrow)"></path>
+<rect x="20" y="310" width="185" height="150" rx="0" class="config"></rect>
+<text x="112.5" y="331" text-anchor="middle" class="heading">Run settings</text>
+<text x="112.5" y="350" text-anchor="middle" class="secondary">Study details</text>
+<text x="112.5" y="369" text-anchor="middle" class="secondary">Language</text>
+<text x="112.5" y="388" text-anchor="middle" class="secondary">ASR model</text>
+<text x="112.5" y="407" text-anchor="middle" class="secondary">Diarisation on / off</text>
+<text x="112.5" y="426" text-anchor="middle" class="secondary">Diarisation model</text>
+<text x="112.5" y="445" text-anchor="middle" class="secondary">Speaker count</text>
+<text x="442" y="702" text-anchor="middle" class="secondary">Dashed route: skip diarisation when disabled or unsuccessful.</text>
+<text x="442" y="733" text-anchor="middle" class="heading">Researcher verification against the original recording</text></g></svg>
