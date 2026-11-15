@@ -139,6 +139,10 @@ These are **audio chunk boundaries, not model-predicted transcript timestamps or
 
 Existing Word/Excel exports and shared speaker colours remain in use. Metadata records the selected checkpoint, available model revision, actual device/precision and timing method. Automatic or selected language can differ from chunk to chunk under automatic detection; no single detected language is claimed for those extra-model runs.
 
+## Completion and another run
+
+When transcript generation ends, the app logs that report preparation has started, shows elapsed activity for Excel and Word saving, logs each successfully saved path and displays final memory cleanup. Start remains disabled until cleanup finishes and the run returns to idle. The completion/error dialog appears after that reset. A cleanup exception is shown as a warning and does not strand the controls. These messages identify the active stage; they do not guarantee that an underlying export or GPU call cannot block. The reported Legacy next-run stall still needs a Windows re-test after this ordering fix.
+
 ## Validation status and research use
 
 Automated tests cover chunk coverage, turn boundaries, language guards, lazy loading, FP16 and MMS adapter arguments, Qwen invocation, cancellation/failure cleanup, and existing export/token/UI logic without downloading model weights. **No independent GPU inference was run in the development workspace. User-supplied Windows trials include completed Whisper output and MMS output after the adapter correction, with poor MMS quality reported; they do not establish full model parity or accuracy.** This branch is for local trial before merging.

@@ -66,3 +66,15 @@ Automated checks use mocked model runtimes; they do not validate real GPU infere
 Before treating the software as a validated comparison tool, record each selected model's completed run, both exports, actual language/precision/checkpoint, and any error. Keep failed runs in the record. For the separate 25-recording Kelantan study, use the verified references and agreed controlled FP16 protocol; desktop diarisation-dependent chunks and Faster-Whisper CPU fallback are not equivalent benchmark conditions.
 
 Merge remains a separate user decision. Open items above are retained explicitly rather than marked passed.
+
+## Follow-up: Legacy run completion / next-run controls
+
+The user subsequently clarified that a Legacy model finished producing transcript text, then appeared stuck during the transition to completion or the next run. The supplied description does not identify a specific Legacy checkpoint, export stage or exception. This is a new issue report, not a confirmed successful Legacy trial.
+
+Code inspection found a completion-order defect: `_run_whisper` queued a modal completion popup and enabled Start before the outer worker had finished memory cleanup and reset `run_phase` to idle. Clicking Start during that interval could leave an apparently available button with the previous run still active. Cleanup failure could also prevent the old final reset from being scheduled. This is a reproducible control-order risk, not proof of the entire cause of the user's Windows hang.
+
+The branch now returns the completion callback to the outer worker, releases model/cache resources first, and resets the controls/run state on the Tk thread before displaying the modal completion/error message. Only that final reset re-enables Start. Cleanup exceptions generate a warning and still restore controls. Saving Excel, saving Word, saved-file paths and final memory cleanup now have visible activity/log messages. No timeout or forced interruption of an active GPU/export call is introduced.
+
+Regression checks exercise the real worker/export orchestration with mocked inference and queued Tk callbacks: successful completion, two consecutive runs, cleanup failure, Excel failure, Word partial success, preflight failure, cancellation and inference-generator cleanup. They do not simulate an actual Windows CUDA hang. A new short Legacy run followed by a second run on the user's PC remains necessary; if it still stalls, the last visible saving/finalising stage is the next diagnostic evidence.
+
+Follow-up validation: the full suite ran 110 tests: 102 passed and 8 display-dependent tests were skipped. Python compilation and `git diff --check` passed. Actual Windows Legacy completion/re-run remains pending.

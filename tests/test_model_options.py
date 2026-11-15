@@ -4,6 +4,7 @@ from pathlib import Path
 import tempfile
 from types import SimpleNamespace
 import unittest
+import threading
 from unittest.mock import Mock, patch
 
 from asr_backends import EXTRA_MODELS
@@ -113,6 +114,8 @@ class WorkerPreflightTests(unittest.TestCase):
         exec(compile(ast.Module(body=[node],type_ignores=[]),'redscribe_gpu.py','exec'),self.ns)
         self.app=self.ns['RedScribeApp'].__new__(self.ns['RedScribeApp'])
         self.app.root=Mock()
+        self.app.run_lock=threading.Lock()
+        self.app.show_run_error=Mock()
         self.app.status=Mock()
         self.app.check_stop=Mock()
         self.app._run_whisper=Mock()
@@ -124,8 +127,11 @@ class WorkerPreflightTests(unittest.TestCase):
         self.app.run_whisper(self.inputs)
         self.app._run_whisper.assert_not_called()
         self.assertEqual(self.app.last_output_folder,'previous-successful-folder')
-        self.app.root.after.assert_any_call(0,self.app.log_warning,'Install optional runtime')
-        self.app.root.after.assert_any_call(0,self.app.finish_run,False)
+        final=self.app.root.after.call_args.args
+        self.assertEqual(final[1],self.app.complete_run)
+        self.assertFalse(final[2])
+        final[3]()
+        self.app.show_run_error.assert_called_once_with('Model requirements','Install optional runtime','Requirements check failed; nothing processed')
 
     def test_success_enters_pipeline_after_requirements_and_stop_check(self):
         calls=[]
@@ -140,14 +146,17 @@ class WorkerPreflightTests(unittest.TestCase):
         self.ns['load_pyannote_pipeline_class'].side_effect=DiarizationDependencyError('Repair OpenTelemetry')
         self.app.run_whisper(self.inputs)
         self.app._run_whisper.assert_not_called()
-        self.app.root.after.assert_any_call(0,self.app.log_warning,'Repair OpenTelemetry')
-        self.app.root.after.assert_any_call(0,self.app.finish_run,False)
+        final=self.app.root.after.call_args.args
+        self.assertEqual(final[1],self.app.complete_run)
+        self.assertFalse(final[2])
+        final[3]()
+        self.app.show_run_error.assert_called_once_with('Model requirements','Repair OpenTelemetry','Requirements check failed; nothing processed')
 
     def test_stop_during_preflight_does_not_enter_pipeline(self):
         self.app.check_stop.side_effect=self.cancelled()
         self.app.run_whisper(self.inputs)
         self.app._run_whisper.assert_not_called()
-        self.app.root.after.assert_any_call(0,self.app.finish_run,True)
+        self.app.root.after.assert_any_call(0,self.app.complete_run,True,None)
 
 
 if __name__=='__main__':

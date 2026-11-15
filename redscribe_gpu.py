@@ -1655,7 +1655,7 @@ class RedScribeApp:
             self.check_stop()
             self.run_phase = "saving"
         self.root.after(0, lambda: self.stop_btn.config(state="disabled"))
-        self.root.after(0, self.status.set, "Saving reports...")
+        self.root.after(0, self.begin_model_activity, "Saving Excel report...")
 
     def finish_run(self, cancelled: bool):
         self.end_diarization_activity()
@@ -1667,6 +1667,17 @@ class RedScribeApp:
             self.progress_var.set(0.0)
             self.status.set("Stopped; no reports were saved for this run")
             self.log_warning("Stopped by user. No Word or Excel report was saved for this run.")
+
+    def show_run_error(self, title, detail, status):
+        self.status.set(status)
+        self.log_warning(detail)
+        messagebox.showerror(title, detail)
+
+    def complete_run(self, cancelled: bool, completion=None):
+        """Return to idle only after worker cleanup, before any modal dialog."""
+        self.finish_run(cancelled)
+        if completion is not None:
+            completion()
 
     def start(self):
         inputs = {
@@ -1725,6 +1736,7 @@ class RedScribeApp:
 
     def run_whisper(self, inputs: dict):
         cancelled = False
+        completion = None
         try:
             self.root.after(0, self.begin_model_activity, "Checking model requirements (no download yet)...")
             self.root.after(0, self.log_info, "Checking selected model runtime and CUDA availability before processing...")
@@ -1738,11 +1750,10 @@ class RedScribeApp:
             finally:
                 self.root.after(0, self.end_diarization_activity)
             self.root.after(0, self.log_info, result)
-            self._run_whisper(inputs)
+            completion = self._run_whisper(inputs)
         except (ModelPreflightError, DiarizationDependencyError) as exc:
-            self.root.after(0, self.log_warning, str(exc))
-            self.root.after(0, self.status.set, "Requirements check failed; nothing processed")
-            self.root.after(0, lambda detail=str(exc): messagebox.showerror("Model requirements", detail))
+            completion = lambda detail=str(exc): self.show_run_error(
+                "Model requirements", detail, "Requirements check failed; nothing processed")
         except TranscriptionCancelled:
             cancelled = True
         except Exception:
@@ -1753,13 +1764,19 @@ class RedScribeApp:
             except OSError:
                 pass
             self.root.after(0, self.log_warning, "Transcription stopped unexpectedly. Check the error notification and output/redscribe_error.log.")
-            self.root.after(0, self.status.set, "Transcription failed")
-            self.root.after(0, lambda: self.start_btn.config(state="normal"))
-            self.root.after(0, lambda: messagebox.showerror(
-                "RedScribe Error", "The run stopped unexpectedly. See output/redscribe_error.log for details."))
+            completion = lambda: self.show_run_error(
+                "RedScribe Error", "The run stopped unexpectedly. See output/redscribe_error.log for details.",
+                "Transcription failed")
         finally:
-            release_gpu_cache()
-            self.root.after(0, self.finish_run, cancelled)
+            with self.run_lock:
+                self.run_phase = "finalising"
+            self.root.after(0, self.begin_model_activity, "Finalising run; releasing model memory...")
+            try:
+                release_gpu_cache()
+            except Exception as exc:
+                self.root.after(0, self.log_warning, f"Model memory cleanup warning: {exc}")
+            finally:
+                self.root.after(0, self.complete_run, cancelled, completion)
 
     def _run_whisper(self, inputs: dict):
         start_clock = time.time()
@@ -1804,13 +1821,8 @@ class RedScribeApp:
         except Exception as e:
             self.check_stop()
             error_text = str(e)
-            self.root.after(
-                0,
-                lambda error_text=error_text: messagebox.showerror("ASR Model Error", f"The ASR model could not be prepared.\n\n{error_text}")
-            )
-            self.root.after(0, self.status.set, "Failed to load model")
-            self.root.after(0, lambda: self.start_btn.config(state="normal"))
-            return
+            return lambda error_text=error_text: self.show_run_error(
+                "ASR Model Error", f"The ASR model could not be prepared.\n\n{error_text}", "Failed to load model")
 
         diarization_enabled = inputs["diarization_enabled"]
         diarization_turns = []
@@ -1885,13 +1897,8 @@ class RedScribeApp:
         except Exception as e:
             self.check_stop()
             error_text = str(e)
-            self.root.after(
-                0,
-                lambda error_text=error_text: messagebox.showerror("Transcription Error", f"The audio could not be transcribed.\n\n{error_text}")
-            )
-            self.root.after(0, self.status.set, "Transcription failed")
-            self.root.after(0, lambda: self.start_btn.config(state="normal"))
-            return
+            return lambda error_text=error_text: self.show_run_error(
+                "Transcription Error", f"The audio could not be transcribed.\n\n{error_text}", "Transcription failed")
 
         duration_s = float(getattr(info, "duration", 0.0)) or 0.0
         t0 = time.time()
@@ -1950,6 +1957,7 @@ class RedScribeApp:
             if close_segments is not None:
                 close_segments()
 
+        self.root.after(0, self.log_info, "Transcription finished. Preparing Word and Excel reports...")
         self.begin_saving()
         audio_duration_s = float(getattr(info, "duration", last_end))
         elapsed_min = round((time.time() - start_clock) / 60, 2)
@@ -1984,14 +1992,11 @@ class RedScribeApp:
             )
         except Exception as e:
             error_text = str(e)
-            self.root.after(
-                0,
-                lambda error_text=error_text: messagebox.showerror("Excel Error", f"The Excel workbook could not be saved.\n\n{error_text}")
-            )
-            self.root.after(0, self.status.set, "Excel save failed")
-            self.root.after(0, lambda: self.start_btn.config(state="normal"))
-            return
+            return lambda error_text=error_text: self.show_run_error(
+                "Excel Error", f"The Excel workbook could not be saved.\n\n{error_text}", "Excel save failed")
 
+        self.root.after(0, self.log_info, f"Excel report saved: {xlsx_path}")
+        self.root.after(0, self.update_diarization_activity, "Saving Word report...")
         word_error = None
         try:
             save_docx_transcript(
@@ -2012,6 +2017,9 @@ class RedScribeApp:
             )
         except Exception as exc:
             word_error = str(exc)
+            self.root.after(0, self.log_warning, f"Word report could not be saved: {word_error}")
+        else:
+            self.root.after(0, self.log_info, f"Word report saved: {docx_path}")
 
         def done_popup():
             self.progress_var.set(100.0)
@@ -2019,7 +2027,6 @@ class RedScribeApp:
                 "Completed; Word export failed" if word_error
                 else f"Completed - 100% | {actual_device.upper()} ({actual_compute_type})"
             )
-            self.start_btn.config(state="normal")
 
             if word_error:
                 messagebox.showwarning(
@@ -2040,7 +2047,9 @@ class RedScribeApp:
                 )
             open_folder(out_folder)
 
-        self.root.after(0, done_popup)
+        # The worker returns first so its model/generator can be released before
+        # cleanup and before a modal popup starts Tk's nested event loop.
+        return done_popup
 
 
 if __name__ == "__main__":
