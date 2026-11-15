@@ -34,3 +34,8 @@ transcripts/
 .DS_Store
 Thumbs.db
 
+
+# Private benchmark mappings and run material
+/benchmarks/kelantan_fp16/*.local.json
+/benchmarks/kelantan_fp16/runs/
+/benchmarks/kelantan_fp16/references/
