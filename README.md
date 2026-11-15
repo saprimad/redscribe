@@ -21,6 +21,7 @@ The primary application is [`redscribe_gpu.py`](redscribe_gpu.py). The earlier Q
 - Optional expected-speaker count
 - Hugging Face token controls: masked entry, Show/Hide, Save Token, Remove Saved and a local Check Token button; saved tokens use the system credential store through `keyring`
 - Live timestamped transcript, detected-language notice, progress and estimated remaining time
+- Live diarisation activity in English, with an animated indicator, elapsed time and stage progress where pyannote reports it; a speaker timeline preview appears before transcription
 - Speaker assignment and estimated sentence timestamps derived from Whisper segments
 - Excel export with study metadata, an utterance-level verification worksheet, speaker counts, approximate speech/silence durations, five-minute utterance density and token frequency
 - Editable Microsoft Word (`.docx`) report with the early report tables and charts, top tokens, and adjacent utterances grouped by speaker
@@ -39,6 +40,8 @@ The following diagram summarises RedScribe's input configuration, local processi
 *Figure 1. RedScribe system architecture and processing workflow (input, process and output).* 
 
 Select a recording, language and Whisper model, then configure optional speaker diarisation. When enabled, diarisation runs before Faster-Whisper transcription; a diarisation failure does not prevent transcription. RedScribe subsequently prepares timestamped utterances, descriptive summaries, and Excel and Word reports for researcher verification.
+
+During diarisation, the Live Transcript area logs the current processing stage. An animated activity line displays elapsed time even while model loading or grouping speakers provides no numerical progress. When pyannote reports completed/total work, the percentage applies only to that stage, not the whole recording or transcription run. Once diarisation finishes, RedScribe shows the speaker-label count and a preview of the first 20 speaker turns with timestamps, then begins transcription. These are automated speaker labels, not identified people; they still require researcher verification. No provisional speaker identities are displayed during segmentation or embedding extraction.
 
 ## Requirements
 
