@@ -1,5 +1,7 @@
 # Local ASR model options
 
+See the [pre-merge trial record](PRE_MERGE_TEST_LOG.md) for user-reported Windows results, fixes and outstanding checks.
+
 The desktop **ASR model** dropdown adds five optional backends alongside existing Faster-Whisper models. Models download only when selected for a run; they are cached by Hugging Face. Inference is local. The app remembers the selection using its existing settings file; old settings remain compatible.
 
 ## Seven research candidates
@@ -87,7 +89,7 @@ With diarisation enabled, the worker checks that pyannote's Pipeline class can b
 
 Once the runtime imports successfully, `Pipeline.from_pretrained` automatically fetches missing selected-model weights/dependencies using the existing Hugging Face token and cache. Live Transcript logs **Checking cached diarisation files / automatically downloading missing model weights** before loading and **Diarisation model ready** only after successful loading. Complete cached files are reused by pyannote/Hugging Face. Model access still requires accepted conditions; no fake download percentage is displayed.
 
-A broken runtime now stops the run before processing so an enabled diarisation request is not lost because of an import failure. Model access/inference failures after preparation retain the existing explicit continuation-without-speaker-labels policy and failure metadata. See [dependency repair commands](../README.md#diarisation-dependency-repair). Actual environment repair and downloads on the user's Windows machine remain unverified.
+A broken runtime now stops the run before processing so an enabled diarisation request is not lost because of an import failure. Model access/inference failures after preparation retain the existing explicit continuation-without-speaker-labels policy and failure metadata. See [dependency repair commands](../README.md#diarisation-dependency-repair). The user subsequently supplied `pyannote import OK` and speaker-labelled output after environment repair; exact dependency versions and full runtime compatibility remain unverified. See the pre-merge trial record.
 
 Fixed-language extra decoders report **Configured decoder language**, rather than claiming their configured Malay decoder was automatically detected.
 
@@ -97,7 +99,7 @@ The MMS checkpoint's Malay adapter is **`zlm`**. An earlier integration incorrec
 
 MMS now uses `zlm` consistently for the processor vocabulary, model `target_lang` and adapter loading. It verifies that the downloaded tokenizer vocabulary supports `zlm` before loading the large weights, never substitutes another language and avoids forcing a duplicate adapter reload when Transformers already loaded it during `from_pretrained`. Existing checkpoint cache/output-folder names are unchanged, so previously downloaded valid weights can be reused. Source: [MMS supported language list](https://huggingface.co/facebook/mms-1b-all).
 
-Mocked regression checks cover target-language forwarding and early rejection of an unsupported vocabulary. Actual fixed MMS FP16 inference still needs a local smoke test.
+Mocked regression checks cover target-language forwarding and early rejection of an unsupported vocabulary. The user subsequently supplied a successful `zlm` adapter download, model-ready confirmation and generated text, but reported poor Malay transcription with diarisation both on and off. Inference output is therefore observed; accuracy and equivalence to upstream inference remain unvalidated.
 
 ## Model-loading notifications
 
@@ -139,7 +141,7 @@ Existing Word/Excel exports and shared speaker colours remain in use. Metadata r
 
 ## Validation status and research use
 
-Automated tests cover chunk coverage, turn boundaries, language guards, lazy loading, FP16 and MMS adapter arguments, Qwen invocation, cancellation/failure cleanup, and existing export/token/UI logic without downloading model weights. **Real model inference and Windows CUDA FP16 smoke tests have not yet run.** This branch is for local trial before merging.
+Automated tests cover chunk coverage, turn boundaries, language guards, lazy loading, FP16 and MMS adapter arguments, Qwen invocation, cancellation/failure cleanup, and existing export/token/UI logic without downloading model weights. **No independent GPU inference was run in the development workspace. User-supplied Windows trials include completed Whisper output and MMS output after the adapter correction, with poor MMS quality reported; they do not establish full model parity or accuracy.** This branch is for local trial before merging.
 
 Try a short non-sensitive Malay clip on each model, confirm both exports and the checkpoint metadata, then test Stop and a longer recording. Record failures instead of silently changing precision. No claim is made that these models have been ranked or validated on Kelantan dialect.
 

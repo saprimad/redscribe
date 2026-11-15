@@ -218,6 +218,8 @@ The repository's `.gitignore` excludes common audio, video, spreadsheet, transcr
 
 ## GPU acceleration and CPU fallback
 
+The [pre-merge trial record](docs/PRE_MERGE_TEST_LOG.md) documents user-reported runs, the MMS Malay adapter correction and unresolved quality checks.
+
 The optional ASR backends require NVIDIA CUDA FP16 and never fall back silently to CPU or another precision. See [multi-model setup](docs/MULTI_MODEL_ASR.md) for installation, timing limitations and pending GPU validation.
 
 On Windows, RedScribe attempts to load the original Faster-Whisper choices with CUDA and `float16`. If CUDA is unavailable or loading fails, it falls back to CPU with `int8`. On macOS, the current version uses CPU mode with `int8`. Speaker diarisation is sent to CUDA only when CUDA is available; otherwise it runs on CPU. A diarisation failure does not stop transcription.
