@@ -37,19 +37,11 @@
     .button.secondary { background:#fff; color:var(--ink); border-color:#d9d1ca; }
     .button.secondary:hover { border-color:var(--red); color:var(--red); }
     .note { color:var(--muted); font-size:.87rem; }
-    .mock { background:#fff; border:1px solid #e8d8d4; box-shadow:0 25px 75px #6323311a; border-radius:15px; overflow:hidden; transform:rotate(1deg); }
-    .mock-top { background:#f4f0ed; padding:12px 16px; border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; font-size:.72rem; color:#67717d; }
-    .dots { display:flex; gap:5px; } .dots i { width:7px; height:7px; border-radius:100%; background:#c4b9b3; }
-    .mock-body { padding:25px; }
-    .mock-row { display:flex; gap:12px; align-items:center; justify-content:space-between; margin-bottom:16px; font-size:.83rem; }
-    .mock-label { color:#5f6873; }
-    .mock-field { border:1px solid #dfe1e4; border-radius:5px; padding:7px 10px; min-width:55%; color:#283646; background:#fff; }
-    .mock-strip { background:#f9f2f1; color:#842638; border:1px solid #f1dddb; border-radius:5px; padding:10px 12px; font-size:.78rem; margin:17px 0; }
-    .mock-transcript { background:#f9fafb; border:1px solid #e7e9eb; border-radius:6px; padding:15px; font-size:.77rem; line-height:1.7; }
-    .mock-transcript p { margin:0 0 9px; } .mock-transcript p:last-child { margin:0; }
-    .mock-transcript b { color:var(--red); }
-    .mock-foot { display:flex; justify-content:space-between; align-items:center; margin-top:18px; font-size:.75rem; color:#65717e; }
-    .mock-pill { background:#d8efd9; color:#175228; padding:6px 10px; border-radius:5px; font-weight:700; }
+    .app-preview { margin:0; background:#fff; border:1px solid #e8d8d4; box-shadow:0 25px 75px #6323311a; border-radius:12px; overflow:hidden; }
+    .app-preview > a { display:block; }
+    .app-preview img { display:block; width:100%; height:auto; }
+    .app-preview figcaption { padding:12px 16px; font-size:.82rem; color:var(--muted); line-height:1.6; }
+    .app-preview figcaption a { color:var(--red-dark); font-weight:700; }
     .demo { background:#fff; border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
     .demo-grid { display:grid; grid-template-columns:.72fr 1.28fr; align-items:center; gap:48px; }
     .video-shell { overflow:hidden; border:1px solid #e4d7d2; border-radius:14px; background:#111827; box-shadow:0 22px 60px #63233117; }
@@ -88,8 +80,8 @@
     .sample-meta { color:var(--muted); font-size:.85rem; margin:14px 0 -12px; }
     .footer-authors { margin-bottom:8px; }
     .footer-tests { color:#aeb8c4; font-size:.74rem; line-height:1.5; }
-    @media(max-width:850px) { .hero-grid,.demo-grid { grid-template-columns:1fr; gap:40px; } .mock { max-width:580px; transform:none; } .grid { grid-template-columns:repeat(2,1fr); } .steps { grid-template-columns:repeat(2,1fr); } }
-    @media(max-width:600px) { nav { align-items:flex-start; flex-direction:column; padding:15px 0; gap:8px; } .navlinks { gap:13px; } .hero { padding:60px 0; } section { padding:60px 0; } .grid,.output-grid,.steps { grid-template-columns:1fr; } .mock-body { padding:18px; } .mock-row { display:block; } .mock-field { margin-top:4px; } .sample-actions .button { width:100%; max-width:270px; } }
+    @media(max-width:850px) { .hero-grid,.demo-grid { grid-template-columns:1fr; gap:40px; } .app-preview { max-width:100%; } .grid { grid-template-columns:repeat(2,1fr); } .steps { grid-template-columns:repeat(2,1fr); } }
+    @media(max-width:600px) { nav { align-items:flex-start; flex-direction:column; padding:15px 0; gap:8px; } .navlinks { gap:13px; } .hero { padding:60px 0; } section { padding:60px 0; } .grid,.output-grid,.steps { grid-template-columns:1fr; } .sample-actions .button { width:100%; max-width:270px; } }
   </style>
 </head>
 <body>
@@ -106,16 +98,12 @@
         <div class="actions"><a class="button" href="https://github.com/saprimad/redscribe">View source on GitHub</a><a class="button secondary" href="#outputs">Explore the outputs</a></div>
         <p class="note">Source code is available under PolyForm Noncommercial 1.0.0. Python setup is required; this is not a one-click installer.</p>
       </div>
-      <div class="mock" role="img" aria-label="Illustrative RedScribe interface showing transcription options and a short fictional transcript. This is not an actual app screenshot.">
-        <div class="mock-top"><span>RedScribe · illustrative interface</span><span class="dots"><i></i><i></i><i></i></span></div>
-        <div class="mock-body"><div class="mock-row"><span class="mock-label">Whisper model</span><span class="mock-field">large-v3 ▾</span></div>
-          <div class="mock-row"><span class="mock-label">Spoken language</span><span class="mock-field">Auto detect ▾</span></div>
-          <div class="mock-row"><span class="mock-label">Speaker diarisation</span><span class="mock-field">✓ Enabled</span></div>
-          <div class="mock-strip">Settings · Token saved in system credential store</div>
-          <div class="mock-transcript"><p><b>[00:00:04] SPEAKER_00</b> Thank you for joining this research discussion.</p><p><b>[00:00:08] SPEAKER_01</b> Happy to be here.</p></div>
-          <div class="mock-foot"><span>Excel + Word reports</span><span class="mock-pill">Researcher review</span></div>
-        </div>
-      </div>
+      <figure class="app-preview">
+        <a href="images/new%20UI.png" target="_blank" rel="noopener noreferrer" aria-label="Open the RedScribe desktop screenshot at full size">
+          <img src="images/new%20UI.png" width="2048" height="1113" alt="RedScribe v2.0.0 on Windows, with study details, transcription settings and a completed transcript with coloured speaker labels.">
+        </a>
+        <figcaption>Actual Windows interface showing automated output from Podcast Ubat atau Tabu, Episode 12. Verify against the recording. <a href="images/new%20UI.png" target="_blank" rel="noopener noreferrer">View full size</a>.</figcaption>
+      </figure>
     </div></div>
 
     <section id="demo" class="demo"><div class="wrap demo-grid">

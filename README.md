@@ -156,9 +156,9 @@ Token availability does not guarantee diarisation access: accept the model condi
 
 ## Desktop workspace
 
-![RedScribe desktop workspace](docs/images/redscribe-desktop.png)
+![RedScribe desktop workspace](<docs/images/new UI.png>)
 
-*Actual Tkinter UI with illustrative transcript text and simulated token availability; no participant data or real token is shown. Fonts and window decorations vary by operating system.*
+*RedScribe v2.0.0 on Windows, showing automated transcription of Podcast Ubat atau Tabu, Episode 12. Automated output requires verification against the recording. Fonts and window decorations vary by operating system.*
 
 The workspace uses a white and maroon theme. **Study details** is a compact panel in the left column, directly below **Audio file** and above **Transcription**. It is open by default for entering the study name, researcher, audio label and reporting period, and can be collapsed afterwards. The right-hand transcript retains the full workspace height. The left column scrolls when more space is needed, while the live transcript and bottom actions remain visible.
 
