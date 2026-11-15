@@ -47,6 +47,14 @@ python redscribe_gpu.py
 
 Qwen's package currently pins Transformers 4.57.6 and Accelerate 1.12.0. Dependency resolution and Windows-specific dependencies need checking on the trial machine; no vLLM or FlashAttention installation is requested. A missing optional runtime produces an install instruction when starting the selected model. Existing Faster-Whisper use does not import the optional runtimes.
 
+## Before starting and output organisation
+
+The text below **ASR model** changes with the selected model: language behaviour, CUDA FP16/CPU fallback policy and timestamp method are visible before starting. Selecting a model does not download its weights.
+
+On Start, a background requirements check verifies the optional runtime classes and CUDA availability before any model download, diarisation or report-folder creation. A failed check shows an actionable message and installation command in the app. This is an availability check, not a guarantee that inference fits VRAM or that model access has been granted. Existing Faster-Whisper CPU support remains available.
+
+Outputs are grouped under `output/<YYYY-MM>/<model>/`, for example `output/2026-11/mesolitica_whisper_turbo_v3/`. Word and Excel remain together and both filenames include the stable model name, so copied files remain identifiable. Existing output folders are untouched; repeated runs keep the existing collision-safe numbering. **Open output folder** opens the current model's folder. A preflight failure does not replace the last successful output-folder location.
+
 ## Model-loading notifications
 
 Live Transcript logs model preparation, explains the first-use download, and confirms when the model is ready. A highlighted activity banner and bottom status line animate with elapsed time throughout preparation; the UI remains responsive. Faster-Whisper distinguishes cached weights, actual downloads and loading into memory. Extra Transformers/Qwen backends report checking cached files / automatically downloading missing files because their internal loaders do not expose a reliable unified transfer percentage.

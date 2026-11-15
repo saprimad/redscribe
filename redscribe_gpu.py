@@ -18,6 +18,7 @@ from copy import copy
 from speaker_styles import speaker_colour, speaker_fill
 from asr_backends import EXTRA_MODELS, LocalASR, validate_language
 from model_loading import model_preparation
+from model_options import describe_model, model_output_folder, preflight_model, ModelPreflightError, MODEL_FOLDERS
 from token_store import TokenStoreError, resolve_token, save_token, remove_saved_token
 
 from openpyxl import Workbook
@@ -1097,8 +1098,9 @@ class RedScribeApp:
         model_choice.pack(fill="x")
         model_choice.bind("<<ComboboxSelected>>", self.save_selected_model)
 
-        tk.Label(transcription, text="Extra models: CUDA FP16; optional install.\nFirst use downloads the selected model.",
-                 bg="white", fg=c["muted"], justify="left", wraplength=264).pack(anchor="w", pady=(7, 0))
+        self.model_hint = tk.Label(transcription, text=describe_model(self.whisper_model.get()),
+                                   bg="white", fg=c["muted"], justify="left", wraplength=264)
+        self.model_hint.pack(anchor="w", pady=(7, 0))
 
         speakers = card("Speakers")
         self.diarization_badge = tk.Label(speakers, textvariable=self.diarization_summary, bg="white", fg="#24623B",
@@ -1449,6 +1451,7 @@ class RedScribeApp:
                             "This does not revoke the token on Hugging Face.")
 
     def save_selected_model(self, _event=None):
+        self.model_hint.configure(text=describe_model(self.whisper_model.get()))
         try:
             save_model_preference(self.whisper_model.get())
         except OSError as exc:
@@ -1620,7 +1623,7 @@ class RedScribeApp:
         self.speaker_tags.clear()
         self.last_live_speaker = None
         self.progress_var.set(0.0)
-        self.status.set(f"Loading {inputs['whisper_model']} model...")
+        self.status.set("Checking model requirements before starting...")
         self.start_btn.config(state="disabled")
         self.stop_btn.config(state="normal")
 
@@ -1629,7 +1632,19 @@ class RedScribeApp:
     def run_whisper(self, inputs: dict):
         cancelled = False
         try:
+            self.root.after(0, self.begin_model_activity, "Checking model requirements (no download yet)...")
+            self.root.after(0, self.log_info, "Checking selected model runtime and CUDA availability before processing...")
+            try:
+                result = preflight_model(inputs["whisper_model"], inputs.get("language"))
+                self.check_stop()
+            finally:
+                self.root.after(0, self.end_diarization_activity)
+            self.root.after(0, self.log_info, result)
             self._run_whisper(inputs)
+        except ModelPreflightError as exc:
+            self.root.after(0, self.log_warning, str(exc))
+            self.root.after(0, self.status.set, "Requirements check failed; nothing processed")
+            self.root.after(0, lambda detail=str(exc): messagebox.showerror("Model requirements", detail))
         except TranscriptionCancelled:
             cancelled = True
         except Exception:
@@ -1658,7 +1673,7 @@ class RedScribeApp:
         if not re.match(r"^\d{4}-\d{2}$", period):
             period = time.strftime("%Y-%m")
 
-        out_folder = os.path.join(self.base_output_dir, period)
+        out_folder = model_output_folder(self.base_output_dir, period, inputs["whisper_model"])
         ensure_dir(out_folder)
         self.last_output_folder = out_folder
 
@@ -1669,7 +1684,10 @@ class RedScribeApp:
             researcher=inputs["researcher"],
             audio_base=audio_base
         )
+        # Keep model identity if the pair is later copied out of its folder.
+        filename_base = f"{filename_base}_{MODEL_FOLDERS[inputs['whisper_model']]}"
         xlsx_path, docx_path = available_output_paths(out_folder, filename_base)
+        self.root.after(0, self.log_info, f"Output folder for this model: {out_folder}")
 
         def notify_model(state, message):
             self.root.after(0, self.show_model_notification, state, message)
