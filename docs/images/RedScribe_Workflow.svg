@@ -1,6 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" id="redscribe-workflow-preview" width="884" height="790" viewBox="0 0 884 790" role="img"><title>RedScribe proposed workflow</title><style>
-    #redscribe-workflow-preview { color:#202e35; background:#fff; padding:18px; box-sizing:border-box; }
-    #redscribe-workflow-preview svg { display:block; width:100%; overflow:visible; }
+    #redscribe-workflow-preview { color:#202e35; background:#fff;  }
     #redscribe-workflow-preview text { fill:#202e35; font-family:Arial,Helvetica,sans-serif; font-size:14px; font-weight:400; }
     #redscribe-workflow-preview .heading { font-weight:500; }
     #redscribe-workflow-preview .secondary { fill:#52636d; }
