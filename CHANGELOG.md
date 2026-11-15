@@ -22,7 +22,7 @@ All notable changes to RedScribe are documented in this file. The dated 2.0.0 en
 
 ### Changed
 
-- Redesigned the desktop workspace with white/maroon styling, a scrollable left configuration column, a larger live transcript, Study details above the workspace (open by default) and persistent bottom actions.
+- Redesigned the desktop workspace with white/maroon styling, a scrollable left configuration column, a larger live transcript, compact Study details below Audio file in the left column (open by default) and persistent bottom actions.
 - Moved all diarisation controls (enabled by default, expected speakers and token management) into Settings, with concise summaries on the main window.
 - Added consistent speaker colours in the live transcript and a system-font fallback for Windows, macOS and Linux.
 

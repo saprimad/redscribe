@@ -58,7 +58,10 @@ class DesktopLayoutTests(unittest.TestCase):
         self.assertFalse(hasattr(self.app, "token_entry"))
         self.assertGreater(self.app.live_box.winfo_width(), self.app.sidebar_canvas.winfo_width())
         self.assertTrue(self.app.study_fields.winfo_ismapped())
-        self.assertLess(self.app.study_fields.winfo_rooty(), self.app.sidebar_canvas.winfo_rooty())
+        study_panel = self.app.study_fields.master
+        self.assertIs(study_panel.master, self.app.sidebar_content)
+        self.assertIs(self.app.sidebar_content.pack_slaves()[1], study_panel)
+        self.assertLessEqual(study_panel.winfo_width(), self.app.sidebar_canvas.winfo_width())
         self.app.toggle_study_details()
         self.root.update()
         self.assertFalse(self.app.study_fields.winfo_ismapped())

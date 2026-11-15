@@ -160,7 +160,7 @@ Token availability does not guarantee diarisation access: accept the model condi
 
 *Actual Tkinter UI with illustrative transcript text and simulated token availability; no participant data or real token is shown. Fonts and window decorations vary by operating system.*
 
-The workspace uses a white and maroon theme. **Study details** sits immediately below the header and is open by default, so the project, researcher, interview label and reporting period can be entered first. It can be collapsed afterwards. Audio selection, transcription language and Whisper model sit in the left column. The left column scrolls when more space is needed, while the live transcript and bottom actions remain visible.
+The workspace uses a white and maroon theme. **Study details** is a compact panel in the left column, directly below **Audio file** and above **Transcription**. It is open by default for entering the study name, researcher, audio label and reporting period, and can be collapsed afterwards. The right-hand transcript retains the full workspace height. The left column scrolls when more space is needed, while the live transcript and bottom actions remain visible.
 
 The right panel shows English processing notices, diarisation activity and elapsed time, the speaker timeline preview, and timestamped transcription with consistent speaker colours. The bottom bar retains progress, status/ETA, **Open output folder**, **Stop** and **Start transcription**. During diarisation, percentages refer only to supported processing stages, not to completion of the entire recording.
 
