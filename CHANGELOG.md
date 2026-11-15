@@ -22,6 +22,18 @@ All notable changes to RedScribe are documented in this file. The dated 2.0.0 en
 
 ### Changed
 
+- Aligned the public website with the redesigned workspace, grouped live paragraphs, diarisation activity and shared report colours.
+- Replaced deprecated openpyxl font-copy calls with standard-library copying while preserving bold report headings.
+
+- Group consecutive live transcript segments from the same speaker into one paragraph with an inline timestamp and coloured label, preserving segment data and export behaviour.
+
+- Increased UI/control fonts and the live transcript to 13 pt, with closer segment spacing.
+- Shared deterministic speaker-label colours across the live UI, Word transcript/summary and Excel Speaker cells/summary; UNKNOWN uses grey and transcript wording remains unchanged.
+
+- Redesigned the desktop workspace with white/maroon styling, a scrollable left configuration column, a larger live transcript, compact Study details below Audio file in the left column (open by default) and persistent bottom actions.
+- Moved all diarisation controls (enabled by default, expected speakers and token management) into Settings, with concise summaries on the main window.
+- Added consistent speaker colours in the live transcript and a system-font fallback for Windows, macOS and Linux.
+
 - Preserve previous Excel/Word output pairs by numbering filenames on repeated runs; show the original error when export fails.
 - Grouped adjacent utterances from the same speaker into one paragraph in the Word transcript.
 - Kept the status and action buttons visible while the transcript panel resizes to fit the window.

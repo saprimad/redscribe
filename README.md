@@ -133,10 +133,12 @@ The first launch may take longer while the selected Whisper model is downloaded.
 
 1. Open the model page for [`pyannote/speaker-diarization-community-1`](https://huggingface.co/pyannote/speaker-diarization-community-1) and accept any required conditions.
 2. Create a Hugging Face token with read access.
-3. Start RedScribe and paste the token into **Hugging Face Token**. It is masked by default; **Show/Hide** toggles visibility for the typed token.
-4. Click **Save Token** to remember it on this computer. The field clears after confirmed storage. Leave it blank on future launches: RedScribe retrieves its saved token automatically when diarisation starts.
+3. Start RedScribe and click **Settings** in the header or **Diarisation settings** in the Speakers panel. Paste the token into **Enter or replace token** in the Settings window. It is masked by default; **Show/Hide** toggles visibility for the typed token.
+4. Click **Save Token** to remember it on this computer, then **Done** to return to transcription. The field clears after confirmed storage. Leave it blank on future launches: RedScribe retrieves its saved token automatically when diarisation starts.
 
 **Save Token** uses `keyring` with Windows Credential Manager, macOS Keychain or a supported Linux desktop credential store (Secret Service, KWallet or libsecret). It never writes tokens to RedScribe's JSON settings or another application configuration file. Plaintext and third-party fallback backends are rejected. An operating-system prompt may ask you to unlock or allow access to the store. If the store is missing, locked or unavailable, the app shows a warning; you can still paste a token for the current session without saving it. Existing installations should run `pip install -r requirements.txt` to add the dependency.
+
+The Speakers panel shows only a token summary (**Token saved**, **Session token**, **Token available** or **Token not configured**). Diarisation is enabled by default at each app launch. Its enable checkbox and expected-speaker count are inside Settings, and the main Speakers panel reflects those choices. Model selection stays on the main window. Token entry, Show/Hide, Save Token, Remove Saved and Check Token are inside **Settings**; closing Settings keeps any unsaved token for the current app session and reopening masks it again.
 
 **Check Token** reports local availability and the source that will be used. It does not display the token, contact Hugging Face or validate model access. The priority is: typed session token → RedScribe's saved keyring token → `HF_TOKEN` / `HUGGINGFACE_HUB_TOKEN` environment variable → existing Hugging Face login. A saved token is not copied back into the visible entry field.
 
@@ -152,13 +154,27 @@ Enter the token at the hidden prompt and answer `n` when asked **Add token as gi
 
 Token availability does not guarantee diarisation access: accept the model conditions and ensure the token has read access. Never commit a token, participant recording or identifiable transcript to GitHub.
 
+## Desktop workspace
+
+![RedScribe desktop workspace](docs/images/redscribe-desktop.png)
+
+*Actual Tkinter UI with illustrative transcript text and simulated token availability; no participant data or real token is shown. Fonts and window decorations vary by operating system.*
+
+The workspace uses a white and maroon theme. **Study details** is a compact panel in the left column, directly below **Audio file** and above **Transcription**. It is open by default for entering the study name, researcher, audio label and reporting period, and can be collapsed afterwards. The right-hand transcript retains the full workspace height. The left column scrolls when more space is needed, while the live transcript and bottom actions remain visible.
+
+The right panel uses larger transcript text with tighter spacing and shows English processing notices, diarisation activity and elapsed time, the speaker timeline preview, and timestamped transcription with consistent speaker colours. Consecutive segments from the same speaker append to one live paragraph, with the starting timestamp and coloured speaker label shown once inline. A speaker change starts a new paragraph. This display grouping preserves the underlying segment timestamps and existing Word and Excel exports. The bottom bar retains progress, status/ETA, **Open output folder**, **Stop** and **Start transcription**. During diarisation, percentages refer only to supported processing stages, not to completion of the entire recording.
+
+**Settings** opens the diarisation and Hugging Face controls in a separate window. A session's settings changes apply to the next run; the current run uses the choices captured when Start was pressed. Token availability is separate from model download or model access. Settings and the left column can be scrolled on smaller screens.
+
+![RedScribe diarisation settings](docs/images/redscribe-settings.png)
+
 ## Running RedScribe
 
 ```text
 python redscribe_gpu.py
 ```
 
-Select an audio or video file, complete the optional study metadata, choose whether to enable speaker diarisation, and start transcription. **Transcription Language** defaults to Auto detect; select Bahasa Melayu or English when detection is inaccurate. The app uses Whisper's transcription task, not translation. Mixed-language speech still needs checking against the recording. Matching `.xlsx` and `.docx` files are written to `output/YYYY-MM/`. Repeated runs create a numbered file pair rather than overwriting an earlier result. The Word file begins with the Excel `Early_Report` information and charts, followed by a transcript that combines adjacent utterances from the same speaker into one editable paragraph, labelled with the first start and last end time. The Excel workbook retains each utterance separately, along with verification columns. If a run stops with an unexpected Python error, details are written locally to `output/redscribe_error.log`; review the log before sharing it because paths may identify research files.
+Select an audio or video file, complete the optional study metadata, choose whether to enable speaker diarisation, and start transcription. **Transcription Language** defaults to Auto detect; select Bahasa Melayu or English when detection is inaccurate. The app uses Whisper's transcription task, not translation. Mixed-language speech still needs checking against the recording. Matching `.xlsx` and `.docx` files are written to `output/YYYY-MM/`. Repeated runs create a numbered file pair rather than overwriting an earlier result. The Word file begins with the Excel `Early_Report` information and charts, followed by a transcript that combines adjacent utterances from the same speaker into one editable paragraph, labelled with the first start and last end time. The Excel workbook retains each utterance separately, along with verification columns. Speaker labels use the same colours in the live UI, Word transcript and speaker summary, and Excel Speaker cells and speaker summary. Word transcript text retains its normal colour; Excel Speaker cells have a pale matching fill. Colours are derived from the automatic label ID, not its order of appearance; UNKNOWN is grey. There are eight accent colours, so colours repeat after eight numeric IDs and do not establish a person’s identity across recordings. If a run stops with an unexpected Python error, details are written locally to `output/redscribe_error.log`; review the log before sharing it because paths may identify research files.
 
 With Auto detect, the detected language appears in the live transcript area before the first segment. If it is wrong (for example, Welsh for a Malay recording), click **Stop**, choose Bahasa Melayu or English under Transcription Language, and start again. Stop waits for the current model-loading, diarisation or transcription step to finish; it cannot interrupt a library call instantly. A stopped run does not save a partial Word or Excel report. Once report saving begins, Stop is disabled until both exports finish. Previously completed reports are preserved.
 
@@ -194,6 +210,7 @@ On Windows, RedScribe attempts to load Whisper with CUDA and `float16`. If CUDA 
 - `redscribe_gpu.py` — current RedScribe v2 application
 - `whisper_gui.py` — deprecated Qwen/Ollama prototype retained for historical reference
 - `token_store.py` — system credential storage and token-source selection
+- `speaker_styles.py` — shared speaker colours for the UI, Excel and Word
 - `requirements.txt` — Python dependencies
 - `CITATION.cff` — software citation metadata
 - `CHANGELOG.md` — release history

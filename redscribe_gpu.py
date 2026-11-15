@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import filedialog, messagebox, scrolledtext, ttk
+from tkinter import filedialog, messagebox, scrolledtext, ttk, font as tkfont
 from faster_whisper import WhisperModel
 import threading
 import time
@@ -14,14 +14,17 @@ import json
 import math
 from io import BytesIO
 from collections import Counter
+from copy import copy
+from speaker_styles import speaker_colour, speaker_fill
 from token_store import TokenStoreError, resolve_token, save_token, remove_saved_token
 
 from openpyxl import Workbook
+from openpyxl.styles import PatternFill
 from openpyxl.utils import get_column_letter
 from openpyxl.chart import BarChart, Reference
 from openpyxl.chart.label import DataLabelList
 from docx import Document
-from docx.shared import Inches
+from docx.shared import Inches, RGBColor
 from matplotlib.figure import Figure
 
 
@@ -505,6 +508,15 @@ def assign_speaker(start: float, end: float, diarization_turns: list[dict]) -> s
 # =========================
 # EXCEL WRITER
 # =========================
+def style_speaker_cell(cell, speaker: str) -> None:
+    """Accent just the speaker cell; preserve the transcript and review columns."""
+    font = copy(cell.font)
+    font.bold = True
+    font.color = speaker_colour(speaker)
+    cell.font = font
+    cell.fill = PatternFill(fill_type="solid", fgColor=speaker_fill(speaker))
+
+
 def save_xlsx_with_early_report(
     xlsx_path: str,
     utterance_rows: list[dict],
@@ -527,7 +539,9 @@ def save_xlsx_with_early_report(
     ws1.title = "Early_Report"
 
     ws1["A1"] = "Study & Processing Metadata"
-    ws1["A1"].font = ws1["A1"].font.copy(bold=True)
+    heading_font = copy(ws1["A1"].font)
+    heading_font.bold = True
+    ws1["A1"].font = heading_font
 
     speaker_summary = compute_speaker_summary(utterance_rows)
     speakers_detected = ", ".join([speaker for speaker, _ in speaker_summary]) if speaker_summary else "None"
@@ -559,7 +573,9 @@ def save_xlsx_with_early_report(
         r += 1
 
     ws1[f"A{r+1}"] = "Transcription Summary"
-    ws1[f"A{r+1}"].font = ws1[f"A{r+1}"].font.copy(bold=True)
+    heading_font = copy(ws1[f"A{r+1}"].font)
+    heading_font.bold = True
+    ws1[f"A{r+1}"].font = heading_font
 
     total_segments = len(segment_ranges)
     total_utterances = len(utterance_rows)
@@ -594,7 +610,9 @@ def save_xlsx_with_early_report(
 
     r_spk = r2 + 2
     ws1[f"A{r_spk}"] = "Speaker Utterance Count"
-    ws1[f"A{r_spk}"].font = ws1[f"A{r_spk}"].font.copy(bold=True)
+    heading_font = copy(ws1[f"A{r_spk}"].font)
+    heading_font.bold = True
+    ws1[f"A{r_spk}"].font = heading_font
     ws1[f"A{r_spk+2}"] = "Speaker"
     ws1[f"B{r_spk+2}"] = "Utterances"
 
@@ -602,11 +620,14 @@ def save_xlsx_with_early_report(
     for speaker, count in speaker_summary:
         ws1[f"A{rr_spk}"] = speaker
         ws1[f"B{rr_spk}"] = count
+        style_speaker_cell(ws1[f"A{rr_spk}"], speaker)
         rr_spk += 1
 
     r3 = max(rr_spk + 2, r2 + 5)
     ws1[f"A{r3}"] = "Speech vs Silence Distribution"
-    ws1[f"A{r3}"].font = ws1[f"A{r3}"].font.copy(bold=True)
+    heading_font = copy(ws1[f"A{r3}"].font)
+    heading_font.bold = True
+    ws1[f"A{r3}"].font = heading_font
 
     ws1[f"A{r3+2}"] = "Category"
     ws1[f"B{r3+2}"] = "Duration (minutes)"
@@ -635,7 +656,9 @@ def save_xlsx_with_early_report(
 
     r4 = r3 + 7
     ws1[f"A{r4}"] = "Timeline Density (5-minute intervals)"
-    ws1[f"A{r4}"].font = ws1[f"A{r4}"].font.copy(bold=True)
+    heading_font = copy(ws1[f"A{r4}"].font)
+    heading_font.bold = True
+    ws1[f"A{r4}"].font = heading_font
 
     ws1[f"A{r4+2}"] = "Interval (min)"
     ws1[f"B{r4+2}"] = "Utterances"
@@ -665,7 +688,9 @@ def save_xlsx_with_early_report(
 
     r5 = end_table_row + 3
     ws1[f"A{r5}"] = "Top 20 Keywords (Frequency)"
-    ws1[f"A{r5}"].font = ws1[f"A{r5}"].font.copy(bold=True)
+    heading_font = copy(ws1[f"A{r5}"].font)
+    heading_font.bold = True
+    ws1[f"A{r5}"].font = heading_font
 
     ws1[f"A{r5+2}"] = "Rank"
     ws1[f"B{r5+2}"] = "Keyword"
@@ -708,6 +733,7 @@ def save_xlsx_with_early_report(
             "",
             ""
         ])
+        style_speaker_cell(ws2.cell(row=ws2.max_row, column=2), rrow.get("speaker", "UNKNOWN"))
 
     widths = [14, 18, 20, 18, 70, 40, 25]
     for col_idx, w in enumerate(widths, start=1):
@@ -828,7 +854,11 @@ def save_docx_transcript(
     add_report_table(document, summary)
 
     document.add_heading("Speaker Utterance Count", level=1)
-    add_report_table(document, [("Speaker", "Utterances"), *speaker_summary])
+    speaker_table = add_report_table(document, [("Speaker", "Utterances"), *speaker_summary])
+    for table_row, (speaker, _count) in zip(speaker_table.rows[1:], speaker_summary):
+        for run in table_row.cells[0].paragraphs[0].runs:
+            run.bold = True
+            run.font.color.rgb = RGBColor.from_string(speaker_colour(speaker))
 
     speech_minutes = round(speech_s / 60.0, 3)
     silence_minutes = round(silence_s / 60.0, 3)
@@ -867,11 +897,12 @@ def save_docx_transcript(
 
     for row in group_consecutive_speaker_turns(utterance_rows):
         paragraph = document.add_paragraph()
-        heading = (
-            f"[{sec_to_hms(row['start_s'])}–{sec_to_hms(row['end_s'])}] "
-            f"{row.get('speaker', 'UNKNOWN')}: "
-        )
-        paragraph.add_run(heading).bold = True
+        timestamp = paragraph.add_run(f"[{sec_to_hms(row['start_s'])}–{sec_to_hms(row['end_s'])}] ")
+        timestamp.bold = True
+        speaker = row.get("speaker", "UNKNOWN")
+        label = paragraph.add_run(f"{speaker}: ")
+        label.bold = True
+        label.font.color.rgb = RGBColor.from_string(speaker_colour(speaker))
         paragraph.add_run(row["text"])
 
     document.save(docx_path)
@@ -884,9 +915,14 @@ class RedScribeApp:
     def __init__(self, root):
         self.root = root
         self.root.title(APP_TITLE)
+        families = {family.casefold(): family for family in tkfont.families(root)}
+        self.ui_font = next((families[name] for name in
+                             ("segoe ui", "sf pro text", "helvetica neue", "dejavu sans", "helvetica")
+                             if name in families), tkfont.nametofont("TkDefaultFont").actual("family"))
         window_width = max(680, min(1280, self.root.winfo_screenwidth() - 80))
         window_height = max(560, min(760, self.root.winfo_screenheight() - 100))
         self.root.geometry(f"{window_width}x{window_height}")
+        self.root.minsize(min(900, window_width), min(580, window_height))
 
         self.project = tk.StringVar()
         self.researcher = tk.StringVar()
@@ -899,7 +935,12 @@ class RedScribeApp:
         self.diarization_enabled = tk.BooleanVar(value=True)
         self.hf_token = tk.StringVar()
         self.token_status = tk.StringVar(value="Token status: not checked")
+        self.token_summary = tk.StringVar(value="Checking token...")
+        self.token_settings_window = None
         self.speaker_count = tk.StringVar()
+        self.diarization_summary = tk.StringVar()
+        self.file_summary = tk.StringVar(value="No file selected")
+        self.study_details_open = True
 
         self.base_output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "output")
         self.last_output_folder = None
@@ -913,187 +954,233 @@ class RedScribeApp:
 
         self.build_ui()
         self.hf_token.trace_add("write", self.token_entry_changed)
+        self.audio_path.trace_add("write", self.update_file_summary)
+        self.diarization_enabled.trace_add("write", self.update_diarization_summary)
+        self.speaker_count.trace_add("write", self.update_diarization_summary)
+        self.update_diarization_summary()
         self.root.after(100, self.check_hf_token)
 
     def build_ui(self):
-        top = tk.Frame(self.root)
-        top.pack(fill="x", padx=10, pady=6)
+        self.colours = {
+            "background": "#F7F4F6", "surface": "#FFFFFF", "border": "#E4DDE2",
+            "text": "#202332", "muted": "#667085", "accent": "#8E1235",
+        }
+        c = self.colours
+        self.root.configure(bg=c["background"])
+        self.root.option_add("*Font", (self.ui_font, 11))
+        style = ttk.Style(self.root)
+        if "clam" in style.theme_names():
+            style.theme_use("clam")
+        style.configure(".", font=(self.ui_font, 11), background="white", foreground=c["text"])
+        style.configure("TButton", padding=(10, 7))
+        style.configure("TEntry", padding=5)
+        style.configure("TLabelframe", background="white", bordercolor=c["border"])
+        style.configure("TLabelframe.Label", background="white", foreground=c["text"])
+        style.map("TCheckbutton", background=[("active", "white")])
+        style.configure("RedScribe.TButton", font=(self.ui_font, 11), padding=(12, 8),
+                        background="#FFFFFF", foreground=c["text"], bordercolor=c["border"])
+        style.map("RedScribe.TButton", background=[("active", "#F8ECF0")],
+                  foreground=[("disabled", "#9895A0")])
+        style.configure("Primary.RedScribe.TButton", background=c["accent"], foreground="white")
+        style.map("Primary.RedScribe.TButton", background=[("disabled", "#E5E2E6"), ("active", "#71102A")],
+                  foreground=[("disabled", "#9895A0"), ("!disabled", "white")])
+        style.configure("Stop.RedScribe.TButton", foreground="#B42318", background="white")
+        style.map("Stop.RedScribe.TButton", foreground=[("disabled", "#9895A0"), ("!disabled", "#B42318")])
+        style.configure("RedScribe.TCombobox", padding=4, fieldbackground="white")
+        style.map("RedScribe.TCombobox", fieldbackground=[("readonly", "white")], background=[("readonly", "white")])
+        style.configure("RedScribe.TEntry", padding=6, fieldbackground="white")
+        style.configure("RedScribe.Horizontal.TProgressbar", background=c["accent"],
+                        troughcolor="#E8E3E8", bordercolor="#E8E3E8", thickness=7)
+        self.root.columnconfigure(0, weight=1)
+        self.root.rowconfigure(1, weight=1)
 
-        tk.Label(top, text="Project & File Information", font=("Segoe UI", 10, "bold")).pack(anchor="w")
+        header = tk.Frame(self.root, bg=c["surface"], padx=20, pady=14)
+        header.grid(row=0, column=0, sticky="ew")
+        mark = tk.Canvas(header, width=44, height=40, bg="white", highlightthickness=0)
+        mark.pack(side="left", padx=(0, 12))
+        for i, height in enumerate((10, 22, 34, 24, 14)):
+            mark.create_line(5 + i * 8, 20 - height / 2, 5 + i * 8, 20 + height / 2,
+                             width=5, fill=c["accent"], capstyle="round")
+        brand = tk.Frame(header, bg="white")
+        brand.pack(side="left")
+        tk.Label(brand, text=f"RedScribe  v{APP_VERSION}", font=(self.ui_font, 21, "bold"),
+                 bg="white", fg=c["accent"]).pack(anchor="w")
+        tk.Label(brand, text="Research Speech Transcription System", bg="white", fg=c["muted"]).pack(anchor="w")
+        ttk.Button(header, text="Settings", style="RedScribe.TButton",
+                   command=self.open_token_settings).pack(side="right")
+        tk.Label(header, text="Audio processed locally", bg="#EDF8EE", fg="#24623B",
+                 padx=10, pady=7).pack(side="right", padx=14)
 
-        def row_entry(parent, label, var, show=None):
-            fr = tk.Frame(parent)
-            fr.pack(fill="x", pady=2)
-            tk.Label(fr, text=label, width=28, anchor="w").pack(side="left")
-            tk.Entry(fr, textvariable=var, show=show).pack(side="left", fill="x", expand=True)
-            return fr
+        workspace = tk.Frame(self.root, bg=c["background"])
+        workspace.grid(row=1, column=0, sticky="nsew", padx=16, pady=16)
+        workspace.rowconfigure(0, weight=1)
+        workspace.columnconfigure(1, weight=1)
+        sidebar = tk.Frame(workspace, bg=c["background"])
+        sidebar.grid(row=0, column=0, sticky="ns", padx=(0, 16))
+        sidebar.rowconfigure(0, weight=1)
+        # Scroll only the settings column: actions and transcript stay visible.
+        self.sidebar_canvas = tk.Canvas(sidebar, width=300, bg=c["background"], highlightthickness=0)
+        self.sidebar_canvas.grid(row=0, column=0, sticky="ns")
+        scroll = ttk.Scrollbar(sidebar, orient="vertical", command=self.sidebar_canvas.yview)
+        scroll.grid(row=0, column=1, sticky="ns")
+        self.sidebar_canvas.configure(yscrollcommand=scroll.set)
+        self.sidebar_content = tk.Frame(self.sidebar_canvas, bg=c["background"])
+        sidebar_window = self.sidebar_canvas.create_window((0, 0), window=self.sidebar_content, anchor="nw")
+        self.sidebar_content.bind("<Configure>", lambda _event: self.sidebar_canvas.configure(
+            scrollregion=self.sidebar_canvas.bbox("all")))
+        self.sidebar_canvas.bind("<Configure>", lambda event: self.sidebar_canvas.itemconfigure(
+            sidebar_window, width=event.width))
+        self.root.bind("<MouseWheel>", self.scroll_sidebar, add="+")
+        self.root.bind("<Button-4>", self.scroll_sidebar, add="+")
+        self.root.bind("<Button-5>", self.scroll_sidebar, add="+")
 
-        row_entry(top, "Project / Study Name", self.project)
-        row_entry(top, "Researcher Name / Initials", self.researcher)
-        row_entry(top, "Interview / Audio Label", self.label)
+        def card(title):
+            outer = tk.Frame(self.sidebar_content, bg="white", highlightbackground=c["border"], highlightthickness=1)
+            outer.pack(fill="x", pady=(0, 10))
+            tk.Label(outer, text=title, bg="white", fg=c["text"], font=(self.ui_font, 12, "bold"),
+                     padx=14, pady=8, anchor="w").pack(fill="x")
+            tk.Frame(outer, bg=c["border"], height=1).pack(fill="x")
+            inside = tk.Frame(outer, bg="white", padx=14, pady=8)
+            inside.pack(fill="x")
+            return inside
 
-        period_fr = tk.Frame(top)
-        period_fr.pack(fill="x", pady=2)
-        tk.Label(period_fr, text="Month / Period (YYYY-MM)", width=28, anchor="w").pack(side="left")
-        tk.Entry(period_fr, textvariable=self.period, width=12).pack(side="left")
-        tk.Button(period_fr, text="Pick…", command=self.pick_period).pack(side="left", padx=6)
+        audio = card("Audio file")
+        tk.Label(audio, textvariable=self.file_summary, bg="white", fg=c["text"],
+                 font=(self.ui_font, 10, "bold"), wraplength=264, justify="left").pack(anchor="w", pady=(0, 8))
+        ttk.Button(audio, text="Browse file", style="Primary.RedScribe.TButton", command=self.browse_file).pack(fill="x")
 
-        file_fr = tk.Frame(top)
-        file_fr.pack(fill="x", pady=2)
-        tk.Label(file_fr, text="Audio File", width=28, anchor="w").pack(side="left")
-        tk.Entry(file_fr, textvariable=self.audio_path).pack(side="left", padx=4, fill="x", expand=True)
-        tk.Button(file_fr, text="Browse…", command=self.browse_file).pack(side="left")
+        study = tk.Frame(self.sidebar_content, bg="white", highlightbackground=c["border"], highlightthickness=1)
+        study.pack(fill="x", pady=(0, 10))
+        self.study_toggle = ttk.Button(study, text="Study details  -", style="RedScribe.TButton", command=self.toggle_study_details)
+        self.study_toggle.pack(fill="x")
+        self.study_fields = tk.Frame(study, bg="white", padx=14, pady=8)
+        self.study_fields.pack(fill="x")
+        for label, variable in (("Study name", self.project), ("Researcher", self.researcher),
+                                ("Audio label", self.label), ("Period", self.period)):
+            field = tk.Frame(self.study_fields, bg="white")
+            field.pack(fill="x", pady=3)
+            tk.Label(field, text=label, bg="white", fg=c["text"], width=10, anchor="w").pack(side="left")
+            entry = ttk.Entry(field, textvariable=variable, width=10, style="RedScribe.TEntry")
+            if variable is self.period:
+                ttk.Button(field, text="Pick", width=4, style="RedScribe.TButton", command=self.pick_period).pack(side="right", padx=(6, 0))
+            entry.pack(side="left", fill="x", expand=True)
+            if variable is self.project:
+                self.project_entry = entry
+        self.root.after_idle(self.project_entry.focus_set)
 
-        tk.Label(top, text="Supported formats: mp3, wav, m4a, mp4", fg="gray").pack(anchor="w", pady=(2, 6))
-
-        language_fr = tk.Frame(top)
-        language_fr.pack(fill="x", pady=2)
-        tk.Label(language_fr, text="Transcription Language", width=28, anchor="w").pack(side="left")
-        ttk.Combobox(language_fr, textvariable=self.transcription_language,
-                     values=list(TRANSCRIPTION_LANGUAGES), state="readonly", width=20).pack(side="left")
-        tk.Label(language_fr, text="Select the spoken language if auto detection is inaccurate.",
-                 fg="gray").pack(side="left", padx=8)
-
-        model_fr = tk.Frame(top)
-        model_fr.pack(fill="x", pady=2)
-        tk.Label(model_fr, text="Whisper Model", width=28, anchor="w").pack(side="left")
-        model_choice = ttk.Combobox(model_fr, textvariable=self.whisper_model,
-                                    values=WHISPER_MODELS, state="readonly", width=20)
-        model_choice.pack(side="left")
+        transcription = card("Transcription")
+        tk.Label(transcription, text="Language", bg="white", fg=c["text"]).pack(anchor="w", pady=(0, 5))
+        ttk.Combobox(transcription, textvariable=self.transcription_language, values=list(TRANSCRIPTION_LANGUAGES),
+                     state="readonly", style="RedScribe.TCombobox", width=20).pack(fill="x", pady=(0, 8))
+        tk.Label(transcription, text="Whisper model", bg="white", fg=c["text"]).pack(anchor="w", pady=(0, 5))
+        model_choice = ttk.Combobox(transcription, textvariable=self.whisper_model, values=WHISPER_MODELS,
+                                    state="readonly", style="RedScribe.TCombobox", width=20)
+        model_choice.pack(fill="x")
         model_choice.bind("<<ComboboxSelected>>", self.save_selected_model)
-        tk.Label(model_fr, text="Large-v3 is the default; small/base suit CPU-only laptops.",
-                 fg="gray").pack(side="left", padx=8)
 
-        diar_fr = tk.LabelFrame(top, text="Speaker Diarisation")
-        diar_fr.pack(fill="x", pady=(4, 6))
+        speakers = card("Speakers")
+        self.diarization_badge = tk.Label(speakers, textvariable=self.diarization_summary, bg="white", fg="#24623B",
+                                         font=(self.ui_font, 10, "bold"), anchor="w", wraplength=264)
+        self.diarization_badge.pack(fill="x", pady=(0, 8))
+        self.token_badge = tk.Label(speakers, textvariable=self.token_summary, bg="white", fg=c["muted"], anchor="w", wraplength=264)
+        self.token_badge.pack(fill="x", pady=(0, 8))
+        ttk.Button(speakers, text="Diarisation settings", style="RedScribe.TButton", command=self.open_token_settings).pack(fill="x")
 
-        tk.Checkbutton(
-            diar_fr,
-            text="Enable speaker diarisation",
-            variable=self.diarization_enabled
-        ).pack(anchor="w", padx=6, pady=(4, 2))
-
-        token_fr = tk.Frame(diar_fr)
-        token_fr.pack(fill="x", padx=6, pady=2)
-        tk.Label(token_fr, text="Hugging Face Token", width=28, anchor="w").pack(side="left")
-        self.token_entry = tk.Entry(token_fr, textvariable=self.hf_token, show="*")
-        self.token_entry.pack(side="left", fill="x", expand=True)
-        self.show_token_btn = tk.Button(token_fr, text="Show", width=5, command=self.toggle_token_visibility)
-        self.show_token_btn.pack(side="left", padx=(6, 0))
-
-        token_actions = tk.Frame(diar_fr)
-        token_actions.pack(fill="x", padx=6, pady=2)
-        for label, command in (("Save Token", self.save_hf_token),
-                               ("Remove Saved", self.remove_hf_token),
-                               ("Check Token", self.check_hf_token)):
-            tk.Button(token_actions, text=label, command=command).pack(side="left", padx=(0, 6))
-        tk.Label(token_actions, text="Saved tokens load automatically on this computer.",
-                 fg="gray").pack(side="left")
-        tk.Label(diar_fr, textvariable=self.token_status, fg="#28613B", anchor="w",
-                 justify="left", wraplength=620).pack(fill="x", padx=6, pady=(0, 2))
-
-        speaker_fr = tk.Frame(diar_fr)
-        speaker_fr.pack(fill="x", padx=6, pady=(2, 6))
-        tk.Label(speaker_fr, text="Expected Number of Speakers", width=28, anchor="w").pack(side="left")
-        tk.Entry(speaker_fr, textvariable=self.speaker_count, width=8).pack(side="left")
-        tk.Label(
-            speaker_fr,
-            text="Example: enter 2 for a two-person interview, or leave blank for automatic detection.",
-            fg="gray"
-        ).pack(side="left", padx=8)
-
-        # Reserve the bottom controls before the transcript takes the remaining space.
-        bottom_panel = tk.Frame(self.root)
-        bottom_panel.pack(side="bottom", fill="x")
-
-        status_row = tk.Frame(bottom_panel)
-        status_row.pack(fill="x", padx=10, pady=(0, 6))
-
-        self.status = tk.StringVar(value="Idle")
-        tk.Label(status_row, textvariable=self.status).pack(side="left")
-
-        self.progress = ttk.Progressbar(
-            status_row,
-            orient="horizontal",
-            mode="determinate",
-            maximum=100,
-            variable=self.progress_var,
-            length=320
-        )
-        self.progress.pack(side="right")
-
-        ctrl = tk.Frame(bottom_panel)
-        ctrl.pack(fill="x", padx=10, pady=6)
-
-        self.start_btn = tk.Button(
-            ctrl,
-            text="Start Transcription",
-            command=self.start,
-            bg="#BFE8BF",
-            activebackground="#A7DCA7",
-            relief="raised",
-            padx=10,
-            pady=4
-        )
-        self.start_btn.pack(side="right", padx=4)
-
-        self.stop_btn = tk.Button(
-            ctrl,
-            text="Stop",
-            command=self.stop,
-            state="disabled",
-            bg="#D9534F",
-            fg="white",
-            activebackground="#C9302C",
-            activeforeground="white",
-            relief="raised",
-            padx=10,
-            pady=4
-        )
-        self.stop_btn.pack(side="right", padx=4)
-
-        self.open_btn = tk.Button(
-            ctrl,
-            text="Open Output Folder",
-            command=self.open_output_folder,
-            bg="#FFE59A",
-            activebackground="#FFD56A",
-            relief="raised",
-            padx=10,
-            pady=4
-        )
-        self.open_btn.pack(side="right", padx=4)
-
-        footer = tk.Label(
-            bottom_panel,
-            text="RedScribe | CRDV2026W02110 | Authors & Support",
-            fg="gray",
-            cursor="hand2"
-        )
-        footer.pack(side="bottom", pady=3)
-        footer.bind("<Button-1>", self.show_support)
-
-        main_panel = tk.Frame(self.root)
-        main_panel.pack(fill="both", expand=True, padx=10, pady=5)
-
-        tk.Label(main_panel, text="Live Transcript", font=("Segoe UI", 10, "bold")).pack(anchor="w")
+        transcript = tk.Frame(workspace, bg="white", highlightbackground=c["border"], highlightthickness=1)
+        transcript.grid(row=0, column=1, sticky="nsew")
+        transcript.rowconfigure(2, weight=1)
+        transcript.columnconfigure(0, weight=1)
+        transcript_header = tk.Frame(transcript, bg="white", padx=18, pady=14)
+        transcript_header.grid(row=0, column=0, sticky="ew")
+        tk.Label(transcript_header, text="Live transcript", bg="white", fg=c["text"], font=(self.ui_font, 19, "bold")).pack(anchor="w")
+        tk.Label(transcript_header, textvariable=self.file_summary, bg="white", fg=c["muted"], anchor="w").pack(fill="x", pady=(3, 0))
         self.diarization_activity = tk.StringVar(value="")
         self.diarization_timer = None
         self.diarization_started = None
-        tk.Label(main_panel, textvariable=self.diarization_activity, fg="#365B83",
-                 anchor="w").pack(fill="x")
-        self.live_box = scrolledtext.ScrolledText(main_panel, height=8, state="disabled", wrap="word")
-        self.live_box.pack(fill="both", expand=True)
+        self.activity_label = tk.Label(transcript, textvariable=self.diarization_activity, bg="#FCF4F7", fg=c["accent"],
+                                      anchor="w", justify="left", wraplength=600, padx=18, pady=8)
+        # Reserve this row for live diarisation activity; hide when idle.
+        self.activity_label.grid(row=1, column=0, sticky="ew")
+        self.activity_label.grid_remove()
+        transcript.bind("<Configure>", lambda event: self.activity_label.configure(wraplength=max(180, event.width - 40)))
+        self.live_box = scrolledtext.ScrolledText(transcript, height=8, width=30, state="disabled", wrap="word",
+                                                  bg="white", fg=c["text"], relief="flat", borderwidth=0,
+                                                  font=(self.ui_font, 13), padx=18, pady=12, spacing3=4,
+                                                  selectbackground="#F2CED9", selectforeground=c["text"])
+        self.live_box.grid(row=2, column=0, sticky="nsew", padx=2, pady=(0, 10))
+        self.live_box.tag_configure("ts", foreground=c["muted"], font=(self.ui_font, 10), spacing1=6)
+        self.live_box.tag_configure("speaker", foreground=c["accent"], font=(self.ui_font, 11, "bold"))
+        self.live_box.tag_configure("txt", foreground=c["text"])
+        self.live_box.tag_configure("info", foreground="#52657D")
+        self.live_box.tag_configure("warn", foreground="#B42318")
+        self.speaker_tags = {}
+        self.last_live_speaker = None
+        self.log_info("Your transcript will appear here.\nSelect an audio file, then choose Start transcription.")
 
-        self.live_box.tag_configure("ts", foreground="blue")
-        self.live_box.tag_configure("speaker", foreground="purple")
-        self.live_box.tag_configure("txt", foreground="black")
-        self.live_box.tag_configure("info", foreground="#365B83")
-        self.live_box.tag_configure("warn", foreground="red")
+        bottom = tk.Frame(self.root, bg="white", padx=16, pady=12, highlightbackground=c["border"], highlightthickness=1)
+        bottom.grid(row=2, column=0, sticky="ew")
+        bottom.columnconfigure(0, weight=1)
+        self.status = tk.StringVar(value="Ready")
+        self.status_label = tk.Label(bottom, textvariable=self.status, bg="white", fg=c["text"], anchor="w", justify="left", wraplength=600)
+        self.status_label.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 8))
+        bottom.bind("<Configure>", lambda event: self.status_label.configure(wraplength=max(180, event.width - 48)))
+        self.progress = ttk.Progressbar(bottom, orient="horizontal", mode="determinate", maximum=100,
+                                       variable=self.progress_var, length=160, style="RedScribe.Horizontal.TProgressbar")
+        self.progress.grid(row=1, column=0, sticky="ew", padx=(0, 18))
+        controls = tk.Frame(bottom, bg="white")
+        controls.grid(row=1, column=1, sticky="e")
+        self.open_btn = ttk.Button(controls, text="Open output folder", command=self.open_output_folder, style="RedScribe.TButton")
+        self.open_btn.pack(side="left", padx=(0, 8))
+        self.stop_btn = ttk.Button(controls, text="Stop", command=self.stop, state="disabled", style="Stop.RedScribe.TButton")
+        self.stop_btn.pack(side="left", padx=(0, 8))
+        self.start_btn = ttk.Button(controls, text="Start transcription", command=self.start, style="Primary.RedScribe.TButton")
+        self.start_btn.pack(side="left")
+        footer = tk.Frame(bottom, bg="white")
+        footer.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(10, 0))
+        support = tk.Label(footer, text="RedScribe | CRDV2026W02110 | Authors & support", bg="white", fg=c["muted"],
+                           font=(self.ui_font, 9), cursor="hand2")
+        support.pack(side="left")
+        support.bind("<Button-1>", self.show_support)
+        tk.Label(footer, text="Automated draft - verify against the recording", bg="white", fg=c["muted"], font=(self.ui_font, 9)).pack(side="right")
+
+    def toggle_study_details(self):
+        self.study_details_open = not self.study_details_open
+        if self.study_details_open:
+            self.study_fields.pack(fill="x")
+        else:
+            self.study_fields.pack_forget()
+        self.study_toggle.configure(text="Study details  -" if self.study_details_open else "Study details  +")
+
+    def scroll_sidebar(self, event):
+        if not str(event.widget).startswith(str(self.sidebar_canvas)):
+            return
+        if self.sidebar_content.winfo_height() <= self.sidebar_canvas.winfo_height():
+            return
+        if getattr(event, "num", None) in (4, 5):
+            units = -1 if event.num == 4 else 1
+        else:
+            delta = getattr(event, "delta", 0)
+            if not delta:
+                return
+            units = -max(1, abs(delta) // 120) if delta > 0 else max(1, abs(delta) // 120)
+        self.sidebar_canvas.yview_scroll(units, "units")
+        return "break"
+
+    def update_file_summary(self, *_args):
+        path = self.audio_path.get().strip()
+        self.file_summary.set(os.path.basename(path) if path else "No file selected")
+
+    def update_diarization_summary(self, *_args):
+        enabled = self.diarization_enabled.get()
+        count = self.speaker_count.get().strip()
+        detail = f"{count} expected speakers" if count else "Automatic speaker count"
+        self.diarization_summary.set(f"ON - {detail}" if enabled else "OFF - Transcription only")
+        self.diarization_badge.configure(fg="#24623B" if enabled else "#667085")
 
     def begin_diarization_activity(self):
         """Main-thread-only display lifecycle; keep ticking during model calls."""
         self.end_diarization_activity()
+        self.activity_label.grid()
         self.diarization_started = time.monotonic()
         self.diarization_stage = "Loading diarisation model..."
         self.diarization_fraction = None
@@ -1136,6 +1223,7 @@ class RedScribeApp:
         self.diarization_timer = None
         self.diarization_started = None
         self.diarization_activity.set("")
+        self.activity_label.grid_remove()
 
     def log_diarization_summary(self, turns):
         speakers = {turn["speaker"] for turn in turns}
@@ -1162,9 +1250,113 @@ class RedScribeApp:
             "saprimad@moh.gov.my"
         )
 
+    def open_token_settings(self):
+        """Keep credential controls out of the transcription workspace."""
+        if self.token_settings_window is not None and self.token_settings_window.winfo_exists():
+            self.token_settings_window.lift()
+            self.token_settings_window.focus_set()
+            return
+
+        win = tk.Toplevel(self.root)
+        self.token_settings_window = win
+        win.title("RedScribe Settings - Diarisation")
+        win.transient(self.root)
+        win.resizable(True, True)
+        available_height = max(360, self.root.winfo_screenheight() - 100)
+        settings_canvas = tk.Canvas(win, highlightthickness=0, width=520)
+        settings_scroll = ttk.Scrollbar(win, orient="vertical", command=settings_canvas.yview)
+        settings_scroll.pack(side="right", fill="y")
+        settings_canvas.pack(side="left", fill="both", expand=True)
+        settings_canvas.configure(yscrollcommand=settings_scroll.set)
+        panel = ttk.Frame(settings_canvas, padding=20)
+        settings_window = settings_canvas.create_window((0, 0), window=panel, anchor="nw")
+        panel.bind("<Configure>", lambda _event: settings_canvas.configure(scrollregion=settings_canvas.bbox("all")))
+        settings_canvas.bind("<Configure>", lambda event: settings_canvas.itemconfigure(settings_window, width=event.width))
+        ttk.Label(panel, text="Diarisation Settings", font=(self.ui_font, 15, "bold")).pack(anchor="w")
+        ttk.Label(panel, text="Speaker detection and Hugging Face access", wraplength=450, foreground="#52606D").pack(anchor="w", pady=(3, 12))
+        speaker_options = ttk.LabelFrame(panel, text="Speakers", padding=10)
+        speaker_options.pack(fill="x", pady=(0, 12))
+        ttk.Checkbutton(speaker_options, text="Enable speaker diarisation",
+                        variable=self.diarization_enabled).pack(anchor="w")
+        count_row = ttk.Frame(speaker_options)
+        count_row.pack(fill="x", pady=(8, 4))
+        ttk.Label(count_row, text="Expected speakers").pack(side="left")
+        ttk.Entry(count_row, textvariable=self.speaker_count, width=8).pack(side="right")
+        ttk.Label(speaker_options, text="Diarisation is on by default. Leave the count blank for automatic detection. Changes apply to the next run.",
+                  wraplength=450, foreground="#52606D").pack(anchor="w")
+
+        status_card = ttk.LabelFrame(panel, text="Current token", padding=12)
+        status_card.pack(fill="x", pady=(0, 14))
+        ttk.Label(status_card, textvariable=self.token_status, wraplength=450,
+                  justify="left").pack(fill="x")
+        ttk.Label(status_card, text="Availability only; model access has not been tested.",
+                  foreground="#52606D", wraplength=450).pack(anchor="w", pady=(8, 0))
+
+        ttk.Label(panel, text="Enter or replace token", font=(self.ui_font, 10, "bold")).pack(anchor="w")
+        entry_row = ttk.Frame(panel)
+        entry_row.pack(fill="x", pady=(6, 8))
+        self.token_entry = ttk.Entry(entry_row, textvariable=self.hf_token, show="*", width=24)
+        self.token_entry.pack(side="left", fill="x", expand=True)
+        self.show_token_btn = ttk.Button(entry_row, text="Show", width=6, command=self.toggle_token_visibility)
+        self.show_token_btn.pack(side="left", padx=(8, 0))
+        ttk.Label(panel, text="Leave blank to use a saved token. An unsaved entry is used only for this app session.",
+                  foreground="#52606D", wraplength=480, justify="left").pack(anchor="w")
+
+        actions = ttk.Frame(panel)
+        actions.pack(fill="x", pady=(14, 16))
+        for label, command in (("Save Token", self.save_hf_token),
+                               ("Remove Saved", self.remove_hf_token),
+                               ("Check Token", self.check_hf_token)):
+            ttk.Button(actions, text=label, command=command).pack(side="left", padx=(0, 8))
+
+        ttk.Separator(panel).pack(fill="x")
+        ttk.Label(panel, text="Saved tokens use this computer's system credential store. Removing a saved token does not revoke it on Hugging Face or sign out a separate login.",
+                  foreground="#52606D", wraplength=480, justify="left").pack(anchor="w", pady=(12, 14))
+        ttk.Button(panel, text="Done", command=self.close_token_settings).pack(anchor="e")
+        win.protocol("WM_DELETE_WINDOW", self.close_token_settings)
+        win.bind("<Escape>", lambda _event: self.close_token_settings())
+
+        def scroll_settings(event):
+            if panel.winfo_reqheight() <= settings_canvas.winfo_height():
+                return
+            if getattr(event, "num", None) in (4, 5):
+                units = -1 if event.num == 4 else 1
+            else:
+                delta = getattr(event, "delta", 0)
+                if not delta:
+                    return
+                units = -max(1, abs(delta) // 120) if delta > 0 else max(1, abs(delta) // 120)
+            settings_canvas.yview_scroll(units, "units")
+            return "break"
+
+        for sequence in ("<MouseWheel>", "<Button-4>", "<Button-5>"):
+            win.bind(sequence, scroll_settings)
+        win.update_idletasks()
+        width = min(560, self.root.winfo_screenwidth() - 60)
+        height = min(panel.winfo_reqheight() + 4, available_height)
+        win.minsize(min(480, width), min(380, height))
+        x = max(0, min(self.root.winfo_screenwidth() - width,
+                      self.root.winfo_rootx() + (self.root.winfo_width() - width) // 2))
+        y = max(0, min(self.root.winfo_screenheight() - height,
+                      self.root.winfo_rooty() + (self.root.winfo_height() - height) // 2))
+        win.geometry(f"{width}x{height}+{x}+{y}")
+        win.grab_set()
+        self.token_entry.focus_set()
+        self.check_hf_token()
+
+    def close_token_settings(self):
+        if self.token_settings_window is not None:
+            self.token_entry.configure(show="*")
+            self.token_settings_window.grab_release()
+            self.token_settings_window.destroy()
+            self.token_settings_window = None
+
     def token_entry_changed(self, *_args):
-        self.token_status.set("Token: session entry (click Save Token to remember)"
-                              if self.hf_token.get().strip() else "Token: click Check Token to refresh")
+        if self.hf_token.get().strip():
+            self.token_status.set("Token: session entry (click Save Token to remember)")
+            self.token_summary.set("Session token (not saved)")
+        else:
+            self.check_hf_token()
 
     def toggle_token_visibility(self):
         hidden = bool(self.token_entry.cget("show"))
@@ -1178,6 +1370,17 @@ class RedScribeApp:
         if selection.warning:
             status += f" {selection.warning}"
         self.token_status.set(status)
+        if not selection.token:
+            summary = "Token not configured"
+        elif selection.source == "saved in system credential store":
+            summary = "Token saved"
+        elif selection.source.startswith("entered in app"):
+            summary = "Session token"
+        else:
+            summary = "Token available"
+        self.token_summary.set(summary)
+        if hasattr(self, "token_badge"):
+            self.token_badge.configure(fg="#24623B" if selection.token else "#667085")
 
     def save_hf_token(self):
         try:
@@ -1259,24 +1462,46 @@ class RedScribeApp:
             open_folder(self.base_output_dir)
 
     def log_live_segment(self, ts: str, speaker: str, text: str):
+        text = text.strip()
+        if not text:
+            return
+        if speaker not in self.speaker_tags:
+            tag = f"speaker_{len(self.speaker_tags)}"
+            self.live_box.tag_configure(tag, foreground=f"#{speaker_colour(speaker)}",
+                                        font=(self.ui_font, 11, "bold"))
+            self.speaker_tags[speaker] = tag
         self.live_box.configure(state="normal")
-        self.live_box.insert("end", f"[{ts}] ", ("ts",))
-        self.live_box.insert("end", f"{speaker}: ", ("speaker",))
-        self.live_box.insert("end", f"{text}\n", ("txt",))
+        if self.last_live_speaker == speaker:
+            self.live_box.insert("end", f" {text}", ("txt",))
+        else:
+            if self.last_live_speaker is not None:
+                self.live_box.insert("end", "\n")
+            self.live_box.insert("end", f"{ts}   ", ("ts",))
+            self.live_box.insert("end", f"{speaker}: ", (self.speaker_tags[speaker],))
+            self.live_box.insert("end", text, ("txt",))
+        self.last_live_speaker = speaker
         self.live_box.see("end")
         self.live_box.configure(state="disabled")
 
     def log_warning(self, text: str):
         self.live_box.configure(state="normal")
+        self.finish_live_turn()
         self.live_box.insert("end", f"{text}\n", ("warn",))
         self.live_box.see("end")
         self.live_box.configure(state="disabled")
 
     def log_info(self, text: str):
         self.live_box.configure(state="normal")
+        self.finish_live_turn()
         self.live_box.insert("end", f"{text}\n", ("info",))
         self.live_box.see("end")
         self.live_box.configure(state="disabled")
+
+    def finish_live_turn(self):
+        """Keep processing notices separate from an open transcript paragraph."""
+        if self.last_live_speaker is not None:
+            self.live_box.insert("end", "\n")
+        self.last_live_speaker = None
 
     def stop(self):
         with self.run_lock:
@@ -1343,6 +1568,8 @@ class RedScribeApp:
         self.live_box.delete("1.0", "end")
         self.live_box.configure(state="disabled")
 
+        self.speaker_tags.clear()
+        self.last_live_speaker = None
         self.progress_var.set(0.0)
         self.status.set(f"Loading {inputs['whisper_model']} model...")
         self.start_btn.config(state="disabled")
