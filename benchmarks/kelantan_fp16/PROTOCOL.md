@@ -71,6 +71,8 @@ If a model remains unsupported, numerically unstable or out of memory under the 
 
 ## Fixed scoring rules
 
+The [WER/CER scoring preparation plan](SCORING_PLAN.md) defines the planned local JiWER evaluation tool, reference/hypothesis extraction, fixed normalisation, synthetic validation cases, result exports and the mandatory scoring freeze before the experiment. This tool remains to be implemented; desktop performance logs do not currently calculate WER/CER.
+
 Preserve raw references and unedited raw model outputs. Apply the same deterministic normalisation to both sides for the primary metrics:
 
 1. Unicode NFC normalisation.
@@ -117,7 +119,7 @@ The paper should report:
 - [ ] Pin model revisions, applicable licences, packages, decoding and attention settings.
 - [ ] Implement FP16 model adapters and verify each on the non-study smoke-test audio.
 - [ ] Implement common chunk preparation, resumable execution, raw-output capture and resource logging.
-- [ ] Implement fixed WER/CER scoring and recording/model summary export.
+- [ ] Implement and validate the local JiWER scorer and recording/model summary export using [the pre-experiment scoring gate](SCORING_PLAN.md#pre-experiment-gate).
 - [ ] Freeze the protocol/configuration before the 25-pair scored run.
 - [ ] Attempt the seven model passes; report all failures and coverage.
 - [ ] Review alignments, dialect errors, uncertainty and publication tables.
