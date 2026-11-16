@@ -51,3 +51,47 @@ These are lexical alternatives, not automatic phonological replacements. Do not 
 - Decide whether reference transcription uses a consistent practical orthography or IPA (do not mix them within a scoring set).
 - Build an exceptions lexicon and unit tests before any optional normalisation code.
 - Benchmark raw transcripts first; report normalisation as a distinct experiment.
+
+
+## Literature review and existing resources (v0.2; added 2026-11-16)
+
+### Scope and evidence status
+This section is a **narrative literature review and source-discovery log**, not a systematic review. Bibliographic details and quantitative claims should be checked against the full papers before publication. The candidate rules above are **not** all independently supported by the studies below.
+
+### Linguistic foundations
+- **Wu (2023)**, *Malayic Varieties of Kelantan and Terengganu: Description and Linguistic History*, LOT Dissertation Series 651. Comparative phonology and linguistic history provide a basis for distinguishing Kelantan forms from Terengganu and for defining transcription conventions. https://www.lotpublications.nl/Documents/651_fulltext.pdf
+- **Muhamad & Mohd Rusli (2024)**, *Pengaruh Dialek Kelantan dalam Pembelajaran Bahasa Melayu di Sekolah Menengah*, *Jurnal Pendidikan Bahasa Melayu*. Discusses dialect-related phonological changes, including final-vowel changes, rhotic deletion, nasal deletion, final /s/ changes and glottalisation. **Check the original paper for the exact classification, phonetic notation and examples before citing specific rules.** https://spaj.ukm.my/jpbm/index.php/jpbm/article/view/387/0
+- A reported study of **Pasir Mas** speech discusses final-consonant deletion; the exact paper citation remains **to be verified** and should not yet be used as a reference.
+
+### Speech resources and ASR research
+- **Khaw & Tan (2014)**, *Preparation of MaDiTS Corpus for Malay Dialect Translation and Speech Synthesis System*. Describes dialect translation and pronunciation-resource preparation; **not** evidence of ASR recognition accuracy. https://www.isca-archive.org/slam_2014/khaw14_slam.html
+- **Tan et al. (2024)**, *Low Resource Malay Dialect Automatic Speech Recognition Modeling Using Transfer Learning from a Standard Malay Model*, *Pertanika Journal of Science & Technology*, 32(4), 1545–1563. Relevant prior work on Kelantan/Sarawak dialect ASR using transfer learning. **Extract and verify actual corpus sizes, model configurations and reported error metrics from the paper before comparing results.** https://doi.org/10.47836/pjst.32.4.06
+- **Potential external corpus:** https://github.com/pingtt/malay_dialects . Inspect repository contents, licence, speaker overlap and ground-truth quality before any download or benchmark use. Do not assume permission or that all referenced audio is downloadable.
+
+### Proposed literature matrix (to populate from full texts)
+| Source | Research focus | Relevance to RedScribe | Verification still required |
+| --- | --- | --- | --- |
+| Wu (2023) | Comparative linguistic description | Phonology and district-sensitive annotation | Precise rules, IPA and page numbers |
+| Muhamad & Mohd Rusli (2024) | Kelantan dialect and Malay learning | Candidate phonological error categories | Sample, rule taxonomy and examples |
+| Khaw & Tan (2014) | MaDiTS corpus, translation and speech synthesis | Orthographic and pronunciation mappings | Dataset availability and reuse rights |
+| Tan et al. (2024) | Low-resource dialect ASR transfer learning | Baseline and external comparison | Corpus size, split, WER/CER and licence |
+| pingtt/malay_dialects | Potential external data repository | Possible independent benchmark set | Files, licence, provenance and leakage |
+
+### Evaluation implications
+1. **Primary:** unchanged dialect-verbatim reference and raw ASR hypotheses; calculate WER and CER under a published, frozen scoring convention.
+2. **Secondary:** separately normalise reference and hypotheses with a reviewed lexicon; label normalised WER/CER as a different task.
+3. **Phonological analysis:** examine errors for word-final nasals, rhotics, fricatives, stops, glottalisation and vowels, with human verification of each category.
+4. **Fair comparison:** identical audio, splits and scoring across Whisper, Mesolitica, MMS, Qwen3-ASR and other supported RedScribe adapters; record checkpoint/version and decoding parameters.
+5. **Reporting:** include speaker/district variation, code-switching, reference orthography, confidence intervals where appropriate and error examples with participant privacy safeguards.
+6. **External data:** check licence and ensure no training/test overlap before treating third-party audio as independent evaluation.
+
+### Research gap (provisional)
+The identified literature motivates a controlled, reproducible comparison of the **specific** RedScribe ASR configurations on Kelantan dialect-verbatim speech. This is a proposed evaluation gap, **not** a claim that no prior multilingual ASR comparison exists.
+
+### Publication checklist
+- [ ] Read the full text of each cited study and confirm authors, year, title, venue, pages and DOI.
+- [ ] Extract original phonetic transcriptions rather than treating informal '-ae' spellings as IPA.
+- [ ] Verify every candidate rule with recorded examples and native-speaker review.
+- [ ] Confirm external corpus access, licence, consent and model training overlap.
+- [ ] Populate model-by-model WER/CER literature matrix with traceable tables/pages.
+- [ ] Freeze annotation and normalisation rules before benchmark evaluation.
