@@ -95,3 +95,46 @@ The identified literature motivates a controlled, reproducible comparison of the
 - [ ] Confirm external corpus access, licence, consent and model training overlap.
 - [ ] Populate model-by-model WER/CER literature matrix with traceable tables/pages.
 - [ ] Freeze annotation and normalisation rules before benchmark evaluation.
+
+
+## Critical reading: proposed additional rule families (v0.3; 2026-11-16)
+
+**Evidence policy:** This is a source-grounded *candidate taxonomy for analysis*, not a validated deterministic Standard Malay → Kelantan converter. Distinguish (a) explicitly documented linguistic phenomena, (b) proposed ASR error tags, and (c) unverified spelling correspondences. Do not silently add new example word mappings.
+
+### Sources inspected directly
+1. Jiang Wu (2023), *Malayic varieties of Kelantan and Terengganu*, Chapter 2 (Kelantan phonology), especially pp. 49–53, 74, and Chapter 5 (morphology). https://www.lotpublications.nl/Documents/651_fulltext.pdf
+2. Nur Eliana Muhamad & Nur Farahkhanna Mohd Rusli (2024), article abstract and listed seven phonological processes; **full article examples still require extraction and checking**. https://spaj.ukm.my/jpbm/index.php/jpbm/article/view/387/0
+3. Khaw & Tan (2014), ISCA abstract: corpus translation/G2P, not ASR accuracy. https://www.isca-archive.org/slam_2014/khaw14_slam.html
+
+### New candidate analysis rules (do NOT run as global text substitutions)
+| ID | Feature / proposed error tag | Direct support | Implementation / verification requirement |
+| --- | --- | --- | --- |
+| R13 | Phonemic nasal vowel vs contextual vowel nasalisation | Wu (2023), §2.2.2.1, pp. 49–50 | Separate tags; annotate from audio, not from casual '-ae' spellings |
+| R14 | /e/ vs /ɛ/ and /o/ vs /ɔ/ contrasts | Wu (2023), Tables 2.7–2.8, pp. 51–53 | Preserve distinctions in phonetic reference; normal orthography may obscure them |
+| R15 | Oral vs phonemic nasal vowel minimal-pair contrasts | Wu (2023), Table 2.8, p. 53 | Create phonetic contrast tests; do not equate every deleted final nasal with phonemic nasal vowel |
+| R16 | Final glottal stop /ʔ/ as distinct coda | Wu (2023), §2.3; Muhamad & Mohd Rusli (2024) abstract for /p,t,k/ → [ʔ] | Tag coda substitution and deletion, audio-check each example |
+| R17 | Word-final /s/ → [h] | Muhamad & Mohd Rusli (2024), abstract | Audit existing R05/R11/R12 instead of creating duplicate blanket suffix rules |
+| R18 | Rhotic deletion | Muhamad & Mohd Rusli (2024), abstract | Audit existing R04; record environment and exceptions |
+| R19 | Final nasal deletion | Muhamad & Mohd Rusli (2024), abstract | Audit R01–R03; do not assume all nasals behave identically |
+| R20 | Syllable template (C)(C)V(C) | Wu (2023), §2.3, p. 53 | Syllable-level error annotation, not a text replacement |
+| R21 | Complex onsets / consonant clusters | Wu (2023), §§2.5–2.6 | Tag ASR vowel insertion or consonant loss in clusters |
+| R22 | Vowel sequences versus diphthongs | Wu (2023), §§2.7 and 2.9; no phonemic diphthongs in KM analysis | Tag vowel segmentation; do not treat informal 'ae' spelling as IPA diphthong |
+| R23 | Initial gemination | Wu (2023), §5.3.2 | Potential morphophonological error category; inspect examples and recording before implementing |
+| R24 | Prefixation and morphophonological alternations | Wu (2023), §5.3.1 | Track affix/word-form errors separately from lexical substitutions |
+| R25 | Function words, pronouns, negators and discourse particles | Wu (2023), Chapter 6; lexical studies cited by Muhamad & Mohd Rusli (2024) | Build context-tagged lexicon; avoid one-to-one replacement without semantic review |
+| R26 | District/idiolect-sensitive variants | Wu (2023), comparative fieldwork and linguistic variation | Stratify by speaker and locality; never force a single spelling across districts |
+
+### Critical corrections to v0.1
+- **Important:** Wu (2023, p. 50) represents 'to eat' as /makɛ/ with phonetic [mãkɛ]. This shows that nasalisation can be *contextual*; the informal spelling `makae` is **not** a reliable IPA representation of a phonemic nasal vowel. Keep R01 as an orthographic candidate only.
+- Wu (2023) reports **eight oral and four phonemic nasal vowels** in his Kelantan analysis; this does not mean every nasalised vowel is phonemic.
+- Existing R02/R03/R06–R12 need direct audio validation. A few spellings may be regional, lexical or inaccurate; no automatic suffix substitutions should be deployed.
+- A 2024 school-based study with eight respondents supports a *process taxonomy*, not a universal conversion engine for all Kelantan speakers.
+- Rules R13–R26 are **analysis tags / candidate feature families**, not 14 verified new pronunciation transformations.
+
+### Recommended validation table
+`rule_id | phenomenon | standard_form | dialect_practical | IPA_reference | audio_id | district | speaker_id | source_page | evidence_level | verified_by | verification_status | exception_notes`
+
+Evidence levels: `published_explicit`, `published_inferred`, `speaker_confirmed`, `hypothesis_only`. Status: `pending`, `accepted`, `rejected`, `district_specific`.
+
+### Implementation decision
+**Documentation only**. Do not modify live RedScribe ASR outputs or the scoring pipeline until reference orthography, annotator agreement, and exceptions are defined. Raw verbatim WER/CER remain primary; normalised scores remain secondary.
