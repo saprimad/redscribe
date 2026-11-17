@@ -62,3 +62,25 @@ Functional benchmark execution, DOCX parsing and speaker filtering, validated gr
 **Important limitations:** UI Batch mode is still preview-only. Automatic speaker-label removal, reference/audio matching, approved normalisation, full word-level alignment, independent NIST scoring validation, VAD/OSD, resource sampling, Excel reporting, complete resumability and strict fair decoding-policy alignment have not been completed. Optional adapter inference time may include lazy model loading; the pilot flags it in `timing_note` rather than treating it as pure ASR time. Faster-Whisper may fall back to CPU; model-specific runtime constraints remain. Do **not** use pilot results as publication-ready comparisons yet.
 
 **Test status:** GitHub commit made; local Windows GPU/GUI tests and test-suite execution are not yet verified. Run `python -m unittest discover -s tests -p "test_benchmark*.py"`, followed by a short non-sensitive audio with one model first. The user's five pending design decisions stay HOLD. No changes to `main`.
+
+## Batch + GPU / VAD / OSD experimental activation — 17 November 2026
+- `benchmark_batch.py`: runs a **sequential batch of researcher-confirmed pairs**; validates approved reference manifest and unique mapping before starting; writes one child experiment folder per audio, `batch_results.csv` and atomic `batch_manifest.json` after every recording. Failed inputs are logged and later pairs continue. **Resume is not implemented**; checkpointing only protects output already written.
+- `benchmark_batch_ui.py`: researcher explicitly maps each audio to a distinct **already approved** reference. No assumptions about name similarity. Any reapproval or source reselection resets mapping.
+- `benchmark_ui.py`: batch and single trial launch controls; checkboxes for GPU/CPU/RAM monitoring, Silero VAD and pyannote Community-1 OSD; optional HF access token. **Maximum 180 seconds per audio still applies**. Choices are optional and off by default for VAD/OSD; GPU monitoring defaults on.
+- `benchmark_resources.py`: system-wide nvidia-smi GPU-0 utilisation, used VRAM and temperature plus optional psutil system-wide CPU/RAM snapshots at ~0.5-second intervals. The peaks are **system-wide snapshots**, not process-specific CUDA allocations; this means background GPU workloads can influence results. `*_resources.csv` saved alongside each model output when available. Missing drivers/tools yield null values, not invented zero readings.
+- `benchmark_speech.py`: Silero VAD estimated speech/silence and *derived* overlap from cross-speaker intersections of Community-1's **non-exclusive** speaker diarisation timeline. Do **not** substitute its exclusive diarisation output to measure overlap. This is **not** a dedicated OSD classifier and is not validated overlap ground truth.
+- `requirements-benchmark.txt` contains optional `silero-vad` and `psutil` installations. Additional gated pyannote model access and optional CUDA runtime configuration may be required for OSD; per-feature failures are clearly marked `unavailable`, and ASR continues.
+- `tests/test_benchmark_batch.py` defines synthetic pairing and cross-speaker overlap tests. All tests require execution on the researcher's Windows environment; no actual RTX 5070 run was performed remotely.
+
+### First smoke test instructions
+```powershell
+git fetch origin
+git switch redscribe-benchmark-timeline
+git pull --ff-only
+python -m pip install -r requirements-benchmark.txt
+python -m unittest discover -s tests -p "test_benchmark*.py"
+python redscribe_gpu.py
+```
+Select Batch; select several audio recordings (each <= 3 min) and human-verified DOCX references; approve references individually; click **Verify batch audio / DOCX pairing** and explicitly assign each reference; select one known-working model (Turbo recommended) and enable GPU monitoring initially. Toggle Silero VAD and OSD only after first successful basic test, because OSD may need Hugging Face model access and substantial GPU RAM.
+
+**Scientific HOLD unchanged**: actual DOCX layout and extraction rules; BM/English/Kelantan normalisation; separate interviewer/participant scores; overlap handling in scoring; cross-backend CUDA/Windows/WSL compatibility. VAD/OSD are purely descriptive and do not affect WER. The experimental branch is not publication-ready and must not be merged without explicit approval.
