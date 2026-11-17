@@ -75,7 +75,7 @@ class RunnerIntegrityTests(unittest.TestCase):
         self.assertTrue(all(not row["wer"] for row in rows))
 
     def test_audio_modification_after_preflight_is_rejected(self):
-        with patch("benchmark_batch.sha256_file", side_effect=["original", "changed"]), \\
+        with patch("benchmark_batch.sha256_file", side_effect=["original", "changed"]), \
              patch("benchmark_batch.run_single_pilot") as runner:
             folder, state = run_batch_pilot(
                 self.pairs[:1], ("tiny",), self.root / "out")
@@ -86,8 +86,8 @@ class RunnerIntegrityTests(unittest.TestCase):
         self.assertTrue((folder / "batch_results.csv").is_file())
 
     def test_cancelled_single_run_does_not_fake_metric(self):
-        with patch("benchmark_pilot._decode_duration", return_value=10.0), \\
-             patch("benchmark_pilot.preflight_model", return_value="ready"), \\
+        with patch("benchmark_pilot._decode_duration", return_value=10.0), \
+             patch("benchmark_pilot.preflight_model", return_value="ready"), \
              patch("benchmark_pilot._transcribe", side_effect=PilotCancelled("stop")):
             folder, state = run_single_pilot(
                 self.pairs[0][0], self.pairs[0][1], ("tiny",),
