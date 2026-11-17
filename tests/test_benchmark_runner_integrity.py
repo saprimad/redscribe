@@ -97,6 +97,25 @@ class RunnerIntegrityTests(unittest.TestCase):
         self.assertIsNone(state["model_results"]["tiny"]["wer"])
         self.assertTrue((folder / "results.csv").is_file())
 
+    def test_one_model_failure_does_not_stop_later_models(self):
+        with patch("benchmark_pilot._decode_duration", return_value=10.0), \
+             patch("benchmark_pilot.preflight_model", return_value="ready"), \
+             patch("benchmark_pilot._transcribe", side_effect=[
+                 RuntimeError("synthetic model failure"),
+                 ("short synthetic text 0", 0.2, 0.8, "cpu", "int8", ""),
+             ]):
+            folder, state = run_single_pilot(
+                self.pairs[0][0], self.pairs[0][1], ("tiny", "base"),
+                self.root / "out")
+        self.assertEqual(state["status"], "completed_with_errors")
+        self.assertEqual(state["model_results"]["tiny"]["status"], "failed")
+        self.assertIsNone(state["model_results"]["tiny"]["wer"])
+        self.assertEqual(state["model_results"]["base"]["status"], "completed")
+        self.assertEqual(state["model_results"]["base"]["wer"], 0.0)
+        with (folder / "results.csv").open(encoding="utf-8-sig", newline="") as stream:
+            rows = list(csv.DictReader(stream))
+        self.assertEqual([row["status"] for row in rows], ["failed", "completed"])
+
     def test_cancelled_single_includes_skipped_models_in_csv(self):
         with patch("benchmark_pilot._decode_duration", return_value=10.0), \
              patch("benchmark_pilot.preflight_model", return_value="ready"), \
