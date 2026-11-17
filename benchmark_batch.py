@@ -14,6 +14,7 @@ from benchmark_config import BenchmarkConfig
 from benchmark_reference import sha256_file, verify_reference
 from benchmark_pilot import run_single_pilot, _atomic_json
 from benchmark_reporting import export_reporting
+from benchmark_excel import export_excel
 
 
 BATCH_COLUMNS = (
@@ -158,5 +159,10 @@ def run_batch_pilot(pairs, models, output_root, *, language="ms", notify=None,
         raise
     finally:
         _checkpoint(directory, state)
+        try:
+            export_excel(directory, state)
+        except Exception as excel_exc:
+            # Spreadsheet output is secondary; retain valid CSV and manifest.
+            notify("warning", f"Excel summary unavailable: {excel_exc}")
         notify("batch_finished", str(directory))
     return directory, state
