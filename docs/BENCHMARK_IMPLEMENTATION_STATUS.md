@@ -32,3 +32,11 @@ Functional benchmark execution, DOCX parsing and speaker filtering, validated gr
 - Source integration checked: header opens `benchmark_ui.open_benchmark_window` through lazy import.
 - Existing mode configuration uses the canonical eleven model keys from `model_options.py`.
 - Local Tkinter visual smoke test and full automated test run are **not yet performed**; users should verify on their Windows environment before considering the UI validated.
+
+## Design decisions recorded — 17 November 2026
+- Approved conceptual DOCX workflow: **Extract → Preview → Approve → Freeze → Score → Audit**, preserving the original human-corrected document.
+- Agreed on **one Python WER/CER scoring engine**; `jiwer` is a candidate, not yet installed or chosen. Existing `benchmark_metrics.py` is only a raw foundation and has not been independently validated.
+- NIST SCTK/SCLITE will serve as **independent validation** during development, not a mandatory runtime component.
+- Open ASR Leaderboard and MLPerf Whisper provide **reproducibility and consistent scoring principles**, not separate installed engines.
+- Record hashes and versions of approved references and model hypotheses for traceability.
+- The five pre-existing deferred methodological items remain **HOLD**. No parser, approval/freeze workflow or NIST integration has been implemented yet.
