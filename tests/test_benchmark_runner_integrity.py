@@ -97,6 +97,43 @@ class RunnerIntegrityTests(unittest.TestCase):
         self.assertIsNone(state["model_results"]["tiny"]["wer"])
         self.assertTrue((folder / "results.csv").is_file())
 
+    def test_cancelled_single_includes_skipped_models_in_csv(self):
+        with patch("benchmark_pilot._decode_duration", return_value=10.0), \
+             patch("benchmark_pilot.preflight_model", return_value="ready"), \
+             patch("benchmark_pilot._transcribe", side_effect=PilotCancelled("stop")):
+            folder, state = run_single_pilot(
+                self.pairs[0][0], self.pairs[0][1], ("tiny", "base"),
+                self.root / "out")
+        self.assertEqual(state["status"], "cancelled")
+        self.assertEqual(state["model_results"]["tiny"]["status"], "cancelled")
+        self.assertEqual(state["model_results"]["base"]["status"], "not_run")
+        with (folder / "results.csv").open(encoding="utf-8-sig", newline="") as stream:
+            rows = list(csv.DictReader(stream))
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(rows[1]["status"], "not_run")
+        self.assertEqual(rows[1]["wer"], "")
+
+    def test_batch_cancelled_child_keeps_remaining_recording_pending(self):
+        class DirectoryResult:
+            name = "synthetic_cancelled_child"
+
+        cancelled = {
+            "status": "cancelled",
+            "model_results": {"tiny": {"status": "cancelled", "wer": None, "cer": None}},
+        }
+        with patch("benchmark_batch.run_single_pilot",
+                   return_value=(DirectoryResult(), cancelled)) as runner:
+            folder, state = run_batch_pilot(self.pairs, ("tiny",), self.root / "out")
+        self.assertEqual(runner.call_count, 1)
+        self.assertEqual(state["status"], "cancelled")
+        self.assertEqual(state["items"][0]["status"], "cancelled")
+        self.assertEqual(state["items"][1]["status"], "pending")
+        with (folder / "batch_results.csv").open(encoding="utf-8-sig", newline="") as stream:
+            rows = list(csv.DictReader(stream))
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(rows[0]["status"], "cancelled")
+        self.assertEqual(rows[1]["status"], "pending")
+
     def test_failed_model_cleanup_does_not_override_valid_output(self):
         class BadClose:
             def close(self):
