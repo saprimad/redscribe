@@ -105,3 +105,37 @@ Manifest: experiment ID, UTC/local timestamp, audio and reference hashes, select
 
 ## Scope control
 This branch currently exists to preserve the **design and implementation roadmap**. Development should occur incrementally in this branch or subsequent feature branches; `main` stays unchanged until an explicitly reviewed merge.
+
+
+## Ground truth and scoring protocol — agreed 17 November 2026
+
+### Reference-document lifecycle (design agreed; implementation pending)
+**Original DOCX → Extract → Preview → Researcher Approve → Freeze → Score → Audit.**
+
+- Keep the original human-verified DOCX immutable and stored locally; do not commit participant recordings or transcripts to GitHub.
+- Extract spoken content into a separate reference copy. Preserve original wording, dialect, code-switching and fillers at extraction time.
+- Display extracted text, suspected speaker labels and excluded metadata for human verification, without silently dropping questionable material.
+- Require explicit researcher approval before scoring. The approved reference becomes a frozen, versioned artifact, with a SHA-256 hash of the source DOCX and of the approved scoring text. Any subsequent changes require a new approved version; previous scores remain associated with their original version.
+- Keep audio/reference pairings visible and confirmed. Never treat an unverified filename match as proof of the correct ground truth.
+- Export original/raw and approved scoring inputs, model hypotheses, provenance, extraction decisions and scorer configuration in an auditable local run folder, subject to participant-data confidentiality controls.
+
+### Single primary scoring engine
+- Use **one RedScribe Python scoring engine** to calculate WER, CER and substitution/deletion/insertion counts for all selected ASR models; choose a maintained implementation such as `jiwer` or validate/optimise the existing pure-Python foundation before production use.
+- Benchmark all model hypotheses against the same **approved frozen reference** and scoring policy.
+- Preserve **raw** text and versioned **normalised** text separately. Do not silently rewrite Kelantan dialect, fillers or code-switching. Exact normalisation policy remains HOLD.
+- For reproducibility, log metric library/version, text-processing rule version, model revision and scoring input hashes; make it possible to recompute scores from stored hypothesis/reference text without rerunning ASR.
+
+### External reference methods (not runtime dependencies)
+- **NIST SCTK/SCLITE**: independently cross-check representative WER/alignment cases during validation. This is a reference validator, not another score to average with the main engine.
+- **Open ASR Leaderboard**: adopt transparent benchmark documentation, preservation of raw outputs and reproducible scoring as methodological principles.
+- **MLPerf Whisper**: adopt consistent, explicitly specified processing/scoring across systems as a methodological principle.
+- These three are **complementary references**, not three scoring engines to install/run in parallel. Exact scoring equivalence must be demonstrated by tests rather than assumed.
+
+### Acceptance checks (future work)
+1. Human-approved DOCX extraction preserves verbatim content and traceable speaker-label exclusions.
+2. Hashes detect reference/audio changes and invalidate reuse of incompatible checkpoints.
+3. WER/CER arithmetic agrees with independent reference calculations on known examples; document any differences in normalisation or tokenisation.
+4. All eleven models use the same immutable reference and versioned scoring policy.
+5. Missing/invalid references prevent an accuracy score; failed model runs never receive an artificial 100% WER.
+
+**Still deferred:** DOCX layout specifics, BM/English/Kelantan normalisation, speaker-stratified scoring, overlap/interruptions policy, and GPU/backend compatibility. This agreement does not resolve those five HOLD items.
