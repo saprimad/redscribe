@@ -13,6 +13,7 @@ import gc
 import json
 import time
 import traceback
+import warnings
 
 from benchmark_config import BenchmarkConfig
 from benchmark_metrics import raw_wer, raw_cer
@@ -49,9 +50,12 @@ def _whisper_model(key):
 
 
 def _cleanup(model):
+    """Best-effort teardown; cleanup must not erase a valid ASR result."""
     try:
         if model is not None and hasattr(model, "close"):
             model.close()
+    except Exception as exc:
+        warnings.warn(f"ASR model cleanup warning: {type(exc).__name__}", RuntimeWarning)
     finally:
         del model
         gc.collect()
@@ -59,8 +63,8 @@ def _cleanup(model):
             import torch
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
-        except (ImportError, RuntimeError):
-            pass
+        except Exception as exc:
+            warnings.warn(f"CUDA cache cleanup warning: {type(exc).__name__}", RuntimeWarning)
 
 
 def _decode_duration(path):
@@ -106,7 +110,8 @@ def _transcribe(key, audio_path, language, stopped):
 
 def run_single_pilot(audio_path, reference_manifest, selected_models, output_root,
                      *, language="ms", notify=None, cancel=None,
-                     gpu_monitor=False, vad=False, osd=False, hf_token=None):
+                     gpu_monitor=False, vad=False, osd=False, hf_token=None,
+                     expected_audio_sha256=None):
     """Sequential pilot; each result saved as JSON and transcript TXT.
 
     notify(event, detail): worker-thread callback; caller marshals into GUI.
@@ -131,6 +136,8 @@ def run_single_pilot(audio_path, reference_manifest, selected_models, output_roo
         raise ValueError("Approved reference is empty")
     seconds = _decode_duration(audio)
     audio_hash = sha256_file(audio)
+    if expected_audio_sha256 is not None and audio_hash != expected_audio_sha256:
+        raise ValueError("Audio recording changed since batch preflight")
     results_folder = Path(output_root).resolve() / (
         datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "_" + uuid4().hex[:8])
     results_folder.mkdir(parents=True, exist_ok=False)
@@ -187,9 +194,17 @@ def run_single_pilot(audio_path, reference_manifest, selected_models, output_roo
                         resource_monitor_active = True
                     except Exception as monitor_exc:
                         notify("warning", f"{name}: resource monitoring unavailable: {monitor_exc}")
-                with monitoring:
-                    transcript, loading, transcription, device, precision, note = _transcribe(
-                        key, audio, language, stopped)
+                # A monitor failure must not make completed ASR inference disappear.
+                try:
+                    with monitoring:
+                        transcript, loading, transcription, device, precision, note = _transcribe(
+                            key, audio, language, stopped)
+                except PilotCancelled:
+                    raise
+                except Exception:
+                    # Only inference/monitor entry failures reach here; never
+                    # fabricate a successful score for an incomplete run.
+                    raise
                 if resource_monitor_active:
                     try:
                         resource_summary = monitoring.summary()
