@@ -45,6 +45,7 @@ def approve_reference(source_path, approved_text, output_dir, *, reviewer_acknow
         "reference_id": reference_id,
         "approved_utc": datetime.now(timezone.utc).isoformat(),
         "source_filename": source.name,
+        "source_path": str(source.resolve()),
         "source_sha256": source_hash,
         "approved_text_sha256": text_hash,
         "scoring_text_file": text_path.name,
@@ -68,7 +69,18 @@ def verify_reference(manifest_path):
     manifest_path = Path(manifest_path)
     with manifest_path.open(encoding="utf-8") as f:
         info = json.load(f)
-    reference = manifest_path.parent / info["scoring_text_file"]
+    reference = (manifest_path.parent / info["scoring_text_file"]).resolve()
+    if reference.parent != manifest_path.parent.resolve():
+        raise ValueError("Invalid scoring reference path in manifest")
     if not reference.is_file() or sha256_file(reference) != info["approved_text_sha256"]:
         raise ValueError("Frozen scoring reference missing or modified")
+    # Older manifests do not include a source path; callers should not treat
+    # them as provenance-verified until re-approved with the current version.
+    source_path = info.get("source_path")
+    if source_path:
+        source = Path(source_path)
+        if not source.is_file() or sha256_file(source) != info["source_sha256"]:
+            raise ValueError("Original DOCX source is missing or has changed since approval")
+    else:
+        raise ValueError("Legacy reference manifest lacks source integrity information; re-approve DOCX")
     return info
