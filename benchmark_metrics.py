@@ -2,7 +2,7 @@
 
 Scores are fractions (multiply by 100 for percentages). Empty references have
 undefined rates (None). Edit alignment uses deterministic S > D > I ties.
-For very long transcripts the O(N*M) allocation requires future optimisation.
+The dynamic-programming scorer uses linear working memory, but O(N*M) time.
 """
 from dataclasses import dataclass
 
@@ -27,44 +27,32 @@ class ErrorCounts:
         }
 
 def edit_counts(reference, hypothesis):
-    n, m = len(reference), len(hypothesis)
-    cost = [[0] * (m + 1) for _ in range(n + 1)]
-    operation = [[None] * (m + 1) for _ in range(n + 1)]
-    for i in range(1, n + 1):
-        cost[i][0], operation[i][0] = i, "D"
-    for j in range(1, m + 1):
-        cost[0][j], operation[0][j] = j, "I"
-    for i in range(1, n + 1):
-        for j in range(1, m + 1):
-            if reference[i - 1] == hypothesis[j - 1]:
-                cost[i][j], operation[i][j] = cost[i - 1][j - 1], "M"
-            else:
-                candidates = (
-                    (cost[i - 1][j - 1] + 1, "S"),
-                    (cost[i - 1][j] + 1, "D"),
-                    (cost[i][j - 1] + 1, "I"),
-                )
-                cost[i][j], operation[i][j] = min(candidates, key=lambda c: c[0])
-    i, j = n, m
-    s = d = ins = 0
-    while i or j:
-        action = operation[i][j]
-        if action == "M":
-            i -= 1
-            j -= 1
-        elif action == "S":
-            s += 1
-            i -= 1
-            j -= 1
-        elif action == "D":
-            d += 1
-            i -= 1
-        elif action == "I":
-            ins += 1
-            j -= 1
-        else:
-            raise AssertionError("Invalid alignment")
-    return ErrorCounts(s, d, ins, n)
+    """Count minimum-edit S/D/I with O(len(hypothesis)) working memory.
+
+    Ties prefer substitution, then deletion, then insertion. This produces
+    deterministic error totals but deliberately does not export alignment.
+    """
+    m = len(hypothesis)
+    # (edit_distance, substitutions, deletions, insertions)
+    previous = [(j, 0, 0, j) for j in range(m + 1)]
+    for i, reference_unit in enumerate(reference, start=1):
+        current = [(i, 0, i, 0)]
+        for j, hypothesis_unit in enumerate(hypothesis, start=1):
+            if reference_unit == hypothesis_unit:
+                current.append(previous[j - 1])
+                continue
+            diag = previous[j - 1]
+            delete = previous[j]
+            insert = current[j - 1]
+            candidates = (
+                (diag[0] + 1, diag[1] + 1, diag[2], diag[3]),
+                (delete[0] + 1, delete[1], delete[2] + 1, delete[3]),
+                (insert[0] + 1, insert[1], insert[2], insert[3] + 1),
+            )
+            current.append(min(candidates, key=lambda x: x[0]))
+        previous = current
+    _, substitutions, deletions, insertions = previous[-1]
+    return ErrorCounts(substitutions, deletions, insertions, len(reference))
 
 def raw_wer(reference: str, hypothesis: str) -> ErrorCounts:
     """Whitespace tokenisation, case/punctuation preserved."""
