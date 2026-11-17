@@ -1065,6 +1065,8 @@ class RedScribeApp:
         tk.Label(brand, text="Research Speech Transcription System", bg="white", fg=c["muted"]).pack(anchor="w")
         ttk.Button(header, text="Settings", style="RedScribe.TButton",
                    command=self.open_token_settings).pack(side="right")
+        ttk.Button(header, text="Benchmarking Mode", style="RedScribe.TButton",
+                   command=self.open_benchmark_preview).pack(side="right", padx=(0, 8))
         tk.Label(header, text="Audio processed locally", bg="#EDF8EE", fg="#24623B",
                  padx=10, pady=7).pack(side="right", padx=14)
 
@@ -1209,6 +1211,11 @@ class RedScribeApp:
         support.pack(side="left")
         support.bind("<Button-1>", self.show_support)
         tk.Label(footer, text="Automated draft - verify against the recording", bg="white", fg=c["muted"], font=(self.ui_font, 9)).pack(side="right")
+
+    def open_benchmark_preview(self):
+        """Open an isolated benchmark UI without changing transcription state."""
+        from benchmark_ui import open_benchmark_window
+        open_benchmark_window(self.root)
 
     def toggle_study_details(self):
         self.study_details_open = not self.study_details_open
