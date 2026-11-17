@@ -176,25 +176,32 @@ def run_single_pilot(audio_path, reference_manifest, selected_models, output_roo
                 # Optional models may reject unsupported language or unavailable CUDA.
                 preflight_model(key, language)
                 from contextlib import nullcontext
+                monitoring = nullcontext()
+                resource_monitor_active = False
                 if gpu_monitor:
-                    from benchmark_resources import ResourceMonitor
-                    monitoring = ResourceMonitor()
-                else:
-                    monitoring = nullcontext()
+                    try:
+                        from benchmark_resources import ResourceMonitor
+                        monitoring = ResourceMonitor()
+                        resource_monitor_active = True
+                    except Exception as monitor_exc:
+                        notify("warning", f"{name}: resource monitoring unavailable: {monitor_exc}")
                 with monitoring:
                     transcript, loading, transcription, device, precision, note = _transcribe(
                         key, audio, language, stopped)
-                if gpu_monitor:
-                    resource_summary = monitoring.summary()
-                    row.update(
-                        gpu_util_peak_percent=resource_summary.get("gpu_util_percent_peak"),
-                        gpu_memory_peak_mb=resource_summary.get("gpu_memory_used_mb_peak"),
-                        gpu_temp_peak_c=resource_summary.get("gpu_temperature_c_peak"),
-                        cpu_peak_percent=resource_summary.get("cpu_percent_peak"),
-                        system_ram_peak_mb=resource_summary.get("ram_used_mb_peak"),
-                    )
-                    safe_monitor_name = f"{i:02d}_{key.replace(' ', '_').replace('/', '_')}"
-                    monitoring.save_csv(results_folder / (safe_monitor_name + "_resources.csv"))
+                if resource_monitor_active:
+                    try:
+                        resource_summary = monitoring.summary()
+                        row.update(
+                            gpu_util_peak_percent=resource_summary.get("gpu_util_percent_peak"),
+                            gpu_memory_peak_mb=resource_summary.get("gpu_memory_used_mb_peak"),
+                            gpu_temp_peak_c=resource_summary.get("gpu_temperature_c_peak"),
+                            cpu_peak_percent=resource_summary.get("cpu_percent_peak"),
+                            system_ram_peak_mb=resource_summary.get("ram_used_mb_peak"),
+                        )
+                        safe_monitor_name = f"{i:02d}_{key.replace(' ', '_').replace('/', '_')}"
+                        monitoring.save_csv(results_folder / (safe_monitor_name + "_resources.csv"))
+                    except Exception as monitor_exc:
+                        notify("warning", f"{name}: monitor results unavailable: {monitor_exc}")
                 word = raw_wer(reference, transcript)
                 char = raw_cer(reference, transcript)
                 safe_name = f"{i:02d}_{key.replace(' ', '_').replace('/', '_')}"
