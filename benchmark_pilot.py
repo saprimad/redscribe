@@ -26,6 +26,8 @@ FIELDS = (
     "deletions", "insertions", "reference_words", "reference_characters",
     "loading_seconds", "transcription_seconds", "rtf", "audio_seconds",
     "device", "precision", "timing_note", "error",
+    "gpu_util_peak_percent", "gpu_memory_peak_mb", "gpu_temp_peak_c",
+    "cpu_peak_percent", "system_ram_peak_mb",
 )
 
 
@@ -183,7 +185,14 @@ def run_single_pilot(audio_path, reference_manifest, selected_models, output_roo
                     transcript, loading, transcription, device, precision, note = _transcribe(
                         key, audio, language, stopped)
                 if gpu_monitor:
-                    row["resource_summary"] = monitoring.summary()
+                    resource_summary = monitoring.summary()
+                    row.update(
+                        gpu_util_peak_percent=resource_summary.get("gpu_util_percent_peak"),
+                        gpu_memory_peak_mb=resource_summary.get("gpu_memory_used_mb_peak"),
+                        gpu_temp_peak_c=resource_summary.get("gpu_temperature_c_peak"),
+                        cpu_peak_percent=resource_summary.get("cpu_percent_peak"),
+                        system_ram_peak_mb=resource_summary.get("ram_used_mb_peak"),
+                    )
                     safe_monitor_name = f"{i:02d}_{key.replace(' ', '_').replace('/', '_')}"
                     monitoring.save_csv(results_folder / (safe_monitor_name + "_resources.csv"))
                 word = raw_wer(reference, transcript)
