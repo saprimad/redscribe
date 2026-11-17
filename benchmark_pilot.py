@@ -17,6 +17,7 @@ import warnings
 
 from benchmark_config import BenchmarkConfig
 from benchmark_metrics import raw_wer, raw_cer
+from benchmark_reporting import export_reporting
 from benchmark_reference import sha256_file, verify_reference
 from model_options import ASR_MODEL_LABELS, preflight_model
 from asr_backends import EXTRA_MODELS, LocalASR
@@ -288,5 +289,18 @@ def run_single_pilot(audio_path, reference_manifest, selected_models, output_roo
                 manifest["model_results"][key] = pending
         _atomic_json(results_folder / "manifest.json", manifest)
         _write_results_csv(results_folder, manifest)
+        try:
+            export_reporting(results_folder, {
+                "models": list(config.models),
+                "items": [{
+                    "audio": audio.name,
+                    "audio_sha256": audio_hash,
+                    "status": manifest["status"],
+                    "model_results": manifest["model_results"],
+                }],
+            })
+        except Exception as report_exc:
+            # A secondary report must not invalidate a valid frozen result.
+            notify("warning", f"Summary reporting unavailable: {report_exc}")
         notify("finished", str(results_folder))
     return results_folder, manifest
