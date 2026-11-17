@@ -1,11 +1,13 @@
 # RedScribe Benchmarking Mode — Implementation status
 
-**17 November 2026 — Phase 1 foundation only.** This is not a working UI, runner or validated benchmark.
+**17 November 2026 — Phase 1 foundation + Tkinter configuration preview.** This is not a working benchmark runner or validated benchmark.
 
 ## Current additions
 - `benchmark_config.py`: eleven stable desktop-model keys, seven selected by default, strict validation and canonical selection order. Single/batch **configuration only**.
 - `benchmark_metrics.py`: standalone raw WER/CER edit counts (S/D/I), corpus totals and macro-average; deliberately no preprocessing assumptions.
 - `tests/test_benchmark_foundation.py`: small deterministic unit-test cases for configuration, editing and aggregation.
+- `benchmark_ui.py`: standalone Tkinter Toplevel preview with Single/Batch controls, all 11 model checkboxes (7 default), file chooser, validation of non-empty selection and explanatory pre-run warning. It cannot start ASR.
+- `redscribe_gpu.py`: a single header button and lazy callback open the independent preview. Existing transcription controls and processing are not deliberately altered.
 
 ## Audit observations
 - `redscribe_gpu.py` is the current Tkinter application; not modified here.
@@ -15,7 +17,7 @@
 - `requirements.txt` currently has no dedicated WER package; this foundation uses pure Python.
 
 ## Not implemented
-GUI tab/checkboxes, DOCX parsing and speaker filtering, validated ground-truth matching, model queue, checkpoints, GPU monitoring, VAD/OSD, Excel reporting, statistical testing, normalised scoring and word-level alignment exports. No actual audio was scored.
+Functional benchmark execution, DOCX parsing and speaker filtering, validated ground-truth matching, model queue, checkpoints, GPU monitoring, VAD/OSD, Excel reporting, statistical testing, normalised scoring and word-level alignment exports. The UI is a **preview**, not a finished tab or production runner. No actual audio was scored.
 
 ## Deferred/HOLD decisions
 1. Structure of actual ground-truth Word documents.
@@ -25,3 +27,8 @@ GUI tab/checkboxes, DOCX parsing and speaker filtering, validated ground-truth m
 5. Model backend/dependency/GPU compatibility.
 
 **Safety:** Do not import participant transcripts into GitHub. Keep this branch separate from `main` until reviewed. The raw metrics implementation uses quadratic dynamic-programming memory and needs profiling/optimisation before full-length research transcripts are scored.
+
+## UI preview verification
+- Source integration checked: header opens `benchmark_ui.open_benchmark_window` through lazy import.
+- Existing mode configuration uses the canonical eleven model keys from `model_options.py`.
+- Local Tkinter visual smoke test and full automated test run are **not yet performed**; users should verify on their Windows environment before considering the UI validated.
