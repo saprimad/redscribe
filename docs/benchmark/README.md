@@ -13,3 +13,8 @@ The current **experimental** benchmark workflow shows how audio recordings and r
 - [Reviewed v7 — HTML](RedScribe_Benchmark_Workflow_Reviewed_v7.html)
 
 **Research status:** Figure reflects code/design in the `redscribe-benchmark-timeline` experimental branch, not a completed or independently validated scientific benchmark. Normalisation, diarisation-ground-truth evaluation and other methodological HOLD items remain open. Do not commit recordings, approved transcript data, or personally identifiable material to this repository.
+
+## Code audit and publication readiness
+
+- [Critical static code audit — 18 November 2026](CRITICAL_CODE_AUDIT_2026-11-18.md): confirmed implementation fixes, unresolved scoring comparability risks, and priority Windows/GPU test plan.
+- **Do not describe the experimental benchmarking mode as IEEE-validated yet.** Run and record full synthetic tests and real-device pilot checks first; maintain the five existing methodological HOLD decisions.
