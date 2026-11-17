@@ -29,6 +29,7 @@ class BenchmarkWindow:
                          for key in ALL_MODELS}
         self.audio_files = ()
         self.reference_files = ()
+        self.approved_references = {}
         self.audio_summary = tk.StringVar(master=self.window, value="No audio selected")
         self.reference_summary = tk.StringVar(master=self.window, value="No ground truth selected")
         self.model_summary = tk.StringVar(master=self.window)
@@ -65,6 +66,10 @@ class BenchmarkWindow:
         ttk.Label(files, textvariable=self.audio_summary, wraplength=660).pack(anchor="w", pady=(4, 10))
         ttk.Button(files, text="Select ground truth DOCX", command=self.pick_references).pack(anchor="w")
         ttk.Label(files, textvariable=self.reference_summary, wraplength=660).pack(anchor="w", pady=(4, 3))
+        ttk.Button(files, text="Review / Approve / Freeze DOCX",
+                   command=self.open_reference_review).pack(anchor="w", pady=(7, 0))
+        ttk.Label(files, text="References are approved individually; selection alone is not approval.",
+                  wraplength=660).pack(anchor="w", pady=(3, 0))
         ttk.Label(files, text="DOCX speaker labels and file matching must be verified before scoring.",
                   foreground="#805b33", wraplength=660).pack(anchor="w", pady=(6, 0))
 
@@ -103,6 +108,19 @@ class BenchmarkWindow:
         ttk.Button(footer, text="Review configuration (no run)",
                    command=self.review).pack(side="right", padx=(0, 10))
 
+    def open_reference_review(self):
+        if not self.reference_files:
+            messagebox.showwarning("No DOCX selected", "Choose ground-truth DOCX file(s) first.",
+                                   parent=self.window)
+            return
+        from benchmark_reference_ui import open_ground_truth_review
+        open_ground_truth_review(self.window, self.reference_files, self.mark_reference_approved)
+
+    def mark_reference_approved(self, source_path, manifest_path):
+        self.approved_references[source_path] = manifest_path
+        self.reference_summary.set(self.describe_files(self.reference_files) +
+                                   f" | {len(self.approved_references)} locally approved")
+
     def add_model_checkbox(self, parent, key):
         ttk.Checkbutton(parent, text=ASR_MODEL_LABELS[key], variable=self.selected[key],
                         command=self.refresh_models).pack(anchor="w", pady=2)
@@ -120,6 +138,7 @@ class BenchmarkWindow:
     def reset_files(self):
         self.audio_files = ()
         self.reference_files = ()
+        self.approved_references = {}
         self.audio_summary.set("No audio selected")
         self.reference_summary.set("No ground truth selected")
 
@@ -151,6 +170,7 @@ class BenchmarkWindow:
             if not value:
                 return
             self.reference_files = tuple(value)
+        self.approved_references = {}
         self.reference_summary.set(self.describe_files(self.reference_files))
 
     @staticmethod
@@ -181,7 +201,8 @@ class BenchmarkWindow:
             f"Audio files: {len(self.audio_files)}\n"
             f"DOCX files: {len(self.reference_files)}\n"
             f"Selected models: {len(config.models)}\n\n"
-            "Ground-truth content and file matching have NOT been validated.\n"
+            f"Approved references (local): {len(self.approved_references)}/{len(self.reference_files)}\\n"
+            "Audio/reference file matching has NOT been validated.\\n"
             "No benchmark has started. Execution remains disabled pending implementation.",
             parent=self.window,
         )
