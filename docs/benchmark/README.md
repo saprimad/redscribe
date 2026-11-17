@@ -18,3 +18,8 @@ The current **experimental** benchmark workflow shows how audio recordings and r
 
 - [Critical static code audit — 18 November 2026](CRITICAL_CODE_AUDIT_2026-11-18.md): confirmed implementation fixes, unresolved scoring comparability risks, and priority Windows/GPU test plan.
 - **Do not describe the experimental benchmarking mode as IEEE-validated yet.** Run and record full synthetic tests and real-device pilot checks first; maintain the five existing methodological HOLD decisions.
+
+## Ground-truth preparation
+
+- [Ground-truth preparation and verification protocol](GROUND_TRUTH_PROTOCOL.md) — DOCX extraction warnings, manual audio/span checks, frozen-reference integrity and supporting NIST/Interspeech/LREC-COLING evidence.
+- UI approval now requires four manual confirmation checks and detects a DOCX change since the preview. No BM/Kelantan text normalisation policy was changed.
