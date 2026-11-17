@@ -1,0 +1,126 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>RedScribe Benchmark Workflow — Reviewed v7</title>
+<style>*{box-sizing:border-box}body{margin:0;background:#f3f6f8;color:#1f313a;font:15px Arial,Helvetica,sans-serif}header{max-width:1900px;margin:auto;padding:24px 24px 12px}h1{margin:0 0 10px;font-size:26px}p{margin:0;color:#4f6672;line-height:1.5}.toolbar{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}button{padding:9px 14px;border:1px solid #aac0cb;background:#fff;border-radius:6px;cursor:pointer}button:hover{background:#e9f1f5}main{max-width:1900px;margin:auto;padding:0 18px 28px}.frame{background:#fff;border:1px solid #c8d5dc;border-radius:8px;overflow:auto}.canvas svg{display:block;width:100%;height:auto}</style></head><body>
+<header><h1>RedScribe Benchmark Workflow</h1><p>Reviewed v7: Output column moved left so the Processing → Output gap matches the Input → Processing gap.</p><div class="toolbar"><button id="svgBtn">Download SVG</button><button id="pngBtn">Download PNG</button><button id="printBtn">Print / Save PDF</button></div></header>
+<main><div class="frame"><div class="canvas"><svg xmlns="http://www.w3.org/2000/svg" id="redscribe-flowchart" viewBox="0 0 1820 1532" width="1820" height="1532" role="img" aria-label="RedScribe experimental benchmark workflow: input, processing, output"><defs><marker id="a-blue" markerWidth="10" markerHeight="10" refX="8.8" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M0 0L10 5L0 10Z" fill="#17617c"/></marker><marker id="a-green" markerWidth="10" markerHeight="10" refX="8.8" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M0 0L10 5L0 10Z" fill="#286c3b"/></marker></defs>
+<rect x="0" y="0" width="1820" height="1532" fill="#fff" stroke="#fff" stroke-width="0"/>
+<path id="edge-docx-input" d="M 305.0 192.0 L 382.0 192.0" fill="none" stroke="#17617c" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#a-blue)"/>
+<path id="edge-researcher-approval" d="M 305.0 284.0 L 336.0 284.0 Q 348.0 284.0 348.0 272.0 L 348.0 226.9 Q 348.0 216.0 358.9 216.0 L 382.0 216.0" fill="none" stroke="#17617c" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#a-blue)"/>
+<path id="edge-audio-input" d="M 305.0 386.0 L 382.0 386.0" fill="none" stroke="#17617c" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#a-blue)"/>
+<path id="edge-model-choice" d="M 305.0 662.0 L 382.0 662.0" fill="none" stroke="#17617c" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#a-blue)"/>
+<path id="edge-experiment-settings" d="M 305.0 794.0 L 382.0 794.0" fill="none" stroke="#17617c" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#a-blue)"/>
+<path id="edge-docx-to-pair" d="M 816.0 232.0 L 816.0 346.0" fill="none" stroke="#17617c" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#a-blue)"/>
+<path id="edge-pair-to-vad" d="M 522.0 426.0 L 522.0 484.0" fill="none" stroke="#286c3b" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="9 7" marker-end="url(#a-green)"/>
+<path id="edge-pair-to-osd" d="M 818.0 426.0 L 818.0 484.0" fill="none" stroke="#286c3b" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="9 7" marker-end="url(#a-green)"/>
+<path id="edge-pair-to-duration" d="M 1118.0 426.0 L 1118.0 484.0" fill="none" stroke="#17617c" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#a-blue)"/>
+<path id="edge-duration-to-preflight" d="M 1118.0 574.0 L 1118.0 622.0" fill="none" stroke="#17617c" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#a-blue)"/>
+<path id="edge-preflight-to-run" d="M 816.0 702.0 L 816.0 754.0" fill="none" stroke="#17617c" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#a-blue)"/>
+<path id="edge-run-to-fork" d="M 816.0 834.0 L 816.0 860.0" fill="none" stroke="#17617c" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<path id="edge-fork-bus" d="M 522.0 860.0 L 1118.0 860.0" fill="none" stroke="#17617c" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<path id="edge-fork-to-model-1" d="M 522.0 860.0 L 522.0 889.0" fill="none" stroke="#17617c" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#a-blue)"/>
+<path id="edge-fork-to-model-2" d="M 816.0 860.0 L 816.0 889.0" fill="none" stroke="#17617c" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#a-blue)"/>
+<path id="edge-fork-to-model-3" d="M 1118.0 860.0 L 1118.0 889.0" fill="none" stroke="#17617c" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#a-blue)"/>
+<path id="edge-model-to-bus-1" d="M 522.0 979.0 L 522.0 1008.0" fill="none" stroke="#17617c" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<path id="edge-model-to-bus-2" d="M 816.0 979.0 L 816.0 1008.0" fill="none" stroke="#17617c" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<path id="edge-model-to-bus-3" d="M 1118.0 979.0 L 1118.0 1008.0" fill="none" stroke="#17617c" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<path id="edge-model-bus" d="M 522.0 1008.0 L 1118.0 1008.0" fill="none" stroke="#17617c" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<path id="edge-join-to-scorer" d="M 670.0 1008.0 L 670.0 1044.0" fill="none" stroke="#17617c" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#a-blue)"/>
+<path id="edge-score-to-checkpoint" d="M 670.0 1126.0 L 670.0 1191.0" fill="none" stroke="#17617c" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#a-blue)"/>
+<path id="edge-checkpoint-to-batch" d="M 816.0 1271.0 L 816.0 1334.0" fill="none" stroke="#17617c" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#a-blue)"/>
+<path id="edge-run-to-raw-transcripts" d="M 1250.0 794.0 L 1327.0 794.0" fill="none" stroke="#17617c" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#a-blue)"/>
+<path id="edge-run-to-monitor" d="M 1250.0 821.0 L 1276.0 821.0 Q 1288.0 821.0 1288.0 833.0 L 1288.0 1002.0 Q 1288.0 1014.0 1276.0 1014.0 L 1131.0 1014.0 Q 1119.0 1014.0 1119.0 1026.0 L 1119.0 1044.0" fill="none" stroke="#286c3b" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="9 7" marker-end="url(#a-green)"/>
+<path id="edge-monitor-to-logs" d="M 1250.0 1085.0 L 1327.0 1085.0" fill="none" stroke="#286c3b" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="9 7" marker-end="url(#a-green)"/>
+<path id="edge-checkpoint-to-accuracy" d="M 1250.0 1231.0 L 1327.0 1231.0" fill="none" stroke="#17617c" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#a-blue)"/>
+<path id="edge-aggregate-to-audit" d="M 1250.0 1374.0 L 1327.0 1374.0" fill="none" stroke="#17617c" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#a-blue)"/>
+<rect x="45" y="39" width="260" height="60" fill="#fff" stroke="#90a8b4" stroke-width="1.4"/>
+<text x="175.0" y="77.6" fill="#20333c" font-size="26" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="400">Input</text>
+<rect x="382" y="39" width="868" height="60" fill="#fff" stroke="#90a8b4" stroke-width="1.4"/>
+<text x="816.0" y="77.6" fill="#20333c" font-size="26" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="400">Processing</text>
+<rect x="1327" y="621" width="300" height="60" fill="#fff" stroke="#90a8b4" stroke-width="1.4"/>
+<text x="1477.0" y="659.6" fill="#20333c" font-size="26" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="400">Output</text>
+<rect x="45" y="152" width="260" height="80" fill="#959da2" stroke="#394850" stroke-width="1.7"/>
+<text x="175.0" y="185.3" fill="#fff" font-size="19" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="400">Human-verified DOCX</text>
+<text x="175.0" y="211.3" fill="#fff" font-size="19" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="400">Reference source</text>
+<rect x="45" y="244" width="260" height="80" fill="#959da2" stroke="#394850" stroke-width="1.7"/>
+<text x="175.0" y="277.3" fill="#fff" font-size="19" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="400">Researcher approval</text>
+<text x="175.0" y="303.3" fill="#fff" font-size="19" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="400">of scoring reference</text>
+<rect x="45" y="346" width="260" height="80" fill="#959da2" stroke="#394850" stroke-width="1.7"/>
+<text x="175.0" y="379.3" fill="#fff" font-size="19" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="400">Audio recordings</text>
+<text x="175.0" y="405.3" fill="#fff" font-size="19" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="400">Single / batch</text>
+<rect x="45" y="622" width="260" height="80" fill="#959da2" stroke="#394850" stroke-width="1.7"/>
+<text x="175.0" y="655.3" fill="#fff" font-size="19" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="400">ASR model choice</text>
+<text x="175.0" y="681.3" fill="#fff" font-size="19" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="400">7 core + 4 legacy</text>
+<rect x="45" y="754" width="260" height="80" fill="#959da2" stroke="#394850" stroke-width="1.7"/>
+<text x="175.0" y="787.3" fill="#fff" font-size="19" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="400">Experiment settings</text>
+<text x="175.0" y="813.3" fill="#fff" font-size="19" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="400">Language / optional features</text>
+<rect x="382" y="152" width="868" height="80" fill="#1d607b" stroke="#263c47" stroke-width="1.7"/>
+<text x="816.0" y="185.3" fill="#fff" font-size="19" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="400">DOCX extraction → preview → human approval</text>
+<text x="816.0" y="211.3" fill="#fff" font-size="19" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="400">Freeze scoring reference + SHA-256</text>
+<rect x="382" y="346" width="868" height="80" fill="#1d607b" stroke="#263c47" stroke-width="1.7"/>
+<text x="816.0" y="379.3" fill="#fff" font-size="19" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="400">Verify audio–DOCX mapping</text>
+<text x="816.0" y="405.3" fill="#fff" font-size="19" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="400">Each recording paired with its approved reference</text>
+<rect x="392" y="484" width="260" height="90" fill="#225e37" stroke="#263c47" stroke-width="1.7"/>
+<text x="522.0" y="508.9" fill="#fff" font-size="18" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="400">Silero VAD</text>
+<text x="522.0" y="534.9" fill="#fff" font-size="18" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="400">Speech / non-speech</text>
+<text x="522.0" y="560.9" fill="#fff" font-size="18" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="400">(optional)</text>
+<rect x="688" y="484" width="260" height="90" fill="#225e37" stroke="#263c47" stroke-width="1.7"/>
+<text x="818.0" y="508.9" fill="#fff" font-size="18" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="400">pyannote Community-1</text>
+<text x="818.0" y="534.9" fill="#fff" font-size="18" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="400">Derived overlap estimate</text>
+<text x="818.0" y="560.9" fill="#fff" font-size="18" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="400">(optional)</text>
+<rect x="988" y="484" width="260" height="90" fill="#1d607b" stroke="#263c47" stroke-width="1.7"/>
+<text x="1118.0" y="508.9" fill="#fff" font-size="18" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="400">Audio duration</text>
+<text x="1118.0" y="534.9" fill="#fff" font-size="18" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="400">Decoded duration / limit</text>
+<text x="1118.0" y="560.9" fill="#fff" font-size="18" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="400">(required pilot check)</text>
+<rect x="382" y="622" width="868" height="80" fill="#1d607b" stroke="#263c47" stroke-width="1.7"/>
+<text x="816.0" y="655.3" fill="#fff" font-size="19" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="400">Preflight selected ASR models / dependencies</text>
+<text x="816.0" y="681.3" fill="#fff" font-size="19" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="400">Check model availability, language and hardware</text>
+<rect x="382" y="754" width="868" height="80" fill="#1d607b" stroke="#263c47" stroke-width="1.7"/>
+<text x="816.0" y="787.3" fill="#fff" font-size="19" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="400">Process selected ASR models sequentially</text>
+<text x="816.0" y="813.3" fill="#fff" font-size="19" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="400">Each paired audio → per-model hypothesis</text>
+<rect x="392" y="889" width="260" height="90" fill="#1d607b" stroke="#263c47" stroke-width="1.7"/>
+<text x="522.0" y="913.6" fill="#fff" font-size="17" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="400">Faster-Whisper</text>
+<text x="522.0" y="939.6" fill="#fff" font-size="17" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="400">Large-v3 / Turbo</text>
+<text x="522.0" y="965.6" fill="#fff" font-size="17" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="400">Medium / Small / Base / Tiny</text>
+<rect x="688" y="889" width="260" height="90" fill="#1d607b" stroke="#263c47" stroke-width="1.7"/>
+<text x="818.0" y="913.6" fill="#fff" font-size="17" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="400">Transformers / CTC</text>
+<text x="818.0" y="939.6" fill="#fff" font-size="17" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="400">Mesolitica / MMS</text>
+<text x="818.0" y="965.6" fill="#fff" font-size="17" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="400">BuzzASR Malay</text>
+<rect x="988" y="889" width="260" height="90" fill="#1d607b" stroke="#263c47" stroke-width="1.7"/>
+<text x="1118.0" y="913.6" fill="#fff" font-size="17" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="400">Qwen-ASR runtime</text>
+<text x="1118.0" y="939.6" fill="#fff" font-size="17" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="400">Qwen3-ASR 1.7B</text>
+<text x="1118.0" y="965.6" fill="#fff" font-size="17" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="400">CUDA FP16</text>
+<rect x="382" y="1044" width="568" height="82" fill="#1d607b" stroke="#263c47" stroke-width="1.7"/>
+<text x="666.0" y="1077.9" fill="#fff" font-size="18" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="400">Compare hypotheses with approved reference</text>
+<text x="666.0" y="1103.9" fill="#fff" font-size="18" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="400">Raw WER / CER + S / D / I</text>
+<rect x="988" y="1044" width="262" height="82" fill="#225e37" stroke="#263c47" stroke-width="1.7"/>
+<text x="1119.0" y="1064.6" fill="#fff" font-size="17" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="400">NVIDIA-SMI / psutil</text>
+<text x="1119.0" y="1090.6" fill="#fff" font-size="17" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="400">GPU / CPU / RAM</text>
+<text x="1119.0" y="1116.6" fill="#fff" font-size="17" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="400">sampling (optional)</text>
+<rect x="382" y="1191" width="868" height="80" fill="#1d607b" stroke="#263c47" stroke-width="1.7"/>
+<text x="816.0" y="1224.3" fill="#fff" font-size="19" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="400">Per-model results and status checkpoints</text>
+<text x="816.0" y="1250.3" fill="#fff" font-size="19" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="400">Failed models recorded without fabricated scores</text>
+<rect x="382" y="1334" width="868" height="80" fill="#1d607b" stroke="#263c47" stroke-width="1.7"/>
+<text x="816.0" y="1367.3" fill="#fff" font-size="19" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="400">Aggregate batch results, save CSV / JSON</text>
+<text x="816.0" y="1393.3" fill="#fff" font-size="19" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="400">Provenance, transcripts and audit manifest</text>
+<rect x="1327" y="754" width="300" height="80" fill="#1d607b" stroke="#263c47" stroke-width="1.7"/>
+<text x="1477.0" y="787.3" fill="#fff" font-size="19" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="400">Model transcripts</text>
+<text x="1477.0" y="813.3" fill="#fff" font-size="19" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="400">TXT (raw hypotheses)</text>
+<rect x="1327" y="1044" width="300" height="82" fill="#1d607b" stroke="#263c47" stroke-width="1.7"/>
+<text x="1477.0" y="1078.3" fill="#fff" font-size="19" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="400">Speech / performance logs</text>
+<text x="1477.0" y="1104.3" fill="#fff" font-size="19" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="400">VAD · OSD · GPU samples</text>
+<rect x="1327" y="1191" width="300" height="80" fill="#1d607b" stroke="#263c47" stroke-width="1.7"/>
+<text x="1477.0" y="1224.3" fill="#fff" font-size="19" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="400">Accuracy results</text>
+<text x="1477.0" y="1250.3" fill="#fff" font-size="19" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="400">Per-model / batch CSV</text>
+<rect x="1327" y="1334" width="300" height="80" fill="#1d607b" stroke="#263c47" stroke-width="1.7"/>
+<text x="1477.0" y="1367.3" fill="#fff" font-size="19" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="400">Reproducibility records</text>
+<text x="1477.0" y="1393.3" fill="#fff" font-size="19" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="400">JSON + SHA-256 hashes</text>
+<text x="910.0" y="1467.6" fill="#20333c" font-size="17" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="400">Solid blue: required execution and scoring  ·  Dashed green: optional observational analysis / monitoring</text>
+<text x="910.0" y="1499.3" fill="#20333c" font-size="16" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="400">Experimental branch · Raw scoring only · NIST validation pending · Maximum 3 minutes per audio</text>
+</svg></div></div></main>
+<script>
+const svg=document.getElementById('redscribe-flowchart');
+function serialise(){const cp=svg.cloneNode(true);cp.removeAttribute('id');cp.setAttribute('xmlns','http://www.w3.org/2000/svg');return new XMLSerializer().serializeToString(cp)}
+function download(blob,name){const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),3000)}
+document.getElementById('svgBtn').onclick=()=>download(new Blob([serialise()],{type:'image/svg+xml;charset=utf-8'}),'RedScribe_Benchmark_Workflow_Reviewed_v7.svg');
+document.getElementById('pngBtn').onclick=()=>{const url=URL.createObjectURL(new Blob([serialise()],{type:'image/svg+xml;charset=utf-8'})),img=new Image();img.onload=()=>{const c=document.createElement('canvas');c.width=3640;c.height=3064;const ctx=c.getContext('2d');ctx.fillStyle='white';ctx.fillRect(0,0,c.width,c.height);ctx.drawImage(img,0,0,c.width,c.height);c.toBlob(b=>download(b,'RedScribe_Benchmark_Workflow_Reviewed_v7.png'),'image/png');URL.revokeObjectURL(url)};img.src=url;};
+document.getElementById('printBtn').onclick=()=>window.print();
+</script></body></html>
