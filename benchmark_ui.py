@@ -4,6 +4,7 @@ UI-only scaffold. Does NOT start transcription, load models, alter existing
 transcription settings, or send recordings anywhere.
 """
 import os
+import queue
 import threading
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
@@ -38,6 +39,8 @@ class BenchmarkWindow:
         self.hf_token = tk.StringVar(master=self.window, value="")
         self.pilot_thread = None
         self.pilot_cancel = threading.Event()
+        self.worker_events = queue.Queue()
+        self.window.protocol("WM_DELETE_WINDOW", self.request_close)
         self.language = tk.StringVar(master=self.window, value="Bahasa Melayu")
         self.pilot_status = tk.StringVar(master=self.window, value="Pilot not started")
         self.audio_summary = tk.StringVar(master=self.window, value="No audio selected")
@@ -131,7 +134,7 @@ class BenchmarkWindow:
 
         footer = ttk.Frame(outer)
         footer.pack(fill="x", pady=(12, 0))
-        ttk.Button(footer, text="Close", command=self.window.destroy).pack(side="right")
+        ttk.Button(footer, text="Close", command=self.request_close).pack(side="right")
         self.stop_pilot_button = ttk.Button(footer, text="Stop pilot",
                                              command=self.stop_pilot, state="disabled")
         self.stop_pilot_button.pack(side="right", padx=(0, 10))
@@ -206,15 +209,14 @@ class BenchmarkWindow:
         self.pilot_status.set("Running sequential benchmark; saving per-model results")
         lang = {"Bahasa Melayu": "ms", "English": "en", "Auto detect": None}[self.language.get()]
         output = os.path.join(os.path.dirname(os.path.abspath(__file__)), "output", "benchmark_pilot")
+        # Snapshot Tk variables on the GUI thread; worker must never read Tk state.
         opts = dict(language=lang, cancel=self.pilot_cancel,
                     gpu_monitor=self.gpu_monitor.get(), vad=self.silero_vad.get(),
                     osd=self.pyannote_osd.get(), hf_token=self.hf_token.get().strip() or None)
 
         def notify(event, detail):
-            try:
-                self.window.after(0, lambda e=event, d=detail: self.set_pilot_status(e, d))
-            except (RuntimeError, tk.TclError):
-                pass
+            # Thread-safe hand-off; schedule UI updates only on the Tk thread.
+            self.worker_events.put((event, str(detail)))
 
         def worker():
             try:
@@ -231,13 +233,42 @@ class BenchmarkWindow:
             except Exception as exc:
                 notify("error", f"{type(exc).__name__}: {exc}")
             finally:
-                try:
-                    self.window.after(0, self.pilot_complete)
-                except (RuntimeError, tk.TclError):
-                    pass
+                self.worker_events.put(("worker_done", ""))
 
         self.pilot_thread = threading.Thread(target=worker, daemon=True)
         self.pilot_thread.start()
+        self.window.after(150, self.drain_worker_events)
+
+    def drain_worker_events(self):
+        if not self.window.winfo_exists():
+            return
+        finished = False
+        while True:
+            try:
+                event, detail = self.worker_events.get_nowait()
+            except queue.Empty:
+                break
+            if event == "worker_done":
+                finished = True
+            else:
+                self.set_pilot_status(event, detail)
+        if finished:
+            self.pilot_complete()
+        elif self.pilot_thread is not None and self.pilot_thread.is_alive():
+            self.window.after(150, self.drain_worker_events)
+        else:
+            self.pilot_complete()
+
+    def request_close(self):
+        if self.pilot_thread is not None and self.pilot_thread.is_alive():
+            messagebox.showwarning(
+                "Benchmark running",
+                "Stop the benchmark first and wait until the worker has finished. "
+                "Closing now could interrupt result saving.",
+                parent=self.window,
+            )
+            return
+        self.window.destroy()
 
     def stop_pilot(self):
         self.pilot_cancel.set()
