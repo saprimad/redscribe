@@ -106,6 +106,47 @@ class RunnerIntegrityTests(unittest.TestCase):
             _cleanup(BadClose())
         self.assertTrue(any("cleanup warning" in str(w.message) for w in found))
 
+    def test_monitor_start_failure_does_not_discard_successful_asr(self):
+        class FaultyStartMonitor:
+            def __enter__(self):
+                raise RuntimeError("synthetic monitor startup failed")
+
+        with patch("benchmark_pilot._decode_duration", return_value=10.0), \
+             patch("benchmark_pilot.preflight_model", return_value="ready"), \
+             patch("benchmark_pilot._transcribe",
+                   return_value=("short synthetic text 0", 0.3, 1.0, "cpu", "int8", "")), \
+             patch("benchmark_resources.ResourceMonitor", FaultyStartMonitor):
+            _, state = run_single_pilot(
+                self.pairs[0][0], self.pairs[0][1], ("tiny",),
+                self.root / "out", gpu_monitor=True)
+        self.assertEqual(state["model_results"]["tiny"]["status"], "completed")
+        self.assertEqual(state["model_results"]["tiny"]["wer"], 0.0)
+
+    def test_monitor_stop_failure_does_not_discard_successful_asr(self):
+        class FaultyStopMonitor:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_):
+                raise RuntimeError("synthetic monitor shutdown failed")
+
+            def summary(self):
+                return {"gpu_util_percent_peak": 25}
+
+            def save_csv(self, _):
+                return None
+
+        with patch("benchmark_pilot._decode_duration", return_value=10.0), \
+             patch("benchmark_pilot.preflight_model", return_value="ready"), \
+             patch("benchmark_pilot._transcribe",
+                   return_value=("short synthetic text 0", 0.3, 1.0, "cpu", "int8", "")), \
+             patch("benchmark_resources.ResourceMonitor", FaultyStopMonitor):
+            _, state = run_single_pilot(
+                self.pairs[0][0], self.pairs[0][1], ("tiny",),
+                self.root / "out", gpu_monitor=True)
+        self.assertEqual(state["model_results"]["tiny"]["status"], "completed")
+        self.assertEqual(state["model_results"]["tiny"]["wer"], 0.0)
+
     def test_single_checks_expected_batch_hash(self):
         with patch("benchmark_pilot._decode_duration", return_value=10.0):
             with self.assertRaisesRegex(ValueError, "changed since batch preflight"):
