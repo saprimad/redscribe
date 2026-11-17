@@ -33,3 +33,9 @@ The current **experimental** benchmark workflow shows how audio recordings and r
 
 - [Single / Batch Runner Audit — 18 November 2026](SINGLE_BATCH_RUNNER_AUDIT_2026-11-18.md): reliability fixes, CSV/JSON status semantics, cancellation, changed-audio safeguards and remaining IEEE validation requirements.
 - [Synthetic runner regression tests](../../tests/test_benchmark_runner_integrity.py) and [GitHub Actions benchmark test workflow](../../.github/workflows/benchmark-tests.yml). **CI results and RTX 5070 execution are not yet confirmed.**
+
+## Verbatim WER/CER reporting
+
+- [Reporting engine protocol](REPORTING_ENGINE_PROTOCOL.md) — inclusive verbatim scoring (fillers, repetitions, interviewer and all audible speakers), corpus/macro aggregation, strict common-completed cohort and data-quality safeguards.
+- `benchmark_reporting.py` now exports `model_summary.csv` and `error_breakdown.csv` for single and batch studies; `benchmark_pilot.py` additionally writes separate word/character S/D/I counts.
+- [Reporting unit tests](../../tests/test_benchmark_reporting.py) exercise synthetic corpus vs macro scoring, missing data, failed models and CSV output. **Runtime CI and actual Windows GPU execution have not been confirmed.**
