@@ -1,12 +1,15 @@
-# RedScribe Benchmarking Workflow (Reviewed v7)
+# RedScribe Benchmarking Workflow — Academic v8
 
-![RedScribe Benchmark Workflow — Reviewed v7](RedScribe_Benchmark_Workflow_Reviewed_v7.svg)
+![RedScribe Benchmark Workflow — Academic v8](RedScribe_Benchmark_Workflow_Academic_v8.svg)
 
-This diagram shows the **experimental** single/batch research-benchmark workflow, including human-approved DOCX reference handling, selected ASR backends, optional Silero VAD / pyannote overlap estimates, GPU monitoring, raw WER/CER scoring, and CSV/JSON outputs.
+The current **experimental** benchmark workflow shows how audio recordings and researcher-verified DOCX references are prepared, paired, processed across selected ASR models, and evaluated using raw WER/CER with optional speech and resource analysis.
 
-- [View the SVG figure](RedScribe_Benchmark_Workflow_Reviewed_v7.svg)
-- [Open the standalone interactive HTML (SVG/PNG export)](RedScribe_Benchmark_Workflow_Reviewed_v7.html)
+## Latest diagram
+- [Academic v8 — SVG figure](RedScribe_Benchmark_Workflow_Academic_v8.svg) — displays directly in GitHub and is suitable for scalable figures.
+- [Academic v8 — interactive HTML](RedScribe_Benchmark_Workflow_Academic_v8.html) — open locally for export to SVG/PNG.
 
-**Status:** Diagram reviewed for layout; scientific benchmarking and Windows GPU compatibility remain subject to validation. This diagram is not a claim that a publication-ready benchmark has been completed. Five previously deferred methodological decisions remain HOLD.
+## Previous version
+- [Reviewed v7 — SVG](RedScribe_Benchmark_Workflow_Reviewed_v7.svg)
+- [Reviewed v7 — HTML](RedScribe_Benchmark_Workflow_Reviewed_v7.html)
 
-**Privacy:** These diagram assets contain no participant recordings or confidential reference transcripts. Do not commit recordings or locally approved ground-truth outputs to GitHub.
+**Research status:** Figure reflects code/design in the `redscribe-benchmark-timeline` experimental branch, not a completed or independently validated scientific benchmark. Normalisation, diarisation-ground-truth evaluation and other methodological HOLD items remain open. Do not commit recordings, approved transcript data, or personally identifiable material to this repository.
