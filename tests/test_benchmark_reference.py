@@ -70,6 +70,46 @@ class ReferenceTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "re-approve DOCX"):
             verify_reference(manifest)
 
+    def test_source_changed_between_preview_and_freeze(self):
+        draft = extract_docx(str(self.word))
+        doc = Document(str(self.word))
+        doc.add_paragraph("A change after opening the preview")
+        doc.save(self.word)
+        with self.assertRaisesRegex(ValueError, "changed since extraction preview"):
+            approve_reference(
+                str(self.word), draft.text, self.root / "private",
+                reviewer_acknowledged=True,
+                expected_source_sha256=draft.source_sha256)
+
+    def test_extracted_draft_retains_source_hash(self):
+        draft = extract_docx(str(self.word))
+        self.assertEqual(draft.source_sha256, sha256_file(self.word))
+        self.assertEqual(draft.extraction_version, "body-order-v2")
+        self.assertEqual(draft.issues, ())
+
+    def test_reference_verification_checklist_saved(self):
+        verification = {
+            "audio_verified": True,
+            "coverage_verified": True,
+            "speaker_labels_reviewed": True,
+            "non_speech_reviewed": True,
+        }
+        draft = extract_docx(str(self.word))
+        manifest, _, _ = approve_reference(
+            str(self.word), "Apa pandangan demo?",
+            self.root / "private", reviewer_acknowledged=True,
+            expected_source_sha256=draft.source_sha256,
+            verification=verification)
+        info = verify_reference(manifest)
+        self.assertEqual(info["schema_version"], 2)
+        self.assertEqual(info["verification"], verification)
+        self.assertEqual(info["scoring_scope"], "researcher_verified_audio_span")
+        with self.assertRaisesRegex(ValueError, "verification checks"):
+            approve_reference(
+                str(self.word), "Apa pandangan demo?",
+                self.root / "private", reviewer_acknowledged=True,
+                verification={**verification, "coverage_verified": False})
+
     def test_empty_document_rejected(self):
         blank = self.root / "empty.docx"
         Document().save(blank)
