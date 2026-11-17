@@ -20,6 +20,12 @@ class GroundTruthReview:
         self.window.minsize(600, 450)
         self.index = tk.StringVar(master=self.window, value=self.paths[0])
         self.acknowledged = tk.BooleanVar(master=self.window, value=False)
+        self.verification = {
+            "audio_verified": tk.BooleanVar(master=self.window, value=False),
+            "coverage_verified": tk.BooleanVar(master=self.window, value=False),
+            "speaker_labels_reviewed": tk.BooleanVar(master=self.window, value=False),
+            "non_speech_reviewed": tk.BooleanVar(master=self.window, value=False),
+        }
         self.status = tk.StringVar(master=self.window, value="Reference not approved")
         self.current_draft = None
         self.build()
@@ -44,6 +50,17 @@ class GroundTruthReview:
         ttk.Label(frame, text="NOTE: Extracted text may contain speaker labels, headings, "
                   "tables, fillers and comments. No automatic speaker-label removal is performed.",
                   wraplength=770, foreground="#845a26").pack(anchor="w", pady=(0, 8))
+        self.issues_summary = tk.StringVar(master=self.window, value="")
+        ttk.Label(frame, textvariable=self.issues_summary, wraplength=770,
+                  foreground="#9a4b24").pack(anchor="w", pady=(0, 5))
+        checks = (
+            ("audio_verified", "I checked this transcript against the corresponding audio."),
+            ("coverage_verified", "I verified the reference covers exactly the selected audio span."),
+            ("speaker_labels_reviewed", "I reviewed speaker labels, headings and non-spoken metadata."),
+            ("non_speech_reviewed", "I reviewed fillers, overlaps, interruptions and non-speech notes."),
+        )
+        for key, label in checks:
+            ttk.Checkbutton(frame, variable=self.verification[key], text=label).pack(anchor="w")
         ttk.Checkbutton(frame, variable=self.acknowledged,
                         text="I have reviewed this complete reference and approve this scoring text.").pack(
             anchor="w", pady=(0, 7))
@@ -63,6 +80,9 @@ class GroundTruthReview:
 
     def load_selected(self):
         self.acknowledged.set(False)
+        for flag in self.verification.values():
+            flag.set(False)
+        self.issues_summary.set("")
         self.status.set("Reference not approved; review required")
         try:
             self.current_draft = extract_docx(self.index.get())
@@ -73,6 +93,11 @@ class GroundTruthReview:
             return
         self.text.delete("1.0", "end")
         self.text.insert("1.0", self.current_draft.text)
+        issues = self.current_draft.issues
+        self.issues_summary.set(
+            "DOCX review flags: " + " | ".join(issues)
+            if issues else "No flagged advanced DOCX features; still verify all spoken content."
+        )
         self.status.set(f"{len(self.current_draft.blocks)} text blocks extracted; not approved")
 
     def approve(self):
@@ -81,6 +106,12 @@ class GroundTruthReview:
             return
         if not self.acknowledged.get():
             messagebox.showwarning("Approval required", "Review the content and tick the confirmation.",
+                                   parent=self.window)
+            return
+        verification = {name: flag.get() for name, flag in self.verification.items()}
+        if not all(verification.values()):
+            messagebox.showwarning("Verification required",
+                                   "Confirm all four audio/reference review checks before freezing.",
                                    parent=self.window)
             return
         text = self.text.get("1.0", "end-1c")
@@ -97,12 +128,16 @@ class GroundTruthReview:
             return
         try:
             manifest_path, text_path, info = approve_reference(
-                self.current_draft.source_path, text, folder, reviewer_acknowledged=True)
+                self.current_draft.source_path, text, folder, reviewer_acknowledged=True,
+                expected_source_sha256=self.current_draft.source_sha256,
+                verification=verification)
         except Exception as exc:
             messagebox.showerror("Approval failed", str(exc), parent=self.window)
             return
         self.status.set("Approved and frozen: " + Path(manifest_path).name)
         self.acknowledged.set(False)
+        for flag in self.verification.values():
+            flag.set(False)
         if self.on_approved:
             self.on_approved(self.current_draft.source_path, str(manifest_path))
         messagebox.showinfo("Reference saved",
