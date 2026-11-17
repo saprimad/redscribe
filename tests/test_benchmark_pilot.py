@@ -39,6 +39,11 @@ class PilotTests(unittest.TestCase):
         self.assertTrue((folder / "results.csv").is_file())
         self.assertTrue((folder / "01_large-v3.txt").is_file())
         self.assertTrue((folder / "manifest.json").is_file())
+        self.assertTrue((folder / "benchmark_summary.xlsx").is_file())
+        with __import__("zipfile").ZipFile(folder / "benchmark_summary.xlsx") as archive:
+            self.assertIsNone(archive.testzip())
+            self.assertIn("xl/worksheets/sheet1.xml", archive.namelist())
+        self.assertEqual(summary["model_results"]["large-v3"]["char_substitutions"] >= 0, True)
 
     @patch("benchmark_pilot._decode_duration", return_value=10.)
     @patch("benchmark_pilot.preflight_model", return_value="mock-ready")
