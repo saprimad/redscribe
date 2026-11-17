@@ -1,7 +1,7 @@
-"""Standalone RedScribe Benchmarking Mode configuration window.
+"""Experimental RedScribe benchmark UI.
 
-UI-only scaffold. Does NOT start transcription, load models, alter existing
-transcription settings, or send recordings anywhere.
+Runs isolated single/batch trials on worker threads. Results stay local;
+ordinary transcription settings and workflow are not altered.
 """
 import os
 import queue
@@ -389,5 +389,5 @@ class BenchmarkWindow:
 
 
 def open_benchmark_window(parent):
-    """Open an isolated, non-modal preview window."""
+    """Open an isolated, non-modal experimental benchmark window."""
     return BenchmarkWindow(parent)
