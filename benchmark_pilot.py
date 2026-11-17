@@ -103,7 +103,8 @@ def _transcribe(key, audio_path, language, stopped):
 
 
 def run_single_pilot(audio_path, reference_manifest, selected_models, output_root,
-                     *, language="ms", notify=None, cancel=None):
+                     *, language="ms", notify=None, cancel=None,
+                     gpu_monitor=False, vad=False, osd=False, hf_token=None):
     """Sequential pilot; each result saved as JSON and transcript TXT.
 
     notify(event, detail): worker-thread callback; caller marshals into GUI.
@@ -146,6 +147,8 @@ def run_single_pilot(audio_path, reference_manifest, selected_models, output_roo
         "notes": "Exploratory test only; model-specific decoding and compute fallback may differ.",
         "model_results": {},
     }
+    manifest["analysis_options"] = {"gpu_monitor": bool(gpu_monitor),
+                                    "silero_vad": bool(vad), "pyannote_osd": bool(osd)}
     _atomic_json(results_folder / "manifest.json", manifest)
     notify("start", f"Pilot: {len(config.models)} models, {seconds:.1f}s audio")
 
@@ -154,6 +157,12 @@ def run_single_pilot(audio_path, reference_manifest, selected_models, output_roo
             raise PilotCancelled("Cancelled by researcher")
 
     try:
+        if vad or osd:
+            from benchmark_speech import analyse_audio
+            notify("analysis", "Running optional VAD/OSD analysis...")
+            manifest["speech_analysis"] = analyse_audio(
+                audio, seconds, vad=vad, osd=osd, hf_token=hf_token, notify=notify)
+            _atomic_json(results_folder / "manifest.json", manifest)
         for i, key in enumerate(config.models, 1):
             stopped()
             name = ASR_MODEL_LABELS[key]
@@ -164,8 +173,19 @@ def run_single_pilot(audio_path, reference_manifest, selected_models, output_roo
             try:
                 # Optional models may reject unsupported language or unavailable CUDA.
                 preflight_model(key, language)
-                transcript, loading, transcription, device, precision, note = _transcribe(
-                    key, audio, language, stopped)
+                from contextlib import nullcontext
+                if gpu_monitor:
+                    from benchmark_resources import ResourceMonitor
+                    monitoring = ResourceMonitor()
+                else:
+                    monitoring = nullcontext()
+                with monitoring:
+                    transcript, loading, transcription, device, precision, note = _transcribe(
+                        key, audio, language, stopped)
+                if gpu_monitor:
+                    row["resource_summary"] = monitoring.summary()
+                    safe_monitor_name = f"{i:02d}_{key.replace(' ', '_').replace('/', '_')}"
+                    monitoring.save_csv(results_folder / (safe_monitor_name + "_resources.csv"))
                 word = raw_wer(reference, transcript)
                 char = raw_cer(reference, transcript)
                 safe_name = f"{i:02d}_{key.replace(' ', '_').replace('/', '_')}"
