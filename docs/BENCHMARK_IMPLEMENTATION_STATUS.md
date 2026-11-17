@@ -40,3 +40,15 @@ Functional benchmark execution, DOCX parsing and speaker filtering, validated gr
 - Open ASR Leaderboard and MLPerf Whisper provide **reproducibility and consistent scoring principles**, not separate installed engines.
 - Record hashes and versions of approved references and model hypotheses for traceability.
 - The five pre-existing deferred methodological items remain **HOLD**. No parser, approval/freeze workflow or NIST integration has been implemented yet.
+
+## Ground truth import implementation — 17 November 2026
+**Committed in benchmark branch only:**
+- `benchmark_ground_truth.py` extracts paragraph and table-cell content from DOCX in document order without silently deleting speaker labels, dialect or fillers. It deliberately does **not** assume a final Word layout.
+- `benchmark_reference.py` creates a locally stored approved scoring-text snapshot plus SHA-256 manifest; can detect a subsequent modification of the frozen text.
+- `benchmark_reference_ui.py` supports document selection, editable scoring-text preview, explicit researcher acknowledgement and local Approve & Freeze.
+- `benchmark_ui.py` now exposes **Review / Approve / Freeze DOCX** after selecting references and displays the count of approved local references.
+- `tests/test_benchmark_reference.py` defines synthetic-DOCX tests of extraction ordering, explicit approval, no changes to the original DOCX and hash validation.
+
+**Validation pending:** tests have been written, but could not be executed against the user's Windows environment from this session. Visual Tkinter testing, more complex DOCX cases (merged cells, tracked changes, text boxes, headers/footers), confidentiality checks and real-file parser audit remain outstanding.
+
+**Critical controls:** clicking approval does not launch an ASR benchmark. A frozen reference is private local researcher data; avoid pushing outputs to GitHub. Audio/reference pair matching is **not** approved yet. Five existing methodological questions remain HOLD.
