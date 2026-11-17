@@ -43,6 +43,20 @@ def _atomic_json(path, value):
     temp.replace(path)
 
 
+def _write_results_csv(folder, manifest):
+    """Write current model statuses using atomic file replacement."""
+    destination = folder / "results.csv"
+    temporary = destination.with_name(destination.name + ".tmp")
+    try:
+        with temporary.open("w", newline="", encoding="utf-8-sig") as stream:
+            writer = csv.DictWriter(stream, fieldnames=FIELDS)
+            writer.writeheader()
+            writer.writerows(manifest["model_results"].values())
+        temporary.replace(destination)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
 def _whisper_model(key):
     # Reuse existing Faster-Whisper loading strategy, only when invoked.
     from redscribe_gpu import create_whisper_model
@@ -239,11 +253,7 @@ def run_single_pilot(audio_path, reference_manifest, selected_models, output_roo
             finally:
                 manifest["model_results"][key] = row
                 _atomic_json(results_folder / "manifest.json", manifest)
-                with (results_folder / "results.csv").open(
-                        "w", newline="", encoding="utf-8-sig") as f:
-                    writer = csv.DictWriter(f, fieldnames=FIELDS)
-                    writer.writeheader()
-                    writer.writerows(manifest["model_results"].values())
+                _write_results_csv(results_folder, manifest)
             notify("progress", f"{i}/{len(config.models)} completed; results saved")
         manifest["status"] = (
             "completed" if all(row.get("status") == "completed"
@@ -257,6 +267,18 @@ def run_single_pilot(audio_path, reference_manifest, selected_models, output_roo
         manifest["error"] = f"{type(exc).__name__}: {exc}"
         raise
     finally:
+        # Make unattempted models visible instead of omitting them from CSV.
+        for key in config.models:
+            if key not in manifest["model_results"]:
+                pending = {field: None for field in FIELDS}
+                pending.update(
+                    model_key=key, model=ASR_MODEL_LABELS[key], status="not_run",
+                    audio_seconds=round(seconds, 4), timing_note="",
+                    error="Run cancelled before model execution" if manifest["status"] == "cancelled"
+                    else "Run stopped before model execution",
+                )
+                manifest["model_results"][key] = pending
         _atomic_json(results_folder / "manifest.json", manifest)
+        _write_results_csv(results_folder, manifest)
         notify("finished", str(results_folder))
     return results_folder, manifest
