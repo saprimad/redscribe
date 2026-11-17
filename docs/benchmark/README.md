@@ -23,3 +23,8 @@ The current **experimental** benchmark workflow shows how audio recordings and r
 
 - [Ground-truth preparation and verification protocol](GROUND_TRUTH_PROTOCOL.md) — DOCX extraction warnings, manual audio/span checks, frozen-reference integrity and supporting NIST/Interspeech/LREC-COLING evidence.
 - UI approval now requires four manual confirmation checks and detects a DOCX change since the preview. No BM/Kelantan text normalisation policy was changed.
+
+## WER/CER code re-review
+
+- [Metric scoring and pipeline code review — 18 November 2026](CODE_REVIEW_METRICS_2026-11-18.md): independent short-sequence edit-distance oracle (14,641 pairs), open IEEE-readiness blockers and the next Windows validation plan.
+- The source-controlled `tests/test_benchmark_metric_validation.py` adds raw-scoring regression coverage; it is **not** a substitute for external `jiwer`/SCLITE and actual runtime tests.
