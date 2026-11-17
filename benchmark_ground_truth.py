@@ -6,6 +6,7 @@ before approving it for scoring. The original DOCX is read-only.
 """
 from dataclasses import dataclass
 from pathlib import Path
+from hashlib import sha256
 
 from docx import Document
 from docx.oxml.ns import qn
@@ -17,6 +18,9 @@ class GroundTruthDraft:
     text: str
     blocks: tuple[str, ...]
     warning: str
+    source_sha256: str = ""
+    issues: tuple[str, ...] = ()
+    extraction_version: str = "body-order-v2"
 
 
 def extract_docx(path: str) -> GroundTruthDraft:
@@ -25,8 +29,26 @@ def extract_docx(path: str) -> GroundTruthDraft:
         raise ValueError("Choose an existing .docx document")
     if original.name.startswith("~$"):
         raise ValueError("Temporary Word lock files cannot be references")
+    # Capture source bytes before preview; re-check at final approval.
+    source_sha256 = sha256(original.read_bytes()).hexdigest()
     doc = Document(str(original))
     blocks = []
+    issues = []
+    body_xml = doc.element.body
+    for tag, name in (
+        ("w:ins", "tracked insertions"),
+        ("w:del", "tracked deletions"),
+        ("w:commentRangeStart", "comment anchors"),
+        ("w:txbxContent", "text boxes"),
+        ("w:fldChar", "Word fields"),
+    ):
+        if any(True for _ in body_xml.iter(qn(tag))):
+            issues.append(f"Document contains {name}; extraction requires visual review")
+    # Header/footer content is not included in the body-order preview.
+    if any(p.text.strip() for section in doc.sections
+           for p in list(section.header.paragraphs) + list(section.footer.paragraphs)):
+        issues.append("Header/footer text is excluded from the scoring preview")
+
     seen_paragraphs = set()
     # Iterate Word body elements in document order, unlike separate paragraphs/tables.
     for element in doc.element.body.iterchildren():
@@ -51,7 +73,9 @@ def extract_docx(path: str) -> GroundTruthDraft:
         source_path=str(original.resolve()),
         text="\n".join(blocks),
         blocks=tuple(blocks),
-        warning=("This is a verbatim extraction preview, NOT a verified scoring "
-                 "reference. Speaker labels, headings and notes remain until "
-                 "the researcher reviews and edits them."),
+        warning=("Unverified extraction: verify audio coverage, speaker labels, "
+                 "headings, notes, fillers and flagged Word features. "
+                 "No text is automatically removed."),
+        source_sha256=source_sha256,
+        issues=tuple(issues),
     )
