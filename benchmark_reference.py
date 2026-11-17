@@ -20,7 +20,8 @@ def sha256_file(path, chunk_bytes=1024 * 1024):
     return digest.hexdigest()
 
 
-def approve_reference(source_path, approved_text, output_dir, *, reviewer_acknowledged=False):
+def approve_reference(source_path, approved_text, output_dir, *, reviewer_acknowledged=False,
+                      expected_source_sha256=None, verification=None):
     """Freeze a researcher-reviewed text file and metadata with exclusive filenames.
 
     Explicit approval is required. Never modifies the original DOCX. Resulting
@@ -39,9 +40,17 @@ def approve_reference(source_path, approved_text, output_dir, *, reviewer_acknow
     text_path = destination / (reference_id + ".txt")
     manifest_path = destination / (reference_id + ".json")
     source_hash = sha256_file(source)
+    if expected_source_sha256 is not None and source_hash != expected_source_sha256:
+        raise ValueError("Original DOCX changed since extraction preview; reload and review again")
+    verification = dict(verification or {})
+    if verification:
+        required = ("audio_verified", "coverage_verified", "speaker_labels_reviewed",
+                    "non_speech_reviewed")
+        if any(verification.get(field) is not True for field in required):
+            raise ValueError("All reference verification checks must be confirmed")
     text_hash = sha256(approved_text.encode("utf-8")).hexdigest()
     manifest = {
-        "schema_version": 1,
+        "schema_version": 2,
         "reference_id": reference_id,
         "approved_utc": datetime.now(timezone.utc).isoformat(),
         "source_filename": source.name,
@@ -51,6 +60,9 @@ def approve_reference(source_path, approved_text, output_dir, *, reviewer_acknow
         "scoring_text_file": text_path.name,
         "approval": "researcher_confirmed",
         "extraction_policy": "manual_review_no_automatic_label_removal",
+        "verification": verification,
+        "normalisation_policy": "raw_unmodified_no_automatic_normalisation",
+        "scoring_scope": "researcher_verified_audio_span" if verification else "unspecified",
     }
     # Creation is exclusive; failures must not erase pre-existing references.
     with text_path.open("x", encoding="utf-8", newline="\n") as f:
