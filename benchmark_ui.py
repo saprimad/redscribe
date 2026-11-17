@@ -21,7 +21,7 @@ class BenchmarkWindow:
     def __init__(self, parent):
         self.parent = parent
         self.window = tk.Toplevel(parent)
-        self.window.title("RedScribe — Benchmarking Mode (Design Preview)")
+        self.window.title("RedScribe — Benchmarking Mode (Experimental)")
         self.window.geometry("820x740")
         self.window.minsize(620, 510)
         self.window.transient(parent)
@@ -31,6 +31,11 @@ class BenchmarkWindow:
         self.audio_files = ()
         self.reference_files = ()
         self.approved_references = {}
+        self.batch_pairs = ()
+        self.gpu_monitor = tk.BooleanVar(master=self.window, value=True)
+        self.silero_vad = tk.BooleanVar(master=self.window, value=False)
+        self.pyannote_osd = tk.BooleanVar(master=self.window, value=False)
+        self.hf_token = tk.StringVar(master=self.window, value="")
         self.pilot_thread = None
         self.pilot_cancel = threading.Event()
         self.language = tk.StringVar(master=self.window, value="Bahasa Melayu")
@@ -45,7 +50,7 @@ class BenchmarkWindow:
         outer = ttk.Frame(self.window, padding=16)
         outer.pack(fill="both", expand=True)
         ttk.Label(outer, text="Benchmarking Mode", font=("TkDefaultFont", 17, "bold")).pack(anchor="w")
-        ttk.Label(outer, text="Configuration preview — benchmark execution is not connected yet.").pack(
+        ttk.Label(outer, text="Single / batch experimental benchmarking; not publication validated.").pack(
             anchor="w", pady=(3, 12))
         body = ttk.Frame(outer)
         body.pack(fill="both", expand=True)
@@ -75,6 +80,8 @@ class BenchmarkWindow:
                    command=self.open_reference_review).pack(anchor="w", pady=(7, 0))
         ttk.Label(files, text="References are approved individually; selection alone is not approval.",
                   wraplength=660).pack(anchor="w", pady=(3, 0))
+        ttk.Button(files, text="Verify batch audio / DOCX pairing",
+                   command=self.open_batch_pairing).pack(anchor="w", pady=(6, 0))
         ttk.Label(files, text="DOCX speaker labels and file matching must be verified before scoring.",
                   foreground="#805b33", wraplength=660).pack(anchor="w", pady=(6, 0))
 
@@ -95,13 +102,18 @@ class BenchmarkWindow:
         for key in ALL_MODELS[len(CORE_MODELS):]:
             self.add_model_checkbox(models, key)
 
-        options = ttk.LabelFrame(inner, text="4. Short-audio pilot settings", padding=12)
+        options = ttk.LabelFrame(inner, text="4. Benchmark trial options", padding=12)
         options.pack(fill="x", pady=(0, 10))
-        ttk.Label(options, text="Pilot supports Single mode only, with one approved DOCX and audio up to 3 minutes.",
+        ttk.Label(options, text="Single or paired batch: max 3 minutes per recording (trial limit).",
                   wraplength=650).pack(anchor="w")
         ttk.Label(options, text="Language").pack(anchor="w", pady=(8, 1))
         ttk.Combobox(options, textvariable=self.language, state="readonly",
                      values=["Bahasa Melayu", "English", "Auto detect"]).pack(anchor="w")
+        ttk.Checkbutton(options, text="GPU / CPU / RAM monitoring", variable=self.gpu_monitor).pack(anchor="w", pady=5)
+        ttk.Checkbutton(options, text="Silero VAD (speech / non-speech estimates)", variable=self.silero_vad).pack(anchor="w")
+        ttk.Checkbutton(options, text="pyannote Community-1 OSD (overlap estimate)", variable=self.pyannote_osd).pack(anchor="w")
+        ttk.Label(options, text="HF token (OSD only; optional if already logged in)").pack(anchor="w", pady=(6, 0))
+        ttk.Entry(options, textvariable=self.hf_token, show="*", width=40).pack(anchor="w")
         ttk.Label(options, text="This pilot scores raw WER/CER only; optional ASR models may need CUDA.",
                   wraplength=650).pack(anchor="w", pady=(8, 0))
 
@@ -114,8 +126,7 @@ class BenchmarkWindow:
                        "publication-ready benchmark. Do not run alongside ordinary transcription."
                        ).pack(anchor="w")
         ttk.Label(safety, wraplength=660,
-                  text="Planned but not active: Batch runner, normalised scores, VAD/OSD, "
-                       "resource monitoring, full error analysis and Excel reports.").pack(
+                  text="Still pending: normalised scoring, NIST validation, resume, full error analysis and Excel.").pack(
             anchor="w", pady=(8, 0))
 
         footer = ttk.Frame(outer)
@@ -124,7 +135,7 @@ class BenchmarkWindow:
         self.stop_pilot_button = ttk.Button(footer, text="Stop pilot",
                                              command=self.stop_pilot, state="disabled")
         self.stop_pilot_button.pack(side="right", padx=(0, 10))
-        self.start_pilot_button = ttk.Button(footer, text="Start short-audio pilot",
+        self.start_pilot_button = ttk.Button(footer, text="Start benchmark trial",
                                               command=self.start_pilot)
         self.start_pilot_button.pack(side="right", padx=(0, 10))
         ttk.Button(footer, text="Review configuration",
@@ -132,57 +143,72 @@ class BenchmarkWindow:
         ttk.Label(outer, textvariable=self.pilot_status, wraplength=720).pack(
             anchor="w", pady=(7, 0))
 
+    def open_batch_pairing(self):
+        if self.mode.get() != "batch":
+            messagebox.showwarning("Pairing", "Choose Batch mode first.", parent=self.window)
+            return
+        from benchmark_batch_ui import open_batch_pairing
+        try:
+            open_batch_pairing(self.window, self.audio_files, self.reference_files,
+                               self.approved_references, self.confirm_batch_pairs)
+        except ValueError as exc:
+            messagebox.showwarning("Pairing", str(exc), parent=self.window)
+
+    def confirm_batch_pairs(self, pairs):
+        self.batch_pairs = pairs
+        self.pilot_status.set(f"Confirmed {len(pairs)} audio/reference pairs")
+
     def start_pilot(self):
         if self.pilot_thread is not None and self.pilot_thread.is_alive():
-            messagebox.showwarning("Already running", "A benchmark pilot is already running.",
-                                   parent=self.window)
+            messagebox.showwarning("Running", "A trial is already active.", parent=self.window)
             return
-        if self.mode.get() != "single":
-            messagebox.showwarning("Pilot scope", "Only Single mode runs in this pilot. "
-                                   "Batch stays available as a design preview.",
-                                   parent=self.window)
+        selected_models = ordered_selection(k for k, v in self.selected.items() if v.get())
+        if not selected_models:
+            messagebox.showwarning("Models", "Select at least one model.", parent=self.window)
             return
-        if len(self.audio_files) != 1 or len(self.reference_files) != 1:
-            messagebox.showwarning("Missing dataset", "Select one audio and one DOCX.",
-                                   parent=self.window)
-            return
-        ref = self.reference_files[0]
-        manifest_path = self.approved_references.get(ref)
-        if not manifest_path:
-            messagebox.showwarning("Reference not approved",
-                                   "Open Review / Approve / Freeze DOCX first, then approve the scoring text.",
-                                   parent=self.window)
-            return
-        models = ordered_selection(k for k, v in self.selected.items() if v.get())
-        if not models:
-            messagebox.showwarning("No models", "Select at least one model.", parent=self.window)
-            return
-        audio = self.audio_files[0]
-        if not os.path.isfile(audio) or not os.path.isfile(manifest_path):
-            messagebox.showerror("Missing input", "Audio or approved reference no longer exists.",
-                                 parent=self.window)
-            return
+        batch = self.mode.get() == "batch"
+        if batch:
+            if not self.audio_files or len(self.batch_pairs) != len(self.audio_files):
+                messagebox.showwarning("Pairing required", "Approve all DOCXs and confirm each audio/reference pair.",
+                                       parent=self.window)
+                return
+            pairs = tuple(self.batch_pairs)
+        else:
+            if len(self.audio_files) != 1 or len(self.reference_files) != 1:
+                messagebox.showwarning("Inputs", "Select one audio and one reference DOCX.",
+                                       parent=self.window)
+                return
+            manifest = self.approved_references.get(self.reference_files[0])
+            if not manifest:
+                messagebox.showwarning("Approval", "Review / Approve / Freeze the DOCX first.",
+                                       parent=self.window)
+                return
+            pairs = ((self.audio_files[0], manifest),)
         from benchmark_reference import verify_reference
         try:
-            verify_reference(manifest_path)
+            for audio, reference in pairs:
+                if not os.path.isfile(audio):
+                    raise FileNotFoundError(audio)
+                verify_reference(reference)
         except Exception as exc:
-            messagebox.showerror("Reference integrity", str(exc), parent=self.window)
+            messagebox.showerror("Input integrity", str(exc), parent=self.window)
             return
-        if not messagebox.askyesno("Start REAL benchmark pilot?",
-                f"Run {len(models)} model(s) sequentially on one short audio?\\n\\n"
-                "First-time model downloads may be large. This is exploratory raw "
-                "WER/CER scoring without diarization. Keep RedScribe running.\\n\\n"
-                "Continue?", parent=self.window):
+        if not messagebox.askyesno(
+            "Run experimental benchmark?",
+            f"Run {len(selected_models)} model(s) on {len(pairs)} recording(s)?\n\n"
+            "Models may download weights and consume substantial resources. "
+            "VAD/OSD are descriptive only. Pilot limit: 3 minutes per audio. "
+            "Proceed?", parent=self.window):
             return
-        from benchmark_pilot import run_single_pilot
         self.pilot_cancel.clear()
         self.start_pilot_button.configure(state="disabled")
         self.stop_pilot_button.configure(state="normal")
-        self.pilot_status.set("Pilot running. Results are saved after every model.")
-        language = {"Bahasa Melayu": "ms", "English": "en",
-                    "Auto detect": None}[self.language.get()]
-        output_folder = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "output", "benchmark_pilot")
+        self.pilot_status.set("Running sequential benchmark; saving per-model results")
+        lang = {"Bahasa Melayu": "ms", "English": "en", "Auto detect": None}[self.language.get()]
+        output = os.path.join(os.path.dirname(os.path.abspath(__file__)), "output", "benchmark_pilot")
+        opts = dict(language=lang, cancel=self.pilot_cancel,
+                    gpu_monitor=self.gpu_monitor.get(), vad=self.silero_vad.get(),
+                    osd=self.pyannote_osd.get(), hf_token=self.hf_token.get().strip() or None)
 
         def notify(event, detail):
             try:
@@ -192,10 +218,16 @@ class BenchmarkWindow:
 
         def worker():
             try:
-                result_path, summary = run_single_pilot(
-                    audio, manifest_path, models, output_folder,
-                    language=language, notify=notify, cancel=self.pilot_cancel)
-                notify("finished", str(result_path) + " | " + summary["status"])
+                if batch:
+                    from benchmark_batch import run_batch_pilot
+                    folder, result = run_batch_pilot(pairs, selected_models, output,
+                                                     notify=notify, **opts)
+                else:
+                    from benchmark_pilot import run_single_pilot
+                    folder, result = run_single_pilot(pairs[0][0], pairs[0][1],
+                                                      selected_models, output,
+                                                      notify=notify, **opts)
+                notify("finished", f"{result['status']} — {folder}")
             except Exception as exc:
                 notify("error", f"{type(exc).__name__}: {exc}")
             finally:
@@ -203,6 +235,7 @@ class BenchmarkWindow:
                     self.window.after(0, self.pilot_complete)
                 except (RuntimeError, tk.TclError):
                     pass
+
         self.pilot_thread = threading.Thread(target=worker, daemon=True)
         self.pilot_thread.start()
 
@@ -230,6 +263,7 @@ class BenchmarkWindow:
 
     def mark_reference_approved(self, source_path, manifest_path):
         self.approved_references[source_path] = manifest_path
+        self.batch_pairs = ()
         self.reference_summary.set(self.describe_files(self.reference_files) +
                                    f" | {len(self.approved_references)} locally approved")
 
@@ -251,6 +285,7 @@ class BenchmarkWindow:
         self.audio_files = ()
         self.reference_files = ()
         self.approved_references = {}
+        self.batch_pairs = ()
         self.audio_summary.set("No audio selected")
         self.reference_summary.set("No ground truth selected")
 
@@ -267,6 +302,7 @@ class BenchmarkWindow:
             if not value:
                 return
             self.audio_files = tuple(value)
+        self.batch_pairs = ()
         self.audio_summary.set(self.describe_files(self.audio_files))
 
     def pick_references(self):
@@ -283,6 +319,7 @@ class BenchmarkWindow:
                 return
             self.reference_files = tuple(value)
         self.approved_references = {}
+        self.batch_pairs = ()
         self.reference_summary.set(self.describe_files(self.reference_files))
 
     @staticmethod
@@ -315,7 +352,7 @@ class BenchmarkWindow:
             f"Selected models: {len(config.models)}\n\n"
             f"Approved references (local): {len(self.approved_references)}/{len(self.reference_files)}\\n"
             "Audio/reference file matching has NOT been validated.\\n"
-            "No benchmark has started. Execution remains disabled pending implementation.",
+            "Review and verify all pairings before starting a real experimental run.",
             parent=self.window,
         )
 
