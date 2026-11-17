@@ -142,6 +142,8 @@ def run_single_pilot(audio_path, reference_manifest, selected_models, output_roo
         "audio_seconds": seconds, "reference_id": ref["reference_id"],
         "reference_sha256": ref["approved_text_sha256"],
         "reference_source_sha256": ref["source_sha256"],
+        "reference_scoring_scope": ref.get("scoring_scope", "unspecified"),
+        "reference_verification": ref.get("verification", {}),
         "selected_models": list(config.models), "language": language,
         "scoring": "raw whitespace WER / raw Unicode-codepoint CER; no normalisation",
         "max_pilot_seconds": MAX_PILOT_SECONDS,
