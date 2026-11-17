@@ -1,8 +1,8 @@
-"""Pilot ASR benchmark runner (short, single audio; sequential models).
+"""Short-audio experimental ASR benchmark runner, sequential by model.
 
-Runs on a background thread supplied by benchmark_ui. The module NEVER
-changes the normal transcription workflow or performs diarization. Raw WER/CER
-scoring only; no unapproved normalisation rules are applied.
+The normal transcription workflow is not modified. Optional observational
+pyannote overlap analysis can perform diarisation, separately from scoring.
+Only raw WER/CER is calculated; approved normalisation remains on HOLD.
 """
 from datetime import datetime, timezone
 from pathlib import Path
