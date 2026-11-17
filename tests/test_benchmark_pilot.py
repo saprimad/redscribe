@@ -41,6 +41,34 @@ class PilotTests(unittest.TestCase):
         self.assertTrue((folder / "manifest.json").is_file())
 
     @patch("benchmark_pilot._decode_duration", return_value=10.)
+    @patch("benchmark_pilot.preflight_model", return_value="mock-ready")
+    @patch("benchmark_pilot._transcribe", return_value=(
+        "dia makan ikan", 0.5, 1.5, "cuda", "float16", ""))
+    def test_monitor_export_failure_does_not_invalidate_accuracy(
+            self, transcribe, preflight, duration):
+        class FaultyMonitor:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+            def summary(self):
+                return {"gpu_util_percent_peak": 30}
+
+            def save_csv(self, _path):
+                raise OSError("monitor export failure")
+
+        with patch("benchmark_resources.ResourceMonitor", FaultyMonitor):
+            folder, summary = run_single_pilot(
+                self.audio, self.manifest, ("large-v3",),
+                self.directory / "results", gpu_monitor=True)
+        result = summary["model_results"]["large-v3"]
+        self.assertEqual(result["status"], "completed")
+        self.assertEqual(result["wer"], 0)
+        self.assertTrue((folder / "results.csv").exists())
+
+    @patch("benchmark_pilot._decode_duration", return_value=10.)
     @patch("benchmark_pilot.preflight_model", side_effect=RuntimeError("missing CUDA"))
     def test_failed_model_is_not_assigned_fake_wer(self, preflight, duration):
         _, summary = run_single_pilot(
