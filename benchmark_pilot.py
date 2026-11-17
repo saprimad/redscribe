@@ -224,7 +224,11 @@ def run_single_pilot(audio_path, reference_manifest, selected_models, output_roo
                     writer.writeheader()
                     writer.writerows(manifest["model_results"].values())
             notify("progress", f"{i}/{len(config.models)} completed; results saved")
-        manifest["status"] = "completed"
+        manifest["status"] = (
+            "completed" if all(row.get("status") == "completed"
+                               for row in manifest["model_results"].values())
+            else "completed_with_errors"
+        )
     except PilotCancelled:
         manifest["status"] = "cancelled"
     except Exception as exc:
