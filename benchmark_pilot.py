@@ -25,7 +25,7 @@ FIELDS = (
     "model_key", "model", "status", "wer", "cer", "substitutions",
     "deletions", "insertions", "reference_words", "reference_characters",
     "loading_seconds", "transcription_seconds", "rtf", "audio_seconds",
-    "device", "precision", "error",
+    "device", "precision", "timing_note", "error",
 )
 
 
@@ -160,7 +160,7 @@ def run_single_pilot(audio_path, reference_manifest, selected_models, output_roo
             notify("model", f"{i}/{len(config.models)}: {name}")
             row = {field: None for field in FIELDS}
             row.update(model_key=key, model=name, status="failed",
-                       audio_seconds=round(seconds, 4), error="")
+                       audio_seconds=round(seconds, 4), timing_note="", error="")
             try:
                 # Optional models may reject unsupported language or unavailable CUDA.
                 preflight_model(key, language)
@@ -179,7 +179,7 @@ def run_single_pilot(audio_path, reference_manifest, selected_models, output_roo
                            loading_seconds=round(loading, 4) if loading is not None else None,
                            transcription_seconds=round(transcription, 4),
                            rtf=round(transcription / seconds, 5),
-                           device=device, precision=precision, error=note)
+                           device=device, precision=precision, timing_note=note, error="")
             except PilotCancelled:
                 row.update(status="cancelled", error="Cancelled by researcher")
                 raise
