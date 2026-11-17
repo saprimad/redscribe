@@ -184,28 +184,25 @@ def run_single_pilot(audio_path, reference_manifest, selected_models, output_roo
             try:
                 # Optional models may reject unsupported language or unavailable CUDA.
                 preflight_model(key, language)
-                from contextlib import nullcontext
-                monitoring = nullcontext()
-                resource_monitor_active = False
+                monitoring = None
                 if gpu_monitor:
                     try:
                         from benchmark_resources import ResourceMonitor
-                        monitoring = ResourceMonitor()
-                        resource_monitor_active = True
+                        candidate = ResourceMonitor()
+                        candidate.__enter__()
+                        monitoring = candidate
                     except Exception as monitor_exc:
-                        notify("warning", f"{name}: resource monitoring unavailable: {monitor_exc}")
-                # A monitor failure must not make completed ASR inference disappear.
+                        notify("warning", f"{name}: resource monitor start unavailable: {monitor_exc}")
                 try:
-                    with monitoring:
-                        transcript, loading, transcription, device, precision, note = _transcribe(
-                            key, audio, language, stopped)
-                except PilotCancelled:
-                    raise
-                except Exception:
-                    # Only inference/monitor entry failures reach here; never
-                    # fabricate a successful score for an incomplete run.
-                    raise
-                if resource_monitor_active:
+                    transcript, loading, transcription, device, precision, note = _transcribe(
+                        key, audio, language, stopped)
+                finally:
+                    if monitoring is not None:
+                        try:
+                            monitoring.__exit__(None, None, None)
+                        except Exception as monitor_exc:
+                            notify("warning", f"{name}: resource monitor stop unavailable: {monitor_exc}")
+                if monitoring is not None:
                     try:
                         resource_summary = monitoring.summary()
                         row.update(
