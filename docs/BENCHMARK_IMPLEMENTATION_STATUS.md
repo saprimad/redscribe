@@ -1,5 +1,7 @@
 # RedScribe Benchmarking Mode — Implementation status
 
+> **Latest status (18 November 2026):** A static code audit is available at [Critical Code Audit](benchmark/CRITICAL_CODE_AUDIT_2026-11-18.md). An experimental Single/Batch ASR runner, optional GPU/VAD/OSD modules and DOCX approval now exist in this branch. **All Windows/GPU checks and full automated test execution remain unverified; publication-grade scoring/comparability blockers remain open.** Historical dated sections below describe earlier development stages, not the current feature inventory.
+
 **17 November 2026 — Phase 1 foundation + Tkinter configuration preview.** This is not a working benchmark runner or validated benchmark.
 
 ## Current additions
