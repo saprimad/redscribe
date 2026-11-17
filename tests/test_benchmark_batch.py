@@ -48,6 +48,12 @@ class BenchmarkBatchTest(unittest.TestCase):
             self.assertEqual(len(result["items"]), 2)
             self.assertTrue((result_dir / "batch_manifest.json").is_file())
             self.assertTrue((result_dir / "batch_results.csv").is_file())
+            self.assertTrue((result_dir / "model_summary.csv").is_file())
+            self.assertTrue((result_dir / "error_breakdown.csv").is_file())
+            self.assertTrue((result_dir / "benchmark_summary.xlsx").is_file())
+            with __import__("zipfile").ZipFile(result_dir / "benchmark_summary.xlsx") as archive:
+                self.assertIsNone(archive.testzip())
+                self.assertEqual(len([name for name in archive.namelist() if name.startswith("xl/worksheets/sheet")]), 4)
             self.assertTrue(all(item["status"] == "completed" for item in result["items"]))
 
     def test_no_duplicate_references(self):
