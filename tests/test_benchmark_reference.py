@@ -110,6 +110,16 @@ class ReferenceTests(unittest.TestCase):
                 self.root / "private", reviewer_acknowledged=True,
                 verification={**verification, "coverage_verified": False})
 
+    def test_tracks_review_flags_for_complex_word_document(self):
+        from docx.oxml import OxmlElement
+        document = Document(str(self.word))
+        document.paragraphs[0]._p.append(OxmlElement("w:ins"))
+        document.sections[0].header.paragraphs[0].text = "Interview heading"
+        document.save(self.word)
+        draft = extract_docx(str(self.word))
+        self.assertTrue(any("tracked insertions" in issue for issue in draft.issues))
+        self.assertTrue(any("Header/footer" in issue for issue in draft.issues))
+
     def test_empty_document_rejected(self):
         blank = self.root / "empty.docx"
         Document().save(blank)
