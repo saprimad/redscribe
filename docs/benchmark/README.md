@@ -39,3 +39,9 @@ The current **experimental** benchmark workflow shows how audio recordings and r
 - [Reporting engine protocol](REPORTING_ENGINE_PROTOCOL.md) — inclusive verbatim scoring (fillers, repetitions, interviewer and all audible speakers), corpus/macro aggregation, strict common-completed cohort and data-quality safeguards.
 - `benchmark_reporting.py` now exports `model_summary.csv` and `error_breakdown.csv` for single and batch studies; `benchmark_pilot.py` additionally writes separate word/character S/D/I counts.
 - [Reporting unit tests](../../tests/test_benchmark_reporting.py) exercise synthetic corpus vs macro scoring, missing data, failed models and CSV output. **Runtime CI and actual Windows GPU execution have not been confirmed.**
+
+## IEEE-oriented Excel export (experimental)
+
+- `benchmark_excel.py` produces `benchmark_summary.xlsx` after single/batch completion with **Model Summary**, **Recording Results**, **Error Breakdown** and **Run Status** sheets. Scores are numeric fractional values formatted as percentages; incomplete or failed outcomes remain blank.
+- To regenerate from a stored run: `python benchmark_excel.py path/to/manifest.json` (or `batch_manifest.json`). No participant audio or transcripts are embedded in the workbook.
+- [XLSX structural tests](../../tests/test_benchmark_excel.py) check workbook contents and formula-injection safety; **CI success and opening in desktop Excel remain unverified**.
