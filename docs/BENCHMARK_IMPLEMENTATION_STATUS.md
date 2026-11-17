@@ -52,3 +52,13 @@ Functional benchmark execution, DOCX parsing and speaker filtering, validated gr
 **Validation pending:** tests have been written, but could not be executed against the user's Windows environment from this session. Visual Tkinter testing, more complex DOCX cases (merged cells, tracked changes, text boxes, headers/footers), confidentiality checks and real-file parser audit remain outstanding.
 
 **Critical controls:** clicking approval does not launch an ASR benchmark. A frozen reference is private local researcher data; avoid pushing outputs to GitHub. Audio/reference pair matching is **not** approved yet. Five existing methodological questions remain HOLD.
+
+## Short-audio pilot execution — experimental (17 November 2026)
+- `benchmark_pilot.py`: **real** sequential ASR execution for **Single mode only** (audio <= 180 seconds). For each selected model: preflight, load and transcribe through existing model adapters, calculate **raw** WER/CER/S/D/I against the approved local text, then persist transcript TXT, results CSV and atomic JSON manifest. Failures are recorded with null scores; subsequent models continue.
+- `benchmark_ui.py`: **Start short-audio pilot**, confirmation warning, status text and cooperative **Stop pilot** request. Only locally approved/frozen references can be used. Runs in a worker thread. Checkpoint *writes* exist, but **resume is not implemented**.
+- `benchmark_metrics.py` now uses a linear-memory edit-count DP to reduce CER memory pressure (still quadratic CPU time).
+- `tests/test_benchmark_pilot.py`: mocked smoke cases for one successfully scored model and failed CUDA preflight.
+
+**Important limitations:** UI Batch mode is still preview-only. Automatic speaker-label removal, reference/audio matching, approved normalisation, full word-level alignment, independent NIST scoring validation, VAD/OSD, resource sampling, Excel reporting, complete resumability and strict fair decoding-policy alignment have not been completed. Optional adapter inference time may include lazy model loading; the pilot flags it in `timing_note` rather than treating it as pure ASR time. Faster-Whisper may fall back to CPU; model-specific runtime constraints remain. Do **not** use pilot results as publication-ready comparisons yet.
+
+**Test status:** GitHub commit made; local Windows GPU/GUI tests and test-suite execution are not yet verified. Run `python -m unittest discover -s tests -p "test_benchmark*.py"`, followed by a short non-sensitive audio with one model first. The user's five pending design decisions stay HOLD. No changes to `main`.
