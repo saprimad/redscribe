@@ -48,6 +48,28 @@ class ReferenceTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             verify_reference(manifest_path)
 
+    def test_changed_original_docx_is_rejected_after_approval(self):
+        manifest, _, _ = approve_reference(
+            str(self.word), "Apa pandangan demo? Hmm kawe dok setuju",
+            self.root / "private", reviewer_acknowledged=True)
+        self.assertTrue(verify_reference(manifest)["source_sha256"])
+        changed = Document(str(self.word))
+        changed.add_paragraph("This is a later edit.")
+        changed.save(self.word)
+        with self.assertRaisesRegex(ValueError, "changed since approval"):
+            verify_reference(manifest)
+
+    def test_legacy_manifest_cannot_claim_source_verified(self):
+        import json
+        manifest, _, _ = approve_reference(
+            str(self.word), "sample text", self.root / "private",
+            reviewer_acknowledged=True)
+        info = json.loads(manifest.read_text(encoding="utf-8"))
+        del info["source_path"]
+        manifest.write_text(json.dumps(info), encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "re-approve DOCX"):
+            verify_reference(manifest)
+
     def test_empty_document_rejected(self):
         blank = self.root / "empty.docx"
         Document().save(blank)
