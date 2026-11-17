@@ -28,3 +28,8 @@ The current **experimental** benchmark workflow shows how audio recordings and r
 
 - [Metric scoring and pipeline code review — 18 November 2026](CODE_REVIEW_METRICS_2026-11-18.md): independent short-sequence edit-distance oracle (14,641 pairs), open IEEE-readiness blockers and the next Windows validation plan.
 - The source-controlled `tests/test_benchmark_metric_validation.py` adds raw-scoring regression coverage; it is **not** a substitute for external `jiwer`/SCLITE and actual runtime tests.
+
+## Single / Batch runner audit
+
+- [Single / Batch Runner Audit — 18 November 2026](SINGLE_BATCH_RUNNER_AUDIT_2026-11-18.md): reliability fixes, CSV/JSON status semantics, cancellation, changed-audio safeguards and remaining IEEE validation requirements.
+- [Synthetic runner regression tests](../../tests/test_benchmark_runner_integrity.py) and [GitHub Actions benchmark test workflow](../../.github/workflows/benchmark-tests.yml). **CI results and RTX 5070 execution are not yet confirmed.**
