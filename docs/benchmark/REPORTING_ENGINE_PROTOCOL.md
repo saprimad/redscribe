@@ -46,5 +46,9 @@ CER applies the analogous equation to character units. A missing, noninteger, ne
 
 - Added `tests/test_benchmark_reporting.py`: mathematically known corpus vs macro values, common-only matched cohort, per-character component availability, missing/failed outcomes, export formatting, and inconsistent records.
 - Synthetic tests have been authored but **CI, Windows Tkinter and RTX 5070 runs have not yet been verified here**. Compare scoring independently with `jiwer` and NIST SCTK/SCLITE before claiming independent validation.
-- `benchmark_summary.xlsx`, bootstrap 95% CIs, significance testing and language/dialect subgroup inference are **not implemented in this patch**. Exports are audit-friendly CSV ready for a subsequent spreadsheet renderer; never claim an Excel workbook was produced until an export implementation is verified.
+- `benchmark_summary.xlsx` now has an experimental standard-library XLSX exporter, called automatically at the end of a single or batch pilot. Four sheets: **Model Summary**, **Recording Results**, **Error Breakdown** and **Run Status**. Numeric rates use the Excel percent format (0.15 displays as 15%); source CSV and JSON remain the primary auditable results.
+- To regenerate locally from a stored experimental run, execute `python benchmark_excel.py PATH_TO_MANIFEST_JSON` (single `manifest.json`, or batch `batch_manifest.json`). The workbook is saved beside the manifest.
+- A language/dialect sheet is deliberately **not** generated: subgroup labels have not yet been researcher-verified; do not infer dialect from filenames or ASR language settings.
+- Added `tests/test_benchmark_excel.py` to check XLSX ZIP/XML structure, numeric percent cells, missing results and formula-injection safety. **Actual spreadsheet application compatibility and CI success are still unverified**.
+- Bootstrap 95% confidence intervals and significance testing remain **unimplemented**.
 - Current results remain exploratory: per-pilot audio length <=180 seconds; exact clip/reference coverage requires research verification; overlap policy is not yet validated against timestamped speaker-annotated truth.
