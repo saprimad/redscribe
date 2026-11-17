@@ -1,0 +1,208 @@
+"""Pilot ASR benchmark runner (short, single audio; sequential models).
+
+Runs on a background thread supplied by benchmark_ui. The module NEVER
+changes the normal transcription workflow or performs diarization. Raw WER/CER
+scoring only; no unapproved normalisation rules are applied.
+"""
+from datetime import datetime, timezone
+from pathlib import Path
+from hashlib import sha256
+from uuid import uuid4
+import csv
+import gc
+import json
+import time
+import traceback
+
+from benchmark_config import BenchmarkConfig
+from benchmark_metrics import raw_wer, raw_cer
+from benchmark_reference import sha256_file, verify_reference
+from model_options import ASR_MODEL_LABELS, preflight_model
+from asr_backends import EXTRA_MODELS, LocalASR
+
+MAX_PILOT_SECONDS = 180
+FIELDS = (
+    "model_key", "model", "status", "wer", "cer", "substitutions",
+    "deletions", "insertions", "reference_words", "reference_characters",
+    "loading_seconds", "transcription_seconds", "rtf", "audio_seconds",
+    "device", "precision", "error",
+)
+
+
+class PilotCancelled(Exception):
+    pass
+
+
+def _atomic_json(path, value):
+    temp = path.with_name(path.name + ".tmp")
+    temp.write_text(json.dumps(value, indent=2, ensure_ascii=False, allow_nan=False)
+                    + "\n", encoding="utf-8")
+    temp.replace(path)
+
+
+def _whisper_model(key):
+    # Reuse existing Faster-Whisper loading strategy, only when invoked.
+    from redscribe_gpu import create_whisper_model
+    return create_whisper_model(key)
+
+
+def _cleanup(model):
+    try:
+        if model is not None and hasattr(model, "close"):
+            model.close()
+    finally:
+        del model
+        gc.collect()
+        try:
+            import torch
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+        except (ImportError, RuntimeError):
+            pass
+
+
+def _decode_duration(path):
+    from faster_whisper.audio import decode_audio
+    waveform = decode_audio(str(path), sampling_rate=16000)
+    seconds = len(waveform) / 16000
+    if not 0 < seconds <= MAX_PILOT_SECONDS:
+        raise ValueError(
+            f"Pilot audio must be between 0 and {MAX_PILOT_SECONDS} seconds; got {seconds:.1f}s")
+    return seconds
+
+
+def _transcribe(key, audio_path, language, stopped):
+    model = None
+    try:
+        stopped()
+        if key in EXTRA_MODELS:
+            # Optional ASR uses lazy model load at segment iteration.
+            model = LocalASR(key, language=language, check_stop=stopped)
+            load_started = time.perf_counter()
+            # Preflight is intentionally before timing the transcription, but
+            # optional adapters perform lazy loading; separate loading time is
+            # unavailable without refactoring their internal generator.
+            segments, info = model.transcribe(str(audio_path))
+            transcription_started = time.perf_counter()
+            text = " ".join(segment.text.strip() for segment in segments if segment.text.strip())
+            elapsed = time.perf_counter() - transcription_started
+            return text, None, elapsed, "cuda", "float16", "lazy model load included in inference"
+        load_started = time.perf_counter()
+        model, device, precision = _whisper_model(key)
+        loading = time.perf_counter() - load_started
+        stopped()
+        transcription_started = time.perf_counter()
+        segments, info = model.transcribe(str(audio_path), language=language, task="transcribe",
+                                          beam_size=5, vad_filter=False)
+        text = " ".join(s.text.strip() for s in segments if s.text.strip())
+        elapsed = time.perf_counter() - transcription_started
+        stopped()
+        return text, loading, elapsed, device, precision, ""
+    finally:
+        _cleanup(model)
+
+
+def run_single_pilot(audio_path, reference_manifest, selected_models, output_root,
+                     *, language="ms", notify=None, cancel=None):
+    """Sequential pilot; each result saved as JSON and transcript TXT.
+
+    notify(event, detail): worker-thread callback; caller marshals into GUI.
+    cancel: threading.Event. Cancel is checked between models/segments.
+    """
+    config = BenchmarkConfig(mode="single", models=tuple(selected_models))
+    if language not in ("ms", "en", None):
+        raise ValueError("Invalid language")
+    if cancel is None:
+        from threading import Event
+        cancel = Event()
+    notify = notify or (lambda event, detail: None)
+
+    audio = Path(audio_path).resolve()
+    if not audio.is_file():
+        raise FileNotFoundError("Audio file not found")
+    refpath = Path(reference_manifest).resolve()
+    ref = verify_reference(refpath)
+    reference_path = refpath.parent / ref["scoring_text_file"]
+    reference = reference_path.read_text(encoding="utf-8")
+    if not reference.strip():
+        raise ValueError("Approved reference is empty")
+    seconds = _decode_duration(audio)
+    audio_hash = sha256_file(audio)
+    results_folder = Path(output_root).resolve() / (
+        datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "_" + uuid4().hex[:8])
+    results_folder.mkdir(parents=True, exist_ok=False)
+
+    manifest = {
+        "pilot": True, "status": "running", "schema_version": 1,
+        "created_utc": datetime.now(timezone.utc).isoformat(),
+        "source_audio": audio.name, "audio_sha256": audio_hash,
+        "audio_seconds": seconds, "reference_id": ref["reference_id"],
+        "reference_sha256": ref["approved_text_sha256"],
+        "reference_source_sha256": ref["source_sha256"],
+        "selected_models": list(config.models), "language": language,
+        "scoring": "raw whitespace WER / raw Unicode-codepoint CER; no normalisation",
+        "max_pilot_seconds": MAX_PILOT_SECONDS,
+        "diarization": "disabled",
+        "notes": "Exploratory test only; model-specific decoding and compute fallback may differ.",
+        "model_results": {},
+    }
+    _atomic_json(results_folder / "manifest.json", manifest)
+    notify("start", f"Pilot: {len(config.models)} models, {seconds:.1f}s audio")
+
+    def stopped():
+        if cancel.is_set():
+            raise PilotCancelled("Cancelled by researcher")
+
+    try:
+        for i, key in enumerate(config.models, 1):
+            stopped()
+            name = ASR_MODEL_LABELS[key]
+            notify("model", f"{i}/{len(config.models)}: {name}")
+            row = {field: None for field in FIELDS}
+            row.update(model_key=key, model=name, status="failed",
+                       audio_seconds=round(seconds, 4), error="")
+            try:
+                # Optional models may reject unsupported language or unavailable CUDA.
+                preflight_model(key, language)
+                transcript, loading, transcription, device, precision, note = _transcribe(
+                    key, audio, language, stopped)
+                word = raw_wer(reference, transcript)
+                char = raw_cer(reference, transcript)
+                safe_name = f"{i:02d}_{key.replace(' ', '_').replace('/', '_')}"
+                (results_folder / (safe_name + ".txt")).write_text(
+                    transcript + "\n", encoding="utf-8")
+                row.update(status="completed", wer=word.rate, cer=char.rate,
+                           substitutions=word.substitutions, deletions=word.deletions,
+                           insertions=word.insertions,
+                           reference_words=word.reference_units,
+                           reference_characters=char.reference_units,
+                           loading_seconds=round(loading, 4) if loading is not None else None,
+                           transcription_seconds=round(transcription, 4),
+                           rtf=round(transcription / seconds, 5),
+                           device=device, precision=precision, error=note)
+            except PilotCancelled:
+                row.update(status="cancelled", error="Cancelled by researcher")
+                raise
+            except Exception as exc:
+                row["error"] = f"{type(exc).__name__}: {exc}"
+                notify("warning", f"{name}: {row['error']}")
+            finally:
+                manifest["model_results"][key] = row
+                _atomic_json(results_folder / "manifest.json", manifest)
+                with (results_folder / "results.csv").open(
+                        "w", newline="", encoding="utf-8-sig") as f:
+                    writer = csv.DictWriter(f, fieldnames=FIELDS)
+                    writer.writeheader()
+                    writer.writerows(manifest["model_results"].values())
+            notify("progress", f"{i}/{len(config.models)} completed; results saved")
+        manifest["status"] = "completed"
+    except PilotCancelled:
+        manifest["status"] = "cancelled"
+    except Exception as exc:
+        manifest["status"] = "failed"
+        manifest["error"] = f"{type(exc).__name__}: {exc}"
+        raise
+    finally:
+        _atomic_json(results_folder / "manifest.json", manifest)
+        notify("finished", str(results_folder))
+    return results_folder, manifest
