@@ -63,7 +63,7 @@ class ReportingTests(unittest.TestCase):
         all_large = rows[0]
         self.assertEqual(all_large["word_scored"], 2)
         self.assertEqual(all_large["character_scored"], 1)
-        self.assertIsNone(all_large["corpus_cer"] if False else None)
+        self.assertAlmostEqual(all_large["corpus_cer"], 0.0)
         self.assertEqual(rows[2]["recordings_total"], 0)
         self.assertIsNone(rows[2]["corpus_wer"])
         self.assertIsNone(rows[2]["corpus_cer"])
@@ -78,7 +78,7 @@ class ReportingTests(unittest.TestCase):
         self.assertIsNone(rows[0]["corpus_wer"])
         breakdown = build_error_breakdown(self.state)
         self.assertIsNone(breakdown[0]["wer"])
-        self.assertEqual(breakdown[1]["status"], "failed") if False else None
+        self.assertEqual(breakdown[1]["status"], "completed")
 
     def test_failed_recording_cannot_appear_as_perfect_accuracy(self):
         self.state["items"].append({
