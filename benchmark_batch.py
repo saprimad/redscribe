@@ -13,6 +13,7 @@ import os
 from benchmark_config import BenchmarkConfig
 from benchmark_reference import sha256_file, verify_reference
 from benchmark_pilot import run_single_pilot, _atomic_json
+from benchmark_reporting import export_reporting
 
 
 BATCH_COLUMNS = (
@@ -60,6 +61,7 @@ def _write_batch_results(directory, state):
 def _checkpoint(directory, state):
     _atomic_json(directory / "batch_manifest.json", state)
     _write_batch_results(directory, state)
+    export_reporting(directory, state)
 
 
 def run_batch_pilot(pairs, models, output_root, *, language="ms", notify=None,
