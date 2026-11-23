@@ -1585,7 +1585,10 @@ class RedScribeApp:
 
     def browse_file(self):
         path = filedialog.askopenfilename(
-            filetypes=[("Audio/video files", "*.mp3 *.wav *.m4a *.mp4")]
+            filetypes=[
+                ("Audio/video files", "*.mp3 *.wav *.m4a *.mp4 *.mpeg *.mpg *.flac *.ogg *.aac *.mov *.mkv"),
+                ("All files", "*.*"),
+            ]
         )
         if path:
             self.audio_path.set(path)
