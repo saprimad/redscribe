@@ -1946,6 +1946,7 @@ class RedScribeApp:
         utterance_rows = []
         segment_ranges = []
         last_end = 0.0
+        last_text_end = 0.0
 
         try:
             for seg in segments:
@@ -1959,6 +1960,7 @@ class RedScribeApp:
                     last_end = max(last_end, en)
 
                 if seg_text:
+                    last_text_end = max(last_text_end, en)
                     ts = sec_to_hms(st)
                     segment_speaker = assign_speaker(st, en, diarization_turns)
                     self.root.after(0, self.log_live_segment, ts, segment_speaker, seg_text)
@@ -2007,6 +2009,24 @@ class RedScribeApp:
         self.begin_saving()
         audio_duration_s = float(getattr(info, "duration", last_end))
         elapsed_min = round((time.time() - start_clock) / 60, 2)
+
+        # End-of-audio coverage is a review signal, not proof of missing speech.
+        # Long trailing silence is valid; preserve all exports and never auto-fill text.
+        tail_gap_s = max(0.0, audio_duration_s - last_text_end)
+        tail_review_threshold_s = max(45.0, audio_duration_s * 0.05)
+        needs_tail_review = audio_duration_s > 0 and tail_gap_s >= tail_review_threshold_s
+        coverage_note = (
+            f"Last transcribed speech ends at {sec_to_hms(last_text_end)} "
+            f"of {sec_to_hms(audio_duration_s)}; trailing gap {sec_to_hms(tail_gap_s)}. "
+            "Check whether this is silence or untranscribed speech."
+        )
+        performance.details.update(
+            transcript_last_text_end_seconds=round(last_text_end, 3),
+            transcript_trailing_gap_seconds=round(tail_gap_s, 3),
+            transcript_tail_review_required=needs_tail_review,
+        )
+        if needs_tail_review:
+            self.root.after(0, self.log_warning, "Transcription coverage review required: " + coverage_note)
 
         meta_from_gui = {
             "project": inputs["project"],
@@ -2072,13 +2092,14 @@ class RedScribeApp:
             self.root.after(0, self.log_info, f"Word report saved: {docx_path}")
         finally:
             performance.end("word_export")
-        performance.outcome = "partial" if word_error else "completed"
+        performance.outcome = "partial" if (word_error or needs_tail_review) else "completed"
 
         def done_popup():
             self.progress_var.set(100.0)
             self.status.set(
                 "Completed; Word export failed" if word_error
-                else f"Completed - 100% | {actual_device.upper()} ({actual_compute_type})"
+                else "Processing completed - transcript review required" if needs_tail_review
+                else f"Processing completed - 100% | {actual_device.upper()} ({actual_compute_type})"
             )
 
             if word_error:
@@ -2088,9 +2109,16 @@ class RedScribeApp:
                     f"Saved Excel:\n{xlsx_path}\n\n"
                     f"The Word file could not be saved:\n{word_error}"
                 )
+            elif needs_tail_review:
+                messagebox.showwarning(
+                    "Transcription Review Required",
+                    "ASR processing finished, but full speech coverage has not been verified.\n\n"
+                    + coverage_note + "\n\n"
+                    + f"Saved Excel:\n{xlsx_path}\n\nSaved Word:\n{docx_path}"
+                )
             else:
                 messagebox.showinfo(
-                    "Transcription Completed Successfully",
+                    "Transcription Processing Completed",
                     f"RedScribe completed transcription in {elapsed_min} minutes.\n\n"
                     f"Whisper device: {actual_device.upper()} ({actual_compute_type})\n"
                     f"Speaker diarisation: {diarization_status}\n\n"
