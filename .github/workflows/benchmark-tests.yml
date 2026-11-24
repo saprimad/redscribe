@@ -4,12 +4,16 @@ on:
   push:
     branches:
       - redscribe-benchmark-timeline
+      - refactor/benchmark-architecture
     paths:
       - "benchmark_*.py"
       - "redscribe/**"
       - "benchmark*.py"
       - "tests/test_benchmark*.py"
       - ".github/workflows/benchmark-tests.yml"
+  pull_request:
+    branches:
+      - redscribe-benchmark-timeline
   workflow_dispatch:
 
 permissions:
