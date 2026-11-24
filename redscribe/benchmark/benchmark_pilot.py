@@ -16,6 +16,7 @@ import traceback
 import warnings
 
 from benchmark_config import BenchmarkConfig
+from redscribe.benchmark.benchmark_provenance import runtime_provenance
 from benchmark_metrics import raw_wer, raw_cer
 from benchmark_reporting import export_reporting
 from benchmark_excel import export_excel
@@ -179,6 +180,9 @@ def run_single_pilot(audio_path, reference_manifest, selected_models, output_roo
 
     manifest = {
         "pilot": True, "status": "running", "schema_version": 1,
+        "runtime_provenance": runtime_provenance(),
+        "decoding_policy": {"whisper": {"beam_size": 5, "vad_filter": False, "task": "transcribe"},
+                            "optional_adapters": "backend-specific; revision not yet captured"},
         "created_utc": datetime.now(timezone.utc).isoformat(),
         "source_audio": audio.name, "audio_sha256": audio_hash,
         "audio_seconds": seconds, "reference_id": ref["reference_id"],

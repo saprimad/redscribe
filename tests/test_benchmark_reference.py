@@ -93,7 +93,7 @@ class ReferenceTests(unittest.TestCase):
     def test_extracted_draft_retains_source_hash(self):
         draft = extract_docx(str(self.word))
         self.assertEqual(draft.source_sha256, sha256_file(self.word))
-        self.assertEqual(draft.extraction_version, "body-order-v2")
+        self.assertEqual(draft.extraction_version, "body-order-v3")
         self.assertEqual(draft.issues, ())
 
     def test_reference_verification_checklist_saved(self):

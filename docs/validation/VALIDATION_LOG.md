@@ -22,3 +22,8 @@ For future entries record UTC date, commit SHA, run ID, environment, expected/ob
 
 ## Scope decision — 2026-11-24
 Native segment export (b1d5037) withdrawn with researcher approval: whole-transcript accuracy is the objective. Retain exact scoring prediction and SHA-256 (908303f). Reversion CI pending. Benchmark branch only.
+
+## Additional CI evidence — 2026-11-24
+- [45387874220](https://github.com/saprimad/redscribe/actions/runs/45387874220): 44/44 pass, prediction integrity.
+- [45388746718](https://github.com/saprimad/redscribe/actions/runs/45388746718): 45/45 pass, offline rescoring.
+- [45388903639](https://github.com/saprimad/redscribe/actions/runs/45388903639): 45/46 pass; stale extraction version assertion (v2 vs v3). Update expected version; rerun pending.
