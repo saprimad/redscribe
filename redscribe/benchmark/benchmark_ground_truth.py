@@ -20,7 +20,19 @@ class GroundTruthDraft:
     warning: str
     source_sha256: str = ""
     issues: tuple[str, ...] = ()
-    extraction_version: str = "body-order-v2"
+    extraction_version: str = "body-order-v3"
+
+
+def _paragraph_text(element):
+    parts = []
+    for node in element.iter():
+        if node.tag == qn("w:t"):
+            parts.append(node.text or "")
+        elif node.tag == qn("w:tab"):
+            parts.append("\t")
+        elif node.tag in (qn("w:br"), qn("w:cr")):
+            parts.append("\n")
+    return "".join(parts)
 
 
 def extract_docx(path: str) -> GroundTruthDraft:
@@ -41,6 +53,11 @@ def extract_docx(path: str) -> GroundTruthDraft:
         ("w:commentRangeStart", "comment anchors"),
         ("w:txbxContent", "text boxes"),
         ("w:fldChar", "Word fields"),
+        ("w:sdt", "content controls"),
+        ("w:altChunk", "embedded document content"),
+        ("w:footnoteReference", "footnote references"),
+        ("w:endnoteReference", "endnote references"),
+        ("w:drawing", "drawings or embedded objects"),
     ):
         if any(True for _ in body_xml.iter(qn(tag))):
             issues.append(f"Document contains {name}; extraction requires visual review")
@@ -52,17 +69,19 @@ def extract_docx(path: str) -> GroundTruthDraft:
     # Iterate Word body elements in document order, unlike separate paragraphs/tables.
     for element in doc.element.body.iterchildren():
         if element.tag == qn("w:p"):
-            value = "".join(node.text or "" for node in element.iter(qn("w:t"))).strip()
-            if value:
+            value = _paragraph_text(element)
+            if value.strip():
                 blocks.append(value)
         elif element.tag == qn("w:tbl"):
             for row in element.findall(qn("w:tr")):
                 for cell in row.findall(qn("w:tc")):
                     # Traverse physical XML cells once; proxy IDs may be reused.
                     for para in cell.iter(qn("w:p")):
-                        value = "".join(node.text or "" for node in para.iter(qn("w:t"))).strip()
-                        if value:
+                        value = _paragraph_text(para)
+                        if value.strip():
                             blocks.append(value)
+    if sha256(original.read_bytes()).hexdigest() != source_sha256:
+        raise ValueError("DOCX changed during extraction; reload and review again")
     if not blocks:
         raise ValueError("No readable body text found in this Word document")
     return GroundTruthDraft(

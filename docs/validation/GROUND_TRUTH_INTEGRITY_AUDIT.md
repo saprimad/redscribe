@@ -1,0 +1,3 @@
+# Ground truth integrity audit
+
+Finding: previous preview stripped paragraph boundary whitespace and omitted Word tab/break elements, potentially changing CER. Preserve these within nonblank paragraphs; retain existing newline join and blank-paragraph exclusion. Flag content controls, embedded content, footnote/endnote references and drawings for visual review. Recheck source hash after extraction. Original DOCX remains read-only. No automatic speaker removal, dialect normalisation or filler removal. Complex Word structures still require manual review; this is not a guarantee of complete extraction. Existing approved references are not modified. Synthetic regression added; CI pending. Researcher must review scoring text against audio and DOCX before approval.
