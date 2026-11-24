@@ -56,6 +56,38 @@ class BenchmarkBatchTest(unittest.TestCase):
                 self.assertEqual(len([name for name in archive.namelist() if name.startswith("xl/worksheets/sheet")]), 4)
             self.assertTrue(all(item["status"] == "completed" for item in result["items"]))
 
+    def test_secondary_export_failures_preserve_completed_batch(self):
+        import json
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            document = Document()
+            document.add_paragraph("sample")
+            word = root / "ref.docx"
+            document.save(word)
+            manifest, _, _ = approve_reference(
+                word, "sample", root / "private", reviewer_acknowledged=True)
+            audio = root / "audio.wav"
+            audio.write_bytes(b"mock audio")
+            with patch("benchmark_pilot._decode_duration", return_value=10.), \
+                 patch("benchmark_pilot.preflight_model", return_value="ok"), \
+                 patch("benchmark_pilot._transcribe",
+                       return_value=("sample", .2, .4, "cpu", "int8", "")), \
+                 patch("benchmark_batch._write_batch_results",
+                       side_effect=PermissionError("CSV locked")), \
+                 patch("benchmark_batch.export_reporting",
+                       side_effect=OSError("report unavailable")), \
+                 patch("benchmark_batch.export_excel",
+                       side_effect=PermissionError("Excel locked")):
+                directory, state = run_batch_pilot(
+                    [(audio, manifest)], ("tiny",), root / "out")
+            saved = json.loads((directory / "batch_manifest.json").read_text(encoding="utf-8"))
+            self.assertEqual(saved, state)
+            self.assertEqual(saved["status"], "completed")
+            self.assertEqual(saved["items"][0]["model_results"]["tiny"]["status"], "completed")
+            for prefix in ("CSV:", "reporting:", "Excel:"):
+                self.assertTrue(any(w.startswith(prefix) for w in saved["reporting_warnings"]))
+            self.assertTrue((directory / saved["items"][0]["result_folder"] / "manifest.json").is_file())
+
     def test_no_duplicate_references(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
