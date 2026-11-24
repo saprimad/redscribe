@@ -62,7 +62,11 @@ def _write_batch_results(directory, state):
 def _checkpoint(directory, state):
     _atomic_json(directory / "batch_manifest.json", state)
     _write_batch_results(directory, state)
-    export_reporting(directory, state)
+    try:
+        export_reporting(directory, state)
+    except Exception as exc:
+        state.setdefault('reporting_warnings', []).append(f'{type(exc).__name__}: {exc}')
+        _atomic_json(directory / 'batch_manifest.json', state)
 
 
 def run_batch_pilot(pairs, models, output_root, *, language="ms", notify=None,
@@ -119,7 +123,7 @@ def run_batch_pilot(pairs, models, output_root, *, language="ms", notify=None,
     _checkpoint(directory, state)
 
     try:
-        for index, (audio, ref, approved_audio_hash, _) in enumerate(preflight):
+        for index, (audio, ref, approved_audio_hash, approved_reference_hash) in enumerate(preflight):
             if cancel.is_set():
                 state["status"] = "cancelled"
                 break
@@ -131,6 +135,8 @@ def run_batch_pilot(pairs, models, output_root, *, language="ms", notify=None,
                 # Defensive second check before launching any model weights.
                 if not audio.is_file() or sha256_file(audio) != approved_audio_hash:
                     raise ValueError("Audio recording changed since batch preflight")
+                if verify_reference(ref)['approved_text_sha256'] != approved_reference_hash:
+                    raise ValueError('Ground truth changed since batch preflight')
                 result_dir, result = run_single_pilot(
                     audio, ref, config.models, directory, language=language,
                     cancel=cancel, notify=notify, gpu_monitor=gpu_monitor,
