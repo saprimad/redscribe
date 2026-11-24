@@ -8,7 +8,8 @@ from .benchmark_matrix_checkpoint import MatrixCheckpoint
 from .benchmark_model_major import run_model_major
 
 def run_model_major_batch(dataset_path, models, output, *, language="ms",
-                          session_factory=None, stopped=lambda:False, duration_check=None):
+                          session_factory=None, stopped=lambda:False, duration_check=None,
+                          warmup_audio=None, monitor_factory=None):
     dataset = verify_dataset(dataset_path)
     models = list(models)
     if not models or len(set(models)) != len(models):
@@ -22,6 +23,13 @@ def run_model_major_batch(dataset_path, models, output, *, language="ms",
     output.mkdir(parents=True,exist_ok=True)
     identity = {"models":models,"recordings":list(pairs),"dataset":dataset,
                 "language":language,"policy":"raw-v1-cuda-fp16"}
+    warmup_path = Path(warmup_audio).resolve() if warmup_audio else None
+    if warmup_path:
+        warmup_hash = sha256_file(warmup_path)
+        if warmup_hash in {p["audio_sha256"] for p in pairs.values()}:
+            raise ValueError("Warm-up must not use study audio")
+        identity["warmup_sha256"] = warmup_hash
+    identity["resource_monitoring"] = monitor_factory is not None
     matrix = MatrixCheckpoint(output/"matrix.json",identity)
 
     def reference(pid):
@@ -37,10 +45,16 @@ def run_model_major_batch(dataset_path, models, output, *, language="ms",
 
     def infer(session,pid):
         ref = reference(pid)
-        pred = session.transcribe(pairs[pid]["audio"])
+        resources = None
+        if monitor_factory is None:
+            pred = session.transcribe(pairs[pid]["audio"])
+        else:
+            with monitor_factory() as monitor:
+                pred = session.transcribe(pairs[pid]["audio"])
+            resources = monitor.summary()
         if reference(pid) != ref:
             raise ValueError("Reference changed during inference")
-        return {"prediction":pred,"device":session.device,"precision":session.precision}
+        return {"prediction":pred,"device":session.device,"precision":session.precision,"resources":resources}
 
     def save(model,pid,row):
         if row["status"]=="completed":
@@ -50,7 +64,7 @@ def run_model_major_batch(dataset_path, models, output, *, language="ms",
                 f.write(result.pop("prediction").encode("utf-8"))
             pred = path.read_bytes().decode("utf-8")
             row.update(result, prediction_file=path.name,prediction_sha256=sha256_file(path),
-                       audio_seconds=durations[pid],**scores(reference(pid),pred))
+                       audio_seconds=durations[pid],rtf=row["inference_seconds"]/durations[pid],**scores(reference(pid),pred))
         matrix.record(model,pid,row)
 
     def verified(model,pid,row):
@@ -74,7 +88,13 @@ def run_model_major_batch(dataset_path, models, output, *, language="ms",
         from .benchmark_whisper_session import WhisperSession
         return WhisperSession(key,language)
 
+    def warmup(session):
+        if sha256_file(warmup_path) != identity["warmup_sha256"]:
+            raise ValueError("Warm-up audio changed")
+        session.transcribe(str(warmup_path))
+
     run_model_major(models,pairs,open_model=open_session,infer=infer,
         close_model=lambda s:s.close(),checkpoint=save,stopped=stopped,
-        is_verified=lambda m,p:matrix.verified(m,p,verified))
+        is_verified=lambda m,p:matrix.verified(m,p,verified),
+        warmup=warmup if warmup_path else None)
     return matrix.state
