@@ -63,12 +63,13 @@ def _write_batch_results(directory, state):
 
 def _checkpoint(directory, state):
     _atomic_json(directory / "batch_manifest.json", state)
-    _write_batch_results(directory, state)
-    try:
-        export_reporting(directory, state)
-    except Exception as exc:
-        state.setdefault('reporting_warnings', []).append(f'{type(exc).__name__}: {exc}')
-        _atomic_json(directory / 'batch_manifest.json', state)
+    for name, exporter in (("CSV", _write_batch_results), ("reporting", export_reporting)):
+        try:
+            exporter(directory, state)
+        except Exception as exc:
+            state.setdefault("reporting_warnings", []).append(
+                f"{name}: {type(exc).__name__}: {exc}")
+            _atomic_json(directory / "batch_manifest.json", state)
 
 
 def run_batch_pilot(pairs, models, output_root, *, language="ms", notify=None,
@@ -180,6 +181,9 @@ def run_batch_pilot(pairs, models, output_root, *, language="ms", notify=None,
             export_excel(directory, state)
         except Exception as excel_exc:
             # Spreadsheet output is secondary; retain valid CSV and manifest.
+            state.setdefault("reporting_warnings", []).append(
+                f"Excel: {type(excel_exc).__name__}: {excel_exc}")
+            _atomic_json(directory / "batch_manifest.json", state)
             notify("warning", f"Excel summary unavailable: {excel_exc}")
         notify("batch_finished", str(directory))
     return directory, state
