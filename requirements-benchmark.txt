@@ -1,4 +1,1 @@
-# Optional modules for Benchmarking Mode; install only in benchmark environment.
-# Existing requirements.txt already provides torch, faster-whisper and pyannote.audio.
-silero-vad>=6.0,<7
-psutil>=6,<9
+rapidfuzz==3.14.3

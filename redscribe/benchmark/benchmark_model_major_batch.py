@@ -3,7 +3,8 @@ from pathlib import Path
 from uuid import uuid4
 from .benchmark_dataset import verify_dataset
 from .benchmark_reference import verify_reference, sha256_file
-from .benchmark_metrics import raw_wer, raw_cer
+from .benchmark_fast_metrics import raw_wer_fast as raw_wer, raw_cer_fast as raw_cer, ENGINE
+from importlib.metadata import version
 from .benchmark_matrix_checkpoint import MatrixCheckpoint
 from .benchmark_model_major import run_model_major
 
@@ -22,7 +23,8 @@ def run_model_major_batch(dataset_path, models, output, *, language="ms",
     output = Path(output).resolve()
     output.mkdir(parents=True,exist_ok=True)
     identity = {"models":models,"recordings":list(pairs),"dataset":dataset,
-                "language":language,"policy":"raw-v1-cuda-fp16"}
+                "language":language,"policy":"raw-v1-cuda-fp16","scoring_engine":ENGINE,
+                "rapidfuzz_version":version("rapidfuzz")}
     warmup_path = Path(warmup_audio).resolve() if warmup_audio else None
     if warmup_path:
         warmup_hash = sha256_file(warmup_path)
