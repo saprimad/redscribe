@@ -88,9 +88,19 @@ def _run_model_major_batch(dataset_path, models, output, *, language="ms",
         if row["status"]=="completed":
             result = row.pop("result")
             path = output/(uuid4().hex+".txt")
-            with path.open("xb") as f:
-                f.write(result.pop("prediction").encode("utf-8"))
-            pred = path.read_bytes().decode("utf-8")
+            payload = result.pop("prediction").encode("utf-8")
+            try:
+                with path.open("xb") as f:
+                    f.write(payload)
+                    f.flush()
+                    import os
+                    os.fsync(f.fileno())
+                if path.read_bytes() != payload:
+                    raise OSError("Prediction read-back mismatch")
+            except BaseException:
+                path.unlink(missing_ok=True)
+                raise
+            pred = payload.decode("utf-8")
             row.update(result, prediction_file=path.name,prediction_sha256=sha256_file(path),
                        audio_seconds=durations[pid],rtf=row["inference_seconds"]/durations[pid],**scores(reference(pid),pred))
         matrix.record(model,pid,row)
@@ -105,7 +115,7 @@ def _run_model_major_batch(dataset_path, models, output, *, language="ms",
         except (OSError,ValueError,KeyError):
             return False
 
-    def open_session(key):
+    def create_session(key):
         if session_factory is not None:
             return session_factory(key)
         from asr_backends import EXTRA_MODELS
@@ -116,6 +126,21 @@ def _run_model_major_batch(dataset_path, models, output, *, language="ms",
             return LocalBenchmarkSession(key,language)
         from .benchmark_whisper_session import WhisperSession
         return WhisperSession(key,language)
+
+    def open_session(key):
+        session = create_session(key)
+        try:
+            previous = [row for row in matrix.state["results"].get(key,{}).values()
+                        if row.get("status") == "completed"]
+            for row in previous:
+                if (row.get("model_provenance") != getattr(session,"provenance",None)
+                    or row.get("device") != session.device
+                    or row.get("precision") != session.precision):
+                    raise ValueError("Resume model provenance mismatch; use a new output directory")
+            return session
+        except BaseException:
+            session.close()
+            raise
 
     def warmup(session):
         if sha256_file(warmup_path) != identity["warmup_sha256"]:
