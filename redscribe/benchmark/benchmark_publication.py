@@ -1,0 +1,61 @@
+"""Local publication exports; no participant text or audio paths."""
+from pathlib import Path
+from .benchmark_matrix_reporting import build_matrix_reports
+
+def export_publication(directory,state):
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill
+    from openpyxl.utils import get_column_letter
+    from matplotlib.figure import Figure
+    from matplotlib.backends.backend_agg import FigureCanvasAgg
+    directory=Path(directory)
+    summary,rows,efficiency=build_matrix_reports(state)
+    wb=Workbook()
+    wb.remove(wb.active)
+    for name,data in (("Model summary",summary),("Recording results",rows),("Efficiency",efficiency)):
+        ws=wb.create_sheet(name)
+        if not data:
+            continue
+        fields=list(data[0])
+        ws.append(fields)
+        for row in data:
+            ws.append([row.get(k) for k in fields])
+        for cell in ws[1]:
+            cell.font=Font(bold=True,color="FFFFFF")
+            cell.fill=PatternFill("solid",fgColor="243B53")
+        for i,k in enumerate(fields,1):
+            ws.column_dimensions[get_column_letter(i)].width=min(38,max(15,len(k)+2))
+            if k in ("wer","cer","corpus_wer","corpus_cer","macro_wer","macro_cer"):
+                for cells in ws.iter_rows(min_row=2,min_col=i,max_col=i):
+                    cells[0].number_format="0.00%"
+        ws.freeze_panes="C2"
+        ws.auto_filter.ref=ws.dimensions
+    wb.save(directory/"scientific_results.xlsx")
+    common=[r for r in summary if r["cohort"]=="common_completed" and r["corpus_wer"] is not None and r["corpus_cer"] is not None]
+    def figure(name,draw):
+        fig=Figure(figsize=(8,4.8),layout="constrained")
+        FigureCanvasAgg(fig)
+        ax=fig.add_subplot(111)
+        draw(ax)
+        for ext in ("svg","png"):
+            fig.savefig(directory/(name+"."+ext),dpi=600)
+    def accuracy(ax):
+        x=list(range(len(common)))
+        ax.bar([i-.19 for i in x],[100*r["corpus_wer"] for r in common],.38,label="WER")
+        ax.bar([i+.19 for i in x],[100*r["corpus_cer"] for r in common],.38,label="CER")
+        ax.set_xticks(x,[r["model_key"] for r in common],rotation=30,ha="right")
+        ax.set_ylabel("Error rate (%)")
+        ax.legend()
+    def distribution(ax):
+        labels=[r["model_key"] for r in common]
+        pids={p for p in state["identity"]["recordings"] if all(any(r["participant_id"]==p and r["model_key"]==m and r["status"]=="completed" and r["wer"] is not None and r["cer"] is not None for r in rows) for m in state["identity"]["models"])}
+        ax.boxplot([[100*r["wer"] for r in rows if r["model_key"]==m and r["participant_id"] in pids] for m in labels],tick_labels=labels)
+        ax.tick_params(axis="x",labelrotation=30)
+        ax.set_ylabel("Recording WER (%)")
+    if common:
+        figure("corpus_accuracy",accuracy)
+        figure("wer_distribution",distribution)
+    else:
+        for name in ("corpus_accuracy","wer_distribution"):
+            for ext in ("svg","png"):
+                (directory/(name+"."+ext)).unlink(missing_ok=True)

@@ -118,4 +118,6 @@ def run_model_major_batch(dataset_path, models, output, *, language="ms",
         warmup=warmup if warmup_path else None)
     from .benchmark_matrix_reporting import export_matrix_reporting
     export_matrix_reporting(output,matrix.state)
+    from .benchmark_publication import export_publication
+    export_publication(output,matrix.state)
     return matrix.state

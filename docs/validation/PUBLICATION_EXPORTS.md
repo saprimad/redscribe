@@ -1,0 +1,2 @@
+# Publication exports
+Local workbook with three sheets and percentage formatting. Common-completed corpus WER/CER bar chart and recording WER boxplot, SVG and 600 DPI PNG. No charts when common cohort is empty. Derived from checkpoint metadata; independent artifact audit, CER boxplot, resource and speed plots remain pending. No inferential statistics. Export errors propagate after checkpoint persistence. Synthetic export test added.
