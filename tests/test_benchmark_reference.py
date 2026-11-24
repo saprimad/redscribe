@@ -33,6 +33,15 @@ class ReferenceTests(unittest.TestCase):
         self.assertIn("Hmm kawe dok setuju", draft.text)
         self.assertEqual(sha256_file(self.word), original_hash)
 
+    def test_repeated_table_text_is_not_dropped(self):
+        doc = Document()
+        table = doc.add_table(rows=30, cols=2)
+        for row in table.rows:
+            row.cells[0].text = "Hmm"
+            row.cells[1].text = "kawe"
+        doc.save(self.word)
+        self.assertEqual(extract_docx(str(self.word)).blocks, ("Hmm", "kawe") * 30)
+
     def test_freeze_requires_approval_and_detects_mutations(self):
         draft = extract_docx(str(self.word))
         with self.assertRaises(ValueError):

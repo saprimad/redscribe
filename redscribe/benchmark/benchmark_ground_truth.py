@@ -49,7 +49,6 @@ def extract_docx(path: str) -> GroundTruthDraft:
            for p in list(section.header.paragraphs) + list(section.footer.paragraphs)):
         issues.append("Header/footer text is excluded from the scoring preview")
 
-    seen_paragraphs = set()
     # Iterate Word body elements in document order, unlike separate paragraphs/tables.
     for element in doc.element.body.iterchildren():
         if element.tag == qn("w:p"):
@@ -59,11 +58,8 @@ def extract_docx(path: str) -> GroundTruthDraft:
         elif element.tag == qn("w:tbl"):
             for row in element.findall(qn("w:tr")):
                 for cell in row.findall(qn("w:tc")):
-                    # A cell may contain several paragraphs; don't duplicate merged cells.
+                    # Traverse physical XML cells once; proxy IDs may be reused.
                     for para in cell.iter(qn("w:p")):
-                        if id(para) in seen_paragraphs:
-                            continue
-                        seen_paragraphs.add(id(para))
                         value = "".join(node.text or "" for node in para.iter(qn("w:t"))).strip()
                         if value:
                             blocks.append(value)
