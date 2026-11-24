@@ -32,6 +32,7 @@ FIELDS = (
     "loading_seconds", "transcription_seconds", "rtf", "audio_seconds",
     "device", "precision", "timing_note", "error",
     "prediction_file", "prediction_sha256", "prediction_bytes",
+    "segments_file", "segments_sha256",
     "gpu_util_peak_percent", "gpu_memory_peak_mb", "gpu_temp_peak_c",
     "cpu_peak_percent", "system_ram_peak_mb",
 )
@@ -112,7 +113,19 @@ def _decode_duration(path):
     return seconds
 
 
-def _transcribe(key, audio_path, language, stopped):
+def _assemble_segments(segments, sink=None):
+    parts = []
+    for segment in segments:
+        original = segment.text
+        if sink is not None:
+            sink.append({"text": original, "start": getattr(segment, "start", None),
+                         "end": getattr(segment, "end", None)})
+        if original.strip():
+            parts.append(original.strip())
+    return " ".join(parts)
+
+
+def _transcribe(key, audio_path, language, stopped, *, segment_sink=None):
     model = None
     try:
         stopped()
@@ -125,7 +138,7 @@ def _transcribe(key, audio_path, language, stopped):
             # unavailable without refactoring their internal generator.
             segments, info = model.transcribe(str(audio_path))
             transcription_started = time.perf_counter()
-            text = " ".join(segment.text.strip() for segment in segments if segment.text.strip())
+            text = _assemble_segments(segments, segment_sink)
             elapsed = time.perf_counter() - transcription_started
             return text, None, elapsed, "cuda", "float16", "lazy model load included in inference"
         load_started = time.perf_counter()
@@ -135,7 +148,7 @@ def _transcribe(key, audio_path, language, stopped):
         transcription_started = time.perf_counter()
         segments, info = model.transcribe(str(audio_path), language=language, task="transcribe",
                                           beam_size=5, vad_filter=False)
-        text = " ".join(s.text.strip() for s in segments if s.text.strip())
+        text = _assemble_segments(segments, segment_sink)
         elapsed = time.perf_counter() - transcription_started
         stopped()
         return text, loading, elapsed, device, precision, ""
@@ -228,9 +241,10 @@ def run_single_pilot(audio_path, reference_manifest, selected_models, output_roo
                         monitoring = candidate
                     except Exception as monitor_exc:
                         notify("warning", f"{name}: resource monitor start unavailable: {monitor_exc}")
+                native_segments = []
                 try:
                     transcript, loading, transcription, device, precision, note = _transcribe(
-                        key, audio, language, stopped)
+                        key, audio, language, stopped, segment_sink=native_segments)
                 finally:
                     if monitoring is not None:
                         try:
@@ -252,6 +266,13 @@ def run_single_pilot(audio_path, reference_manifest, selected_models, output_roo
                     except Exception as monitor_exc:
                         notify("warning", f"{name}: monitor results unavailable: {monitor_exc}")
                 safe_name = f"{i:02d}_{key.replace(' ', '_').replace('/', '_')}"
+                segment_path = results_folder / (safe_name + "_segments.json")
+                segment_payload = json.dumps(native_segments, ensure_ascii=False,
+                                             allow_nan=False).encode("utf-8")
+                with segment_path.open("xb") as stream:
+                    stream.write(segment_payload)
+                row.update(segments_file=segment_path.name,
+                           segments_sha256=sha256(segment_path.read_bytes()).hexdigest())
                 transcript, prediction_metadata = _persist_prediction(
                     results_folder, safe_name, transcript)
                 row.update(prediction_metadata)
