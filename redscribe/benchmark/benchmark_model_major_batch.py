@@ -113,9 +113,19 @@ def run_model_major_batch(dataset_path, models, output, *, language="ms",
             raise ValueError("Warm-up audio changed")
         session.transcribe(str(warmup_path))
 
+    verified_cells=set()
+    for m in models:
+        for p in pairs:
+            if stopped():
+                break
+            if matrix.verified(m,p,verified):
+                verified_cells.add((m,p))
+                progress(m,p,'completed')
+            else:
+                progress(m,p,'pending')
     run_model_major(models,pairs,open_model=open_session,infer=infer,
         close_model=lambda s:s.close(),checkpoint=save,stopped=stopped,
-        is_verified=lambda m,p:matrix.verified(m,p,verified),
+        is_verified=lambda m,p:(m,p) in verified_cells and matrix.verified(m,p,verified),
         warmup=warmup if warmup_path else None,progress=progress)
     from .benchmark_matrix_reporting import export_matrix_reporting
     export_matrix_reporting(output,matrix.state)
