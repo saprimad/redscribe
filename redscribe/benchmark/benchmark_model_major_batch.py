@@ -21,7 +21,7 @@ def decode_full_duration(path):
     waveform = decode_audio(str(path), sampling_rate=16000)
     return validate_duration(len(waveform) / 16000)
 
-def run_model_major_batch(dataset_path, models, output, *, language="ms",
+def _run_model_major_batch(dataset_path, models, output, *, language="ms",
                           session_factory=None, stopped=lambda:False, duration_check=None,
                           warmup_audio=None, monitor_factory=None, progress=lambda *args: None):
     dataset = verify_dataset(dataset_path)
@@ -127,6 +127,13 @@ def run_model_major_batch(dataset_path, models, output, *, language="ms",
         close_model=lambda s:s.close(),checkpoint=save,stopped=stopped,
         is_verified=lambda m,p:(m,p) in verified_cells and matrix.verified(m,p,verified),
         warmup=warmup if warmup_path else None,progress=progress)
+    # Never export stale completed cells after cancellation or failed verification.
+    for m in models:
+        for p in pairs:
+            row=matrix.state['results'].get(m,{}).get(p,{})
+            if row.get('status')=='completed' and not verified(m,p,row):
+                matrix.record(m,p,{'status':'failed','stage':'integrity','error':'Saved prediction or score failed verification'})
+                progress(m,p,'failed')
     from .benchmark_matrix_reporting import export_matrix_reporting
     export_matrix_reporting(output,matrix.state)
     from .benchmark_publication import export_publication
@@ -134,3 +141,9 @@ def run_model_major_batch(dataset_path, models, output, *, language="ms",
     from .benchmark_export_integrity import write_export_manifest
     write_export_manifest(output)
     return matrix.state
+
+
+def run_model_major_batch(dataset_path,models,output,**kwargs):
+    from .benchmark_output_lock import output_lock
+    with output_lock(output):
+        return _run_model_major_batch(dataset_path,models,output,**kwargs)
