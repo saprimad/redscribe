@@ -30,4 +30,4 @@ class RecoveryTests(unittest.TestCase):
             self.assertEqual([i["status"] for i in saved["items"]], ["completed","pending"])
             self.assertTrue(saved["reporting_warnings"])
             self.assertTrue((folder / "batch_results.csv").exists())
-            self.assertFalse(saved["resume_supported"])
+            self.assertTrue(saved["resume_supported"])

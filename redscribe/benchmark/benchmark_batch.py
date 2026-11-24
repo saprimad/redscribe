@@ -9,6 +9,8 @@ from threading import Event
 from uuid import uuid4
 import csv
 import os
+import json
+from redscribe.benchmark.benchmark_rescore import rescore
 
 from benchmark_config import BenchmarkConfig
 from benchmark_reference import sha256_file, verify_reference
@@ -70,10 +72,10 @@ def _checkpoint(directory, state):
 
 
 def run_batch_pilot(pairs, models, output_root, *, language="ms", notify=None,
-                    cancel=None, gpu_monitor=False, vad=False, osd=False, hf_token=None):
+                    cancel=None, gpu_monitor=False, vad=False, osd=False, hf_token=None, resume_directory=None):
     """Run explicit audio/reference pairs, preserving failures and cancellation.
 
-    Checkpointing is durable but **resume is not implemented**.
+    Resume is recording-level; verified complete recordings are skipped.
     Every audio is re-hashed when its turn begins; a modified recording is
     rejected rather than compared against stale preflight metadata.
     """
@@ -105,13 +107,14 @@ def run_batch_pilot(pairs, models, output_root, *, language="ms", notify=None,
     directory = Path(output_root).resolve() / (
         "batch_" + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
         + "_" + uuid4().hex[:8])
-    directory.mkdir(parents=True, exist_ok=False)
+    if resume_directory is None:
+        directory.mkdir(parents=True, exist_ok=False)
 
     state = {
-        "schema_version": 2, "mode": "batch", "status": "running",
+        "schema_version": 3, "mode": "batch", "status": "running",
         "models": list(config.models), "language": language,
         "gpu_monitor": bool(gpu_monitor), "vad": bool(vad), "osd": bool(osd),
-        "resume_supported": False,
+        "resume_supported": True,
         "items": [
             {"audio": p[0].name, "audio_sha256": p[2],
              "reference_manifest": p[1].name, "reference_sha256": p[3],
@@ -120,6 +123,10 @@ def run_batch_pilot(pairs, models, output_root, *, language="ms", notify=None,
             for p in preflight
         ],
     }
+    if resume_directory is not None:
+        directory = Path(resume_directory).resolve()
+        previous = json.loads((directory / 'batch_manifest.json').read_text(encoding='utf-8'))
+        state = validate_resume(directory, previous, state, preflight)
     _checkpoint(directory, state)
 
     try:
@@ -128,7 +135,11 @@ def run_batch_pilot(pairs, models, output_root, *, language="ms", notify=None,
                 state["status"] = "cancelled"
                 break
             item = state["items"][index]
-            item["status"] = "running"
+            if item["status"] == "completed":
+                continue
+            if item.get("result_folder"):
+                item.setdefault("prior_result_folders", []).append(item["result_folder"])
+            item.update(status="running", error="", result_folder=None, model_results={})
             _checkpoint(directory, state)
             notify("batch", f"Recording {index + 1}/{len(preflight)}: {audio.name}")
             try:
@@ -172,3 +183,31 @@ def run_batch_pilot(pairs, models, output_root, *, language="ms", notify=None,
             notify("warning", f"Excel summary unavailable: {excel_exc}")
         notify("batch_finished", str(directory))
     return directory, state
+
+
+def validate_resume(directory, previous, requested, preflight):
+    """Fail closed on changed inputs/settings or corrupt completed artifacts."""
+    for key in ("schema_version", "models", "language", "gpu_monitor", "vad", "osd"):
+        if previous.get(key) != requested.get(key):
+            raise ValueError(f"Resume configuration mismatch: {key}")
+    if len(previous["items"]) != len(requested["items"]):
+        raise ValueError("Resume dataset count mismatch")
+    for old, new, (_, ref, _, _) in zip(previous["items"], requested["items"], preflight):
+        for key in ("audio", "audio_sha256", "reference_manifest", "reference_sha256"):
+            if old.get(key) != new.get(key):
+                raise ValueError(f"Resume pairing mismatch: {key}")
+        if old["status"] == "completed":
+            folder = (directory / old["result_folder"]).resolve()
+            if folder.parent != directory.resolve():
+                raise ValueError("Invalid resume artifact folder")
+            manifest_path = folder / "manifest.json"
+            run = json.loads(manifest_path.read_text(encoding="utf-8"))
+            if (run["audio_sha256"] != new["audio_sha256"] or run["selected_models"] != requested["models"]
+                or run["language"] != requested["language"] or run["model_results"] != old["model_results"]):
+                raise ValueError("Resume artifact metadata mismatch")
+            report = rescore(manifest_path, ref)
+            if len(report["results"]) != len(requested["models"]) or any(r["status"] != "verified" for r in report["results"]):
+                raise ValueError("Completed recording failed resume integrity verification")
+    previous["status"] = "running"
+    previous["resume_count"] = previous.get("resume_count", 0) + 1
+    return previous
