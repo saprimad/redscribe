@@ -28,11 +28,14 @@ class ModelMajorBatchTests(unittest.TestCase):
                 return Session()
             def run():
                 return run_model_major_batch(dataset,["a","b"],root/"out",session_factory=factory,duration_check=lambda p:1)
+            from redscribe.benchmark.benchmark_matrix_audit import audit_matrix
             state=run()
+            self.assertTrue(all(x["status"]=="verified" for x in audit_matrix(root/"out",dataset)))
             self.assertEqual(loads,["a","b"])
             self.assertEqual(state["results"]["a"]["0"]["wer"],0)
             run()
             self.assertEqual(loads,["a","b"])
             (root/"out"/state["results"]["a"]["0"]["prediction_file"]).write_text("tampered")
+            self.assertIn("mismatch",[x["status"] for x in audit_matrix(root/"out",dataset)])
             run()
             self.assertEqual(loads,["a","b","a"])

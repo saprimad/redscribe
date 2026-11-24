@@ -22,6 +22,9 @@ def export_publication(directory,state):
         ws.append(fields)
         for row in data:
             ws.append([row.get(k) for k in fields])
+            for cell in ws[ws.max_row]:
+                if isinstance(cell.value,str):
+                    cell.data_type="s"
         for cell in ws[1]:
             cell.font=Font(bold=True,color="FFFFFF")
             cell.fill=PatternFill("solid",fgColor="243B53")
