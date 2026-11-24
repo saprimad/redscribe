@@ -1,0 +1,2 @@
+# Resource and figure reporting
+CER boxplot, WER heatmap and common-cohort accuracy/RTF scatter added. Missing heatmap values masked. Resource peaks are sampled system-wide GPU 0 and system RAM, not process-specific; report maximum observed recording peak and number of recordings with measurements. Missing measurements remain blank. RTF includes runner overhead. Independent artifact validation and resource runtime validation remain pending. Scatter can be empty when timing is missing.

@@ -46,16 +46,45 @@ def export_publication(directory,state):
         ax.set_xticks(x,[r["model_key"] for r in common],rotation=30,ha="right")
         ax.set_ylabel("Error rate (%)")
         ax.legend()
-    def distribution(ax):
+    def distribution(ax,metric="wer"):
         labels=[r["model_key"] for r in common]
         pids={p for p in state["identity"]["recordings"] if all(any(r["participant_id"]==p and r["model_key"]==m and r["status"]=="completed" and r["wer"] is not None and r["cer"] is not None for r in rows) for m in state["identity"]["models"])}
-        ax.boxplot([[100*r["wer"] for r in rows if r["model_key"]==m and r["participant_id"] in pids] for m in labels],tick_labels=labels)
+        ax.boxplot([[100*r[metric] for r in rows if r["model_key"]==m and r["participant_id"] in pids] for m in labels],tick_labels=labels)
         ax.tick_params(axis="x",labelrotation=30)
-        ax.set_ylabel("Recording WER (%)")
+        ax.set_ylabel("Recording "+metric.upper()+" (%)")
+    def heatmap(ax):
+        import numpy as np
+        models=state["identity"]["models"]
+        ids=state["identity"]["recordings"]
+        lookup={(r["model_key"],r["participant_id"]):r["wer"] for r in rows}
+        values=np.array([[100*lookup[m,p] if lookup[m,p] is not None else np.nan for m in models] for p in ids])
+        im=ax.imshow(np.ma.masked_invalid(values),aspect="auto",cmap="viridis")
+        ax.set_xticks(range(len(models)),models,rotation=30,ha="right")
+        ax.set_yticks(range(len(ids)),ids,fontsize=7)
+        ax.figure.colorbar(im,ax=ax,label="WER (%)")
+    def speed(ax):
+        for r in common:
+            subset=[x for x in rows if x["model_key"]==r["model_key"] and x["participant_id"] in common_ids and x["rtf"] is not None]
+            if len(subset)!=len(common_ids) or not subset:
+                continue
+            x=sum(t["inference_seconds"] for t in subset)/sum(t["audio_seconds"] for t in subset)
+            y=100*r["corpus_wer"]
+            ax.scatter(x,y)
+            ax.annotate(r["model_key"],(x,y),fontsize=8)
+        ax.set_xlabel("Aggregate real-time factor")
+        ax.set_ylabel("Corpus WER (%)")
+    common_ids={pid for pid in state["identity"]["recordings"] if all(any(r["participant_id"]==pid and r["model_key"]==m and r["wer"] is not None and r["cer"] is not None for r in rows) for m in state["identity"]["models"])}
+    if any(r["wer"] is not None for r in rows):
+        figure("participant_wer_heatmap",heatmap)
+    else:
+        for ext in ("svg","png"):
+            (directory/("participant_wer_heatmap."+ext)).unlink(missing_ok=True)
     if common:
         figure("corpus_accuracy",accuracy)
         figure("wer_distribution",distribution)
+        figure("cer_distribution",lambda ax:distribution(ax,"cer"))
+        figure("accuracy_speed",speed)
     else:
-        for name in ("corpus_accuracy","wer_distribution"):
+        for name in ("corpus_accuracy","wer_distribution","cer_distribution","accuracy_speed"):
             for ext in ("svg","png"):
                 (directory/(name+"."+ext)).unlink(missing_ok=True)

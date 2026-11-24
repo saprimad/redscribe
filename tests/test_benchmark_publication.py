@@ -14,7 +14,7 @@ class PublicationTests(unittest.TestCase):
             wb=load_workbook(p/"scientific_results.xlsx")
             self.assertEqual(wb.sheetnames,["Model summary","Recording results","Efficiency"])
             wb.close()
-            for name in ("corpus_accuracy","wer_distribution"):
+            for name in ("corpus_accuracy","wer_distribution","cer_distribution","accuracy_speed","participant_wer_heatmap"):
                 for ext in ("svg","png"):
                     self.assertGreater((p/(name+"."+ext)).stat().st_size,0)
             state["results"]={}
