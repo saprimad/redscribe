@@ -11,6 +11,7 @@ class LocalBenchmarkSession:
             self.adapter._load()
             self.device = self.adapter.verified_device
             self.precision = self.adapter.verified_precision
+            self.provenance={"model_key":key,"checkpoint":getattr(getattr(self.adapter,"spec",None),"checkpoint",None),"revision":getattr(self.adapter,"revision",None),"decoding":{"language":language,"chunking":"existing chunk_ranges"}}
         except Exception:
             self.close()
             raise

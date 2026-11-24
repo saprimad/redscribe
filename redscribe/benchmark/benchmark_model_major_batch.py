@@ -37,6 +37,12 @@ def _run_model_major_batch(dataset_path, models, output, *, language="ms",
     identity = {"models":models,"recordings":list(pairs),"dataset":dataset,
                 "language":language,"policy":"raw-v1-cuda-fp16","scoring_engine":ENGINE,
                 "rapidfuzz_version":version("rapidfuzz"),"max_audio_seconds":MAX_FULL_AUDIO_SECONDS,"reporting_schema":1}
+    from .benchmark_provenance import runtime_provenance, hardware_provenance
+    identity["runtime_provenance"] = runtime_provenance()
+    identity["hardware_provenance"] = hardware_provenance() if session_factory is None else None
+    identity["requested_device"] = "cuda"
+    identity["requested_precision"] = "float16"
+    identity["inference_kind"] = "native" if session_factory is None else "injected"
     warmup_path = Path(warmup_audio).resolve() if warmup_audio else None
     if warmup_path:
         warmup_hash = sha256_file(warmup_path)
@@ -75,7 +81,8 @@ def _run_model_major_batch(dataset_path, models, output, *, language="ms",
             resources = monitor.summary()
         if reference(pid) != ref:
             raise ValueError("Reference changed during inference")
-        return {"prediction":pred,"device":session.device,"precision":session.precision,"resources":resources}
+        return {"prediction":pred,"device":session.device,"precision":session.precision,"resources":resources,
+                "model_provenance":getattr(session,"provenance",None)}
 
     def save(model,pid,row):
         if row["status"]=="completed":

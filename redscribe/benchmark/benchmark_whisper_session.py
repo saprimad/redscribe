@@ -12,6 +12,7 @@ class WhisperSession:
             self.device, self.precision = verify_configuration(
                 getattr(self.model.model, "device", None),
                 getattr(self.model.model, "compute_type", None))
+            self.provenance={"model_key":key,"revision":getattr(self.model,"benchmark_revision",None),"decoding":{"language":language,"task":"transcribe","beam_size":5,"vad_filter":False,"condition_on_previous_text":True}}
         except Exception:
             self.close()
             raise

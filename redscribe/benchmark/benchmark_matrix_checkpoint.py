@@ -30,8 +30,15 @@ class MatrixCheckpoint:
     def record(self, model, recording, outcome):
         if model not in self.identity["models"] or recording not in self.identity["recordings"]:
             raise ValueError("Unknown matrix cell")
+        from copy import deepcopy
+        previous = self.state
+        self.state = deepcopy(previous)
         self.state["results"].setdefault(model,{})[recording] = outcome
-        self._save()
+        try:
+            self._save()
+        except BaseException:
+            self.state = previous
+            raise
 
     def verified(self, model, recording, verify_artifact):
         row = self.state["results"].get(model,{}).get(recording)
