@@ -1,0 +1,2 @@
+# Offline matrix audit
+Call audit_matrix(directory,dataset_path) locally. Reverify dataset and prediction hashes, compare total edit counts, denominators and rates through JiWER with explicit raw transforms. JiWER shares RapidFuzz internally; independent algorithm validation is the original Python oracle synthetic suite. Skipped cells are not verified. This audit does not yet verify workbook cells or figure contents. No participant data uploaded.
