@@ -31,6 +31,7 @@ FIELDS = (
     "char_substitutions", "char_deletions", "char_insertions",
     "loading_seconds", "transcription_seconds", "rtf", "audio_seconds",
     "device", "precision", "timing_note", "error",
+    "prediction_file", "prediction_sha256", "prediction_bytes",
     "gpu_util_peak_percent", "gpu_memory_peak_mb", "gpu_temp_peak_c",
     "cpu_peak_percent", "system_ram_peak_mb",
 )
@@ -59,6 +60,22 @@ def _write_results_csv(folder, manifest):
         temporary.replace(destination)
     finally:
         temporary.unlink(missing_ok=True)
+
+
+def _persist_prediction(folder, name, transcript):
+    """Freeze exact scoring input as UTF-8 bytes, without newline conversion."""
+    payload = transcript.encode("utf-8")
+    path = folder / (name + ".txt")
+    with path.open("xb") as stream:
+        stream.write(payload)
+    saved = path.read_bytes()
+    if saved != payload:
+        raise ValueError("Prediction persistence verification failed")
+    return saved.decode("utf-8"), {
+        "prediction_file": path.name,
+        "prediction_sha256": sha256(saved).hexdigest(),
+        "prediction_bytes": len(saved),
+    }
 
 
 def _whisper_model(key):
@@ -234,11 +251,12 @@ def run_single_pilot(audio_path, reference_manifest, selected_models, output_roo
                         monitoring.save_csv(results_folder / (safe_monitor_name + "_resources.csv"))
                     except Exception as monitor_exc:
                         notify("warning", f"{name}: monitor results unavailable: {monitor_exc}")
+                safe_name = f"{i:02d}_{key.replace(' ', '_').replace('/', '_')}"
+                transcript, prediction_metadata = _persist_prediction(
+                    results_folder, safe_name, transcript)
+                row.update(prediction_metadata)
                 word = raw_wer(reference, transcript)
                 char = raw_cer(reference, transcript)
-                safe_name = f"{i:02d}_{key.replace(' ', '_').replace('/', '_')}"
-                (results_folder / (safe_name + ".txt")).write_text(
-                    transcript + "\n", encoding="utf-8")
                 row.update(status="completed", wer=word.rate, cer=char.rate,
                            substitutions=word.substitutions, deletions=word.deletions,
                            insertions=word.insertions,
