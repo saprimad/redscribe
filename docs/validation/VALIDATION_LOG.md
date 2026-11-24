@@ -27,3 +27,6 @@ Native segment export (b1d5037) withdrawn with researcher approval: whole-transc
 - [45387874220](https://github.com/saprimad/redscribe/actions/runs/45387874220): 44/44 pass, prediction integrity.
 - [45388746718](https://github.com/saprimad/redscribe/actions/runs/45388746718): 45/45 pass, offline rescoring.
 - [45388903639](https://github.com/saprimad/redscribe/actions/runs/45388903639): 45/46 pass; stale extraction version assertion (v2 vs v3). Update expected version; rerun pending.
+
+## Feature freeze — 2026-11-24
+[45391153563](https://github.com/saprimad/redscribe/actions/runs/45391153563): 50/50 tests passed at ca117aa. Strict configuration and provenance predecessor runs also succeeded. Full experiment not yet authorised; see FINAL_SOFTWARE_AUDIT.md.
