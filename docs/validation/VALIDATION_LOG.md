@@ -30,3 +30,6 @@ Native segment export (b1d5037) withdrawn with researcher approval: whole-transc
 
 ## Feature freeze — 2026-11-24
 [45391153563](https://github.com/saprimad/redscribe/actions/runs/45391153563): 50/50 tests passed at ca117aa. Strict configuration and provenance predecessor runs also succeeded. Full experiment not yet authorised; see FINAL_SOFTWARE_AUDIT.md.
+
+## RapidFuzz long-text validation — 2026-11-24
+[45406919114](https://github.com/saprimad/redscribe/actions/runs/45406919114), commit 2bce950: Windows and Ubuntu each passed 68/68 tests. At 100,000 characters, mutation probabilities 0.1/0.3/0.5 produced CER 0.12994/0.37833/0.60311. Windows scoring seconds 0.849511/1.092370/1.273784; Ubuntu 0.347787/0.409965/0.462277. Synthetic CI timings, not target hardware or ASR timings. Model-major duration ceiling raised to 7200 seconds; old pilot unchanged. Actual long-audio GPU validation pending.

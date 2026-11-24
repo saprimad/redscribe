@@ -1,5 +1,6 @@
 """Experimental local model-major batch entry point; not wired into desktop UI."""
 from pathlib import Path
+import math
 from uuid import uuid4
 from .benchmark_dataset import verify_dataset
 from .benchmark_reference import verify_reference, sha256_file
@@ -7,6 +8,18 @@ from .benchmark_fast_metrics import raw_wer_fast as raw_wer, raw_cer_fast as raw
 from importlib.metadata import version
 from .benchmark_matrix_checkpoint import MatrixCheckpoint
 from .benchmark_model_major import run_model_major
+
+MAX_FULL_AUDIO_SECONDS = 7200
+
+def validate_duration(seconds):
+    if not math.isfinite(seconds) or not 0 < seconds <= MAX_FULL_AUDIO_SECONDS:
+        raise ValueError(f'Full-length audio must be between 0 and {MAX_FULL_AUDIO_SECONDS} seconds; got {seconds}')
+    return seconds
+
+def decode_full_duration(path):
+    from faster_whisper.audio import decode_audio
+    waveform = decode_audio(str(path), sampling_rate=16000)
+    return validate_duration(len(waveform) / 16000)
 
 def run_model_major_batch(dataset_path, models, output, *, language="ms",
                           session_factory=None, stopped=lambda:False, duration_check=None,
@@ -17,14 +30,13 @@ def run_model_major_batch(dataset_path, models, output, *, language="ms",
         raise ValueError("Select distinct models")
     pairs = {p["participant_id"]:p for p in dataset["pairs"]}
     if duration_check is None:
-        from .benchmark_pilot import _decode_duration
-        duration_check = _decode_duration
-    durations = {pid:duration_check(p["audio"]) for pid,p in pairs.items()}
+        duration_check = decode_full_duration
+    durations = {pid:validate_duration(duration_check(p["audio"])) for pid,p in pairs.items()}
     output = Path(output).resolve()
     output.mkdir(parents=True,exist_ok=True)
     identity = {"models":models,"recordings":list(pairs),"dataset":dataset,
                 "language":language,"policy":"raw-v1-cuda-fp16","scoring_engine":ENGINE,
-                "rapidfuzz_version":version("rapidfuzz")}
+                "rapidfuzz_version":version("rapidfuzz"),"max_audio_seconds":MAX_FULL_AUDIO_SECONDS}
     warmup_path = Path(warmup_audio).resolve() if warmup_audio else None
     if warmup_path:
         warmup_hash = sha256_file(warmup_path)
