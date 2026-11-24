@@ -1,6 +1,69 @@
-# RedScribe
+# RedScribe — ASR Benchmarking
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22941754.svg)](https://doi.org/10.5281/zenodo.22941754)
+
+**Experimental research branch | Local automatic speech recognition (ASR) evaluation**
+
+RedScribe Benchmarking extends the desktop transcription application to compare ASR models against researcher-verified verbatim transcripts, with particular interest in Malay and Kelantan dialect speech.
+
+[Stable transcription application](https://github.com/saprimad/redscribe/tree/main) · [Benchmark documentation](docs/benchmark/README.md) · [Implementation status](docs/BENCHMARK_IMPLEMENTATION_STATUS.md) · [Study timeline](docs/REDSCRIBE_BENCHMARK_TIMELINE.md)
+
+## Benchmark workflow
+
+[![Experimental RedScribe benchmarking workflow](docs/benchmark/RedScribe_Benchmark_Workflow_Academic_v8.svg)](docs/benchmark/RedScribe_Benchmark_Workflow_Academic_v8.svg)
+
+*Figure 1. Experimental benchmarking workflow: reference preparation, model execution, evaluation and reporting.*
+
+[Full-size SVG](docs/benchmark/RedScribe_Benchmark_Workflow_Academic_v8.svg) · [Editable HTML figure](docs/benchmark/RedScribe_Benchmark_Workflow_Academic_v8.html)
+
+## Experimental capabilities
+
+| Component | Current scope |
+| --- | --- |
+| Model selection | Eleven candidates; seven selected by default |
+| Reference preparation | DOCX extraction, manual review, approval and frozen reference |
+| Execution | Sequential single and batch pilots; maximum three minutes per recording |
+| Accuracy | Raw word error rate (WER), character error rate (CER), substitutions, deletions and insertions |
+| Efficiency | Optional resource monitoring and processing-time measurements |
+| Reporting | CSV, JSON and experimental Excel summaries |
+| Speech analysis | Optional descriptive voice activity and overlapping speech analysis |
+
+**Validation status:** This is an experimental implementation, not a validated scientific benchmark. Full-length interview execution, Windows/GPU validation, scoring comparability and methodological decisions remain subject to verification. See the [implementation status](docs/BENCHMARK_IMPLEMENTATION_STATUS.md) and [ground-truth protocol](docs/benchmark/GROUND_TRUTH_PROTOCOL.md). Do not upload confidential recordings or transcripts.
+
+## Getting started with benchmarking
+
+Clone the experimental branch, rather than the default branch:
+
+```bash
+git clone --branch redscribe-benchmark-timeline https://github.com/saprimad/redscribe.git
+cd redscribe
+```
+
+Follow the platform-specific installation instructions below, then install the benchmark dependencies:
+
+```bash
+python -m pip install -r requirements-benchmark.txt
+python redscribe_gpu.py
+```
+
+Open Benchmarking from the desktop application, select models and recordings, review and approve the reference text, and configure the pilot. Optional model dependencies are described in the [multi-model setup guide](docs/MULTI_MODEL_ASR.md).
+
+## Benchmark source and protocols
+
+| Area | Source or documentation |
+| --- | --- |
+| Configuration and interface | [benchmark_config.py](benchmark_config.py), [benchmark_ui.py](benchmark_ui.py) |
+| Reference preparation | [benchmark_ground_truth.py](benchmark_ground_truth.py), [benchmark_reference.py](benchmark_reference.py) |
+| Execution | [benchmark_pilot.py](benchmark_pilot.py), [benchmark_batch.py](benchmark_batch.py) |
+| Accuracy | [benchmark_metrics.py](benchmark_metrics.py) |
+| Resource and speech analysis | [benchmark_resources.py](benchmark_resources.py), [benchmark_speech.py](benchmark_speech.py) |
+| Reporting | [benchmark_reporting.py](benchmark_reporting.py), [benchmark_excel.py](benchmark_excel.py) |
+| Validation | [Tests](tests/), [Code audits and protocols](docs/benchmark/README.md) |
+| Dialect considerations | [Kelantan dialect benchmark](docs/KELANTAN_DIALECT_BENCHMARK.md) |
+
+---
+
+## Base transcription application
 
 RedScribe is a Windows and macOS desktop application for transcribing research interviews and other recorded speech. Version 2.0 uses Faster-Whisper by default, with optional local ASR adapters for additional models and can optionally use pyannote.audio to distinguish between speakers. Each completed run takes one recording and exports an Excel workbook and an editable Word report for researcher-led verification and qualitative analysis.
 
@@ -40,7 +103,7 @@ One recording (MP3, WAV, M4A or MP4) produces two files. The Word report groups 
 
 [![RedScribe workflow showing the ASR choices, optional speaker diarisation and the Word and Excel outputs](docs/images/RedScribe_Workflow-full.png)](docs/images/RedScribe_Workflow.svg)
 
-*Figure 1. Model selection and processing workflow.* [Download the standalone HTML diagram](https://raw.githubusercontent.com/saprimad/redscribe/main/docs/RedScribe_Workflow.html).
+*Figure 2. Base transcription workflow.* [Download the standalone HTML diagram](https://raw.githubusercontent.com/saprimad/redscribe/main/docs/RedScribe_Workflow.html).
 
 Select a recording, language and ASR model, then configure optional speaker diarisation. When enabled, diarisation runs before transcription. A broken diarisation runtime blocks processing with repair instructions; a later model-access/inference failure is explicitly recorded and transcription can continue without speaker labels. RedScribe subsequently prepares timestamped utterances, descriptive summaries, and Excel and Word reports for researcher verification.
 
@@ -62,7 +125,7 @@ During diarisation, the Live Transcript area logs the current processing stage. 
 1. Clone the repository and enter its folder:
 
    ```powershell
-   git clone https://github.com/saprimad/redscribe.git
+   git clone --branch redscribe-benchmark-timeline https://github.com/saprimad/redscribe.git
    cd redscribe
    ```
 
@@ -105,7 +168,7 @@ RedScribe has been tested successfully on a Mac mini with an Apple M4 chip and 2
 3. Clone the repository and enter its folder:
 
    ```bash
-   git clone https://github.com/saprimad/redscribe.git
+   git clone --branch redscribe-benchmark-timeline https://github.com/saprimad/redscribe.git
    cd redscribe
    ```
 
