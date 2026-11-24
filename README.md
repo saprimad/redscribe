@@ -50,14 +50,18 @@ Open Benchmarking from the desktop application, select models and recordings, re
 
 ## Benchmark source and protocols
 
+Benchmark implementations are grouped under `redscribe/benchmark/` and `redscribe/ui/`. Root-level benchmark modules are compatibility entry points for existing scripts and tests. The desktop application and shared ASR modules remain at the repository root during this staged refactor.
+
+[Architecture and migration notes](docs/benchmark/ARCHITECTURE.md)
+
 | Area | Source or documentation |
 | --- | --- |
-| Configuration and interface | [benchmark_config.py](benchmark_config.py), [benchmark_ui.py](benchmark_ui.py) |
-| Reference preparation | [benchmark_ground_truth.py](benchmark_ground_truth.py), [benchmark_reference.py](benchmark_reference.py) |
-| Execution | [benchmark_pilot.py](benchmark_pilot.py), [benchmark_batch.py](benchmark_batch.py) |
-| Accuracy | [benchmark_metrics.py](benchmark_metrics.py) |
-| Resource and speech analysis | [benchmark_resources.py](benchmark_resources.py), [benchmark_speech.py](benchmark_speech.py) |
-| Reporting | [benchmark_reporting.py](benchmark_reporting.py), [benchmark_excel.py](benchmark_excel.py) |
+| Configuration and interface | [benchmark_config.py](redscribe/benchmark/benchmark_config.py), [benchmark_ui.py](redscribe/ui/benchmark_ui.py) |
+| Reference preparation | [benchmark_ground_truth.py](redscribe/benchmark/benchmark_ground_truth.py), [benchmark_reference.py](redscribe/benchmark/benchmark_reference.py) |
+| Execution | [benchmark_pilot.py](redscribe/benchmark/benchmark_pilot.py), [benchmark_batch.py](redscribe/benchmark/benchmark_batch.py) |
+| Accuracy | [benchmark_metrics.py](redscribe/benchmark/benchmark_metrics.py) |
+| Resource and speech analysis | [benchmark_resources.py](redscribe/benchmark/benchmark_resources.py), [benchmark_speech.py](redscribe/benchmark/benchmark_speech.py) |
+| Reporting | [benchmark_reporting.py](redscribe/benchmark/benchmark_reporting.py), [benchmark_excel.py](redscribe/benchmark/benchmark_excel.py) |
 | Validation | [Tests](tests/), [Code audits and protocols](docs/benchmark/README.md) |
 | Dialect considerations | [Kelantan dialect benchmark](docs/KELANTAN_DIALECT_BENCHMARK.md) |
 
