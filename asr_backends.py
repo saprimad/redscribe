@@ -128,6 +128,9 @@ class LocalASR:
             self.model.to(device="cuda", dtype=torch.float16).eval()
         inner = getattr(self.model, "model", self.model) if self.spec.engine == "qwen" else self.model
         self.revision = getattr(getattr(inner, "config", None), "_commit_hash", None) or "unavailable"
+        if getattr(self, "strict_benchmark", False):
+            from redscribe.benchmark.benchmark_configuration import verify_parameters
+            self.verified_device, self.verified_precision = verify_parameters(inner.parameters())
         self.check_stop()
 
     def _decode(self, audio):

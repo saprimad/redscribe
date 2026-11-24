@@ -1,0 +1,3 @@
+# Strict primary benchmark configuration
+
+Researcher-approved CUDA FP16 primary policy. Whisper loader uses CUDA only when strict_benchmark=True; normal transcription retains fallback. Verify CTranslate2 exposed device and compute type before inference. Optional adapters verify loaded floating-point parameter dtype and device before decoding; no floating parameters or unavailable metadata fails closed. This verifies exposed configuration, not every kernel's internal arithmetic. Existing per-model failure handling continues subsequent models. Alternative precision runs require a separate future protocol. GPU runtime validation pending; synthetic CI does not establish backend compatibility.

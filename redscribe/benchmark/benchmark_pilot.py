@@ -82,7 +82,7 @@ def _persist_prediction(folder, name, transcript):
 def _whisper_model(key):
     # Reuse existing Faster-Whisper loading strategy, only when invoked.
     from redscribe_gpu import create_whisper_model
-    return create_whisper_model(key)
+    return create_whisper_model(key, strict_benchmark=True)
 
 
 def _cleanup(model):
@@ -120,6 +120,7 @@ def _transcribe(key, audio_path, language, stopped):
         if key in EXTRA_MODELS:
             # Optional ASR uses lazy model load at segment iteration.
             model = LocalASR(key, language=language, check_stop=stopped)
+            model.strict_benchmark = True
             load_started = time.perf_counter()
             # Preflight is intentionally before timing the transcription, but
             # optional adapters perform lazy loading; separate loading time is
@@ -128,10 +129,12 @@ def _transcribe(key, audio_path, language, stopped):
             transcription_started = time.perf_counter()
             text = " ".join(segment.text.strip() for segment in segments if segment.text.strip())
             elapsed = time.perf_counter() - transcription_started
-            return text, None, elapsed, "cuda", "float16", "lazy model load included in inference"
+            return text, None, elapsed, model.verified_device, model.verified_precision, "lazy model load included in inference"
         load_started = time.perf_counter()
         model, device, precision = _whisper_model(key)
         loading = time.perf_counter() - load_started
+        from redscribe.benchmark.benchmark_configuration import verify_configuration
+        device, precision = verify_configuration(getattr(model.model, 'device', None), getattr(model.model, 'compute_type', None))
         stopped()
         transcription_started = time.perf_counter()
         segments, info = model.transcribe(str(audio_path), language=language, task="transcribe",

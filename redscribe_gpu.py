@@ -265,7 +265,7 @@ def open_folder(path: str):
         pass
 
 
-def create_whisper_model(model_size: str, status_callback=None):
+def create_whisper_model(model_size: str, status_callback=None, *, strict_benchmark=False):
     """Prepare cached/downloaded weights, then try CUDA FP16 and CPU INT8."""
     from faster_whisper.utils import download_model
     from huggingface_hub.errors import LocalEntryNotFoundError
@@ -282,15 +282,15 @@ def create_whisper_model(model_size: str, status_callback=None):
             model_path = download_model(model_size)
             notify("stage", "Download complete. Loading model into memory...")
         last_error = None
-        for device in WHISPER_DEVICE_PRIORITY:
-            compute_type = WHISPER_COMPUTE_TYPE.get(device, "int8")
+        for device in (('cuda',) if strict_benchmark else WHISPER_DEVICE_PRIORITY):
+            compute_type = "float16" if strict_benchmark else WHISPER_COMPUTE_TYPE.get(device, "int8")
             try:
                 options = {"cpu_threads": cpu_thread_budget(), "num_workers": 1} if device == "cpu" else {}
                 model = WhisperModel(model_path, device=device, compute_type=compute_type, **options)
                 return model, device, compute_type
             except Exception as exc:
                 last_error = exc
-                if device == "cuda":
+                if device == "cuda" and not strict_benchmark:
                     notify("stage", "CUDA model loading failed; trying the existing CPU INT8 fallback...")
         raise RuntimeError(f"Unable to load the Whisper model on any available device. Last error: {last_error}")
 
