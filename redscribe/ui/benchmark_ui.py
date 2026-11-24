@@ -257,8 +257,12 @@ class BenchmarkWindow:
             finally:
                 self.worker_events.put(("worker_done", ""))
 
-        self.pilot_thread = threading.Thread(target=worker, daemon=True)
-        self.pilot_thread.start()
+        from .operation_guard import start_exclusive
+        self.pilot_thread = start_exclusive(worker)
+        if self.pilot_thread is None:
+            self.pilot_complete()
+            messagebox.showwarning("Operation active","Wait for the current ASR operation to finish.",parent=self.window)
+            return
         self.window.after(150, self.drain_worker_events)
 
     def drain_worker_events(self):

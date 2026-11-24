@@ -1743,7 +1743,10 @@ class RedScribeApp:
         self.start_btn.config(state="disabled")
         self.stop_btn.config(state="normal")
 
-        threading.Thread(target=self.run_whisper, args=(inputs,), daemon=True).start()
+        from redscribe.ui.operation_guard import start_exclusive
+        if start_exclusive(self.run_whisper, (inputs,)) is None:
+            self.finish_run(False)
+            messagebox.showwarning("Operation active", "Wait for the current ASR operation to finish.")
 
     def run_whisper(self, inputs: dict):
         cancelled = False

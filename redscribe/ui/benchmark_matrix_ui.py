@@ -70,7 +70,12 @@ def open_matrix_window(parent,models,language,monitor=True,manifest=None):
             events.put(("done","Stopped" if cancel.is_set() else "Run ended — inspect failures and reports"))
         except Exception as exc:
             events.put(("done",f"Error: {exc}"))
-    thread=threading.Thread(target=worker,daemon=True)
+    from .operation_guard import start_exclusive
+    thread=start_exclusive(worker)
+    if thread is None:
+        win.destroy()
+        messagebox.showwarning("Operation active","Wait for the current ASR operation to finish.",parent=parent)
+        return
     def close():
         if thread.is_alive():
             cancel.set()
@@ -91,5 +96,4 @@ def open_matrix_window(parent,models,language,monitor=True,manifest=None):
                 status.set(event[1])
         if thread.is_alive() or not events.empty():
             win.after(150,drain)
-    thread.start()
     win.after(150,drain)
