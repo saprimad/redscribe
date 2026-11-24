@@ -4,3 +4,5 @@ Canonical documents remain in their existing locations to preserve citations, re
 
 - [Software architecture and migration](../benchmark/ARCHITECTURE.md)
 - [ASR model setup](../MULTI_MODEL_ASR.md)
+
+- [Benchmark architecture figure](BENCHMARK_ARCHITECTURE.md)
