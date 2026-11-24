@@ -36,7 +36,7 @@ def run_model_major_batch(dataset_path, models, output, *, language="ms",
     output.mkdir(parents=True,exist_ok=True)
     identity = {"models":models,"recordings":list(pairs),"dataset":dataset,
                 "language":language,"policy":"raw-v1-cuda-fp16","scoring_engine":ENGINE,
-                "rapidfuzz_version":version("rapidfuzz"),"max_audio_seconds":MAX_FULL_AUDIO_SECONDS}
+                "rapidfuzz_version":version("rapidfuzz"),"max_audio_seconds":MAX_FULL_AUDIO_SECONDS,"reporting_schema":1}
     warmup_path = Path(warmup_audio).resolve() if warmup_audio else None
     if warmup_path:
         warmup_hash = sha256_file(warmup_path)
@@ -55,7 +55,12 @@ def run_model_major_batch(dataset_path, models, output, *, language="ms",
         return (refpath.parent/ref["scoring_text_file"]).read_bytes().decode("utf-8")
 
     def scores(ref,pred):
-        return {"wer":raw_wer(ref,pred).rate,"cer":raw_cer(ref,pred).rate}
+        w,c = raw_wer(ref,pred),raw_cer(ref,pred)
+        return {"wer":w.rate,"cer":c.rate,
+                "word_substitutions":w.substitutions,"word_deletions":w.deletions,
+                "word_insertions":w.insertions,"reference_words":w.reference_units,
+                "char_substitutions":c.substitutions,"char_deletions":c.deletions,
+                "char_insertions":c.insertions,"reference_characters":c.reference_units}
 
     def infer(session,pid):
         ref = reference(pid)
@@ -111,4 +116,6 @@ def run_model_major_batch(dataset_path, models, output, *, language="ms",
         close_model=lambda s:s.close(),checkpoint=save,stopped=stopped,
         is_verified=lambda m,p:matrix.verified(m,p,verified),
         warmup=warmup if warmup_path else None)
+    from .benchmark_matrix_reporting import export_matrix_reporting
+    export_matrix_reporting(output,matrix.state)
     return matrix.state
