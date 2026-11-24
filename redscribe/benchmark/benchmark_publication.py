@@ -1,5 +1,7 @@
 """Local publication exports; no participant text or audio paths."""
 from pathlib import Path
+import math
+from .benchmark_reporting import _counts
 from .benchmark_matrix_reporting import build_matrix_reports
 
 def export_publication(directory,state):
@@ -48,7 +50,7 @@ def export_publication(directory,state):
         ax.legend()
     def distribution(ax,metric="wer"):
         labels=[r["model_key"] for r in common]
-        pids={p for p in state["identity"]["recordings"] if all(any(r["participant_id"]==p and r["model_key"]==m and r["status"]=="completed" and r["wer"] is not None and r["cer"] is not None for r in rows) for m in state["identity"]["models"])}
+        pids=common_ids
         ax.boxplot([[100*r[metric] for r in rows if r["model_key"]==m and r["participant_id"] in pids] for m in labels],tick_labels=labels)
         ax.tick_params(axis="x",labelrotation=30)
         ax.set_ylabel("Recording "+metric.upper()+" (%)")
@@ -56,7 +58,7 @@ def export_publication(directory,state):
         import numpy as np
         models=state["identity"]["models"]
         ids=state["identity"]["recordings"]
-        lookup={(r["model_key"],r["participant_id"]):r["wer"] for r in rows}
+        lookup={(r["model_key"],r["participant_id"]):r["wer"] if _counts(r,word=True) is not None else None for r in rows}
         values=np.array([[100*lookup[m,p] if lookup[m,p] is not None else np.nan for m in models] for p in ids])
         im=ax.imshow(np.ma.masked_invalid(values),aspect="auto",cmap="viridis")
         ax.set_xticks(range(len(models)),models,rotation=30,ha="right")
@@ -64,7 +66,7 @@ def export_publication(directory,state):
         ax.figure.colorbar(im,ax=ax,label="WER (%)")
     def speed(ax):
         for r in common:
-            subset=[x for x in rows if x["model_key"]==r["model_key"] and x["participant_id"] in common_ids and x["rtf"] is not None]
+            subset=[x for x in rows if x["model_key"]==r["model_key"] and x["participant_id"] in common_ids and all(type(x[k]) in (int,float) and math.isfinite(x[k]) and x[k]>0 for k in ("audio_seconds","inference_seconds"))]
             if len(subset)!=len(common_ids) or not subset:
                 continue
             x=sum(t["inference_seconds"] for t in subset)/sum(t["audio_seconds"] for t in subset)
@@ -73,8 +75,8 @@ def export_publication(directory,state):
             ax.annotate(r["model_key"],(x,y),fontsize=8)
         ax.set_xlabel("Aggregate real-time factor")
         ax.set_ylabel("Corpus WER (%)")
-    common_ids={pid for pid in state["identity"]["recordings"] if all(any(r["participant_id"]==pid and r["model_key"]==m and r["wer"] is not None and r["cer"] is not None for r in rows) for m in state["identity"]["models"])}
-    if any(r["wer"] is not None for r in rows):
+    common_ids={pid for pid in state["identity"]["recordings"] if all(any(r["participant_id"]==pid and r["model_key"]==m and _counts(r,word=True) is not None and _counts(r,word=False) is not None for r in rows) for m in state["identity"]["models"])}
+    if any(_counts(r,word=True) is not None for r in rows):
         figure("participant_wer_heatmap",heatmap)
     else:
         for ext in ("svg","png"):

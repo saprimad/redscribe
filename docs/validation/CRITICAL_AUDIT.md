@@ -1,0 +1,2 @@
+# Critical audit — stability only
+Observed: plot cohort previously accepted non-null rates without count validation; flat rows exposed invalid rates; scatter accepted invalid timing. Fix shares existing _counts predicate and excludes invalid scores/timing; regression test added. Pending CI. Other open findings: single-writer enforcement, offline matrix audit regression, GUI lifecycle, actual CUDA memory release and resource measurement limitations. No feature additions.

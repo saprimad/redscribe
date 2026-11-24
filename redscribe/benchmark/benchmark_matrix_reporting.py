@@ -1,5 +1,5 @@
 """Scientific CSV exports from model-major matrix; rates are fractions."""
-from .benchmark_reporting import build_summary, SUMMARY_FIELDS, _atomic_csv
+from .benchmark_reporting import build_summary, SUMMARY_FIELDS, _atomic_csv, _counts
 from statistics import mean, median
 import math
 
@@ -17,6 +17,10 @@ def build_matrix_reports(state):
                       "reference_words","char_substitutions","char_deletions","char_insertions",
                       "reference_characters","audio_seconds","inference_seconds","rtf","device","precision","session_id"):
                 row[k]=r.get(k) if row["status"]=="completed" else None
+            for word,metric,keys in ((True,"wer",("word_substitutions","word_deletions","word_insertions","reference_words")),(False,"cer",("char_substitutions","char_deletions","char_insertions","reference_characters"))):
+                if _counts(r,word=word) is None:
+                    for k in (*keys,metric):
+                        row[k]=None
             resources=r.get("resources") or {} if row["status"]=="completed" else {}
             for k in ("gpu_util_percent_peak","gpu_memory_used_mb_peak","gpu_temperature_c_peak","cpu_percent_peak","ram_used_mb_peak","sample_count","gpu_source","ram_source"):
                 row[k]=resources.get(k)
