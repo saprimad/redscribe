@@ -134,6 +134,7 @@ class BenchmarkWindow:
 
         footer = ttk.Frame(outer)
         footer.pack(fill="x", pady=(12, 0))
+        ttk.Button(safety,text="Full-length model-major benchmark",command=self.open_full_matrix).pack(anchor="w",pady=8)
         ttk.Button(footer, text="Close", command=self.request_close).pack(side="right")
         self.stop_pilot_button = ttk.Button(footer, text="Stop pilot",
                                              command=self.stop_pilot, state="disabled")
@@ -145,6 +146,18 @@ class BenchmarkWindow:
                    command=self.review).pack(side="left")
         ttk.Label(outer, textvariable=self.pilot_status, wraplength=720).pack(
             anchor="w", pady=(7, 0))
+
+    def open_full_matrix(self):
+        if self.pilot_thread is not None and self.pilot_thread.is_alive():
+            messagebox.showwarning("Running","Stop the pilot first.",parent=self.window)
+            return
+        models=ordered_selection(k for k,v in self.selected.items() if v.get())
+        if not models:
+            messagebox.showwarning("Models","Select at least one model.",parent=self.window)
+            return
+        from .benchmark_matrix_ui import open_matrix_window
+        lang={"Bahasa Melayu":"ms","English":"en","Auto detect":None}[self.language.get()]
+        open_matrix_window(self.window,models,lang,self.gpu_monitor.get())
 
     def open_batch_pairing(self):
         if self.mode.get() != "batch":

@@ -1,0 +1,2 @@
+# Full-length matrix UI
+Separate modal window launched from benchmark UI, selects existing approved dataset JSON and output directory. Worker queue updates model/participant statuses and resolved count. Stop is cooperative, not immediate. Existing checkpoint statuses populate at end, not live on resume. Dataset creation UI, warm-up selection, GUI runtime tests and application-wide concurrency guard remain pending. Pilot unchanged.

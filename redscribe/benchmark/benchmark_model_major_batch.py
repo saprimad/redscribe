@@ -23,7 +23,7 @@ def decode_full_duration(path):
 
 def run_model_major_batch(dataset_path, models, output, *, language="ms",
                           session_factory=None, stopped=lambda:False, duration_check=None,
-                          warmup_audio=None, monitor_factory=None):
+                          warmup_audio=None, monitor_factory=None, progress=lambda *args: None):
     dataset = verify_dataset(dataset_path)
     models = list(models)
     if not models or len(set(models)) != len(models):
@@ -85,6 +85,7 @@ def run_model_major_batch(dataset_path, models, output, *, language="ms",
             row.update(result, prediction_file=path.name,prediction_sha256=sha256_file(path),
                        audio_seconds=durations[pid],rtf=row["inference_seconds"]/durations[pid],**scores(reference(pid),pred))
         matrix.record(model,pid,row)
+        progress(model,pid,row['status'])
 
     def verified(model,pid,row):
         try:
@@ -115,7 +116,7 @@ def run_model_major_batch(dataset_path, models, output, *, language="ms",
     run_model_major(models,pairs,open_model=open_session,infer=infer,
         close_model=lambda s:s.close(),checkpoint=save,stopped=stopped,
         is_verified=lambda m,p:matrix.verified(m,p,verified),
-        warmup=warmup if warmup_path else None)
+        warmup=warmup if warmup_path else None,progress=progress)
     from .benchmark_matrix_reporting import export_matrix_reporting
     export_matrix_reporting(output,matrix.state)
     from .benchmark_publication import export_publication

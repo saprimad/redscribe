@@ -4,7 +4,7 @@ from uuid import uuid4
 
 def run_model_major(models, recordings, *, open_model, infer, close_model,
                     checkpoint, stopped=lambda: False, warmup=None,
-                    is_verified=lambda model, recording: False):
+                    is_verified=lambda model, recording: False, progress=lambda *args: None):
     """Run one session per model. Checkpoint callback must persist each outcome.
     
     A failed inference invalidates the session: remaining recordings are marked
@@ -22,6 +22,7 @@ def run_model_major(models, recordings, *, open_model, infer, close_model,
         try:
             start = perf_counter()
             try:
+                progress(model,None,'loading')
                 session = open_model(model)
             except Exception as exc:
                 for recording in pending:
@@ -47,6 +48,7 @@ def run_model_major(models, recordings, *, open_model, infer, close_model,
                     continue
                 start = perf_counter()
                 try:
+                    progress(model,recording,'running')
                     result = infer(session, recording)
                 except Exception as exc:
                     failed = True
