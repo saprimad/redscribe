@@ -8,6 +8,10 @@ RedScribe Benchmarking extends the desktop transcription application to compare 
 
 [Stable transcription application](https://github.com/saprimad/redscribe/tree/main) · [Benchmark documentation](docs/benchmark/README.md) · [Implementation status](docs/BENCHMARK_IMPLEMENTATION_STATUS.md) · [Study timeline](docs/REDSCRIBE_BENCHMARK_TIMELINE.md)
 
+## Research documentation
+
+[Research documentation index](docs/README.md) · [Kelantan dialect study](docs/linguistics/README.md) · [Research protocols](docs/research/README.md) · [Validation records](docs/validation/README.md) · [Planning and HOLD decisions](docs/planning/README.md)
+
 ## Benchmark workflow
 
 [![Experimental RedScribe benchmarking workflow](docs/benchmark/RedScribe_Benchmark_Workflow_Academic_v8.svg)](docs/benchmark/RedScribe_Benchmark_Workflow_Academic_v8.svg)
