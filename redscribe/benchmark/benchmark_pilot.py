@@ -174,7 +174,7 @@ def run_single_pilot(audio_path, reference_manifest, selected_models, output_roo
     refpath = Path(reference_manifest).resolve()
     ref = verify_reference(refpath)
     reference_path = refpath.parent / ref["scoring_text_file"]
-    reference = reference_path.read_text(encoding="utf-8")
+    reference = reference_path.read_bytes().decode("utf-8")
     if not reference.strip():
         raise ValueError("Approved reference is empty")
     seconds = _decode_duration(audio)
