@@ -157,7 +157,16 @@ class BenchmarkWindow:
             return
         from .benchmark_matrix_ui import open_matrix_window
         lang={"Bahasa Melayu":"ms","English":"en","Auto detect":None}[self.language.get()]
-        open_matrix_window(self.window,models,lang,self.gpu_monitor.get())
+        manifest=None
+        if self.mode.get()=="batch" and self.batch_pairs:
+            if len(self.batch_pairs)!=len(self.audio_files):
+                messagebox.showwarning("Pairing","Confirm every audio/reference pair first.",parent=self.window)
+                return
+            from .benchmark_dataset_ui import approve_pairs_dialog
+            manifest=approve_pairs_dialog(self.window,self.batch_pairs)
+            if not manifest:
+                return
+        open_matrix_window(self.window,models,lang,self.gpu_monitor.get(),manifest=manifest)
 
     def open_batch_pairing(self):
         if self.mode.get() != "batch":
