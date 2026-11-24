@@ -16,7 +16,7 @@ import traceback
 import warnings
 
 from benchmark_config import BenchmarkConfig
-from redscribe.benchmark.benchmark_provenance import runtime_provenance
+from redscribe.benchmark.benchmark_provenance import runtime_provenance, hardware_provenance
 from benchmark_metrics import raw_wer, raw_cer
 from benchmark_reporting import export_reporting
 from benchmark_excel import export_excel
@@ -113,7 +113,7 @@ def _decode_duration(path):
     return seconds
 
 
-def _transcribe(key, audio_path, language, stopped):
+def _transcribe(key, audio_path, language, stopped, provenance=None):
     model = None
     try:
         stopped()
@@ -129,6 +129,8 @@ def _transcribe(key, audio_path, language, stopped):
             transcription_started = time.perf_counter()
             text = " ".join(segment.text.strip() for segment in segments if segment.text.strip())
             elapsed = time.perf_counter() - transcription_started
+            if provenance is not None:
+                provenance.update(checkpoint=model.spec.checkpoint, revision=None if model.revision == "unavailable" else model.revision, engine=model.spec.engine)
             return text, None, elapsed, model.verified_device, model.verified_precision, "lazy model load included in inference"
         load_started = time.perf_counter()
         model, device, precision = _whisper_model(key)
@@ -142,6 +144,8 @@ def _transcribe(key, audio_path, language, stopped):
         text = " ".join(s.text.strip() for s in segments if s.text.strip())
         elapsed = time.perf_counter() - transcription_started
         stopped()
+        if provenance is not None:
+            provenance.update(checkpoint=key, revision=getattr(model, "benchmark_revision", None), engine="faster-whisper")
         return text, loading, elapsed, device, precision, ""
     finally:
         _cleanup(model)
@@ -184,8 +188,10 @@ def run_single_pilot(audio_path, reference_manifest, selected_models, output_roo
     manifest = {
         "pilot": True, "status": "running", "schema_version": 1,
         "runtime_provenance": runtime_provenance(),
+        "hardware_provenance": hardware_provenance(),
+        "requested_configuration": {"device": "cuda", "precision": "float16"},
         "decoding_policy": {"whisper": {"beam_size": 5, "vad_filter": False, "task": "transcribe"},
-                            "optional_adapters": "backend-specific; revision not yet captured"},
+                            "optional_adapters": "backend-specific; see model provenance"},
         "created_utc": datetime.now(timezone.utc).isoformat(),
         "source_audio": audio.name, "audio_sha256": audio_hash,
         "audio_seconds": seconds, "reference_id": ref["reference_id"],
@@ -197,7 +203,7 @@ def run_single_pilot(audio_path, reference_manifest, selected_models, output_roo
         "scoring": "raw verbatim WER / raw Unicode-codepoint CER; all spoken fillers retained; no normalisation",
         "max_pilot_seconds": MAX_PILOT_SECONDS,
         "diarization": "disabled",
-        "notes": "Exploratory test only; model-specific decoding and compute fallback may differ.",
+        "notes": "Exploratory test only; model-specific decoding differs; strict CUDA FP16 primary configuration.",
         "model_results": {},
     }
     manifest["analysis_options"] = {"gpu_monitor": bool(gpu_monitor),
@@ -236,8 +242,9 @@ def run_single_pilot(audio_path, reference_manifest, selected_models, output_roo
                     except Exception as monitor_exc:
                         notify("warning", f"{name}: resource monitor start unavailable: {monitor_exc}")
                 try:
+                    model_provenance = {}
                     transcript, loading, transcription, device, precision, note = _transcribe(
-                        key, audio, language, stopped)
+                        key, audio, language, stopped, model_provenance)
                 finally:
                     if monitoring is not None:
                         try:
@@ -261,6 +268,7 @@ def run_single_pilot(audio_path, reference_manifest, selected_models, output_roo
                 safe_name = f"{i:02d}_{key.replace(' ', '_').replace('/', '_')}"
                 transcript, prediction_metadata = _persist_prediction(
                     results_folder, safe_name, transcript)
+                manifest.setdefault('model_provenance', {})[key] = model_provenance
                 row.update(prediction_metadata)
                 word = raw_wer(reference, transcript)
                 char = raw_cer(reference, transcript)

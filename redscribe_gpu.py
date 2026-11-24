@@ -287,6 +287,9 @@ def create_whisper_model(model_size: str, status_callback=None, *, strict_benchm
             try:
                 options = {"cpu_threads": cpu_thread_budget(), "num_workers": 1} if device == "cpu" else {}
                 model = WhisperModel(model_path, device=device, compute_type=compute_type, **options)
+                if strict_benchmark:
+                    from redscribe.benchmark.benchmark_provenance import snapshot_revision
+                    model.benchmark_revision = snapshot_revision(model_path)
                 return model, device, compute_type
             except Exception as exc:
                 last_error = exc

@@ -1,0 +1,3 @@
+# Model and hardware provenance
+
+Pilot manifest records detected GPU inventory, VRAM, driver inventory, PyTorch CUDA build version, logical CPUs, RAM where available, requested CUDA FP16 and per-successful-model checkpoint/key, backend and revision where exposed. Faster-Whisper revision is parsed from local Hugging Face snapshot path; optional adapters expose config commit hash. Missing values remain null. Model key is not necessarily a canonical repository ID; revisions are observed, not pinned. Hardware inventory is not proof of per-kernel execution. No network lookup for provenance. CI and GPU runtime pending.
