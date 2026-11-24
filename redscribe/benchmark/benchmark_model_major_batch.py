@@ -120,4 +120,6 @@ def run_model_major_batch(dataset_path, models, output, *, language="ms",
     export_matrix_reporting(output,matrix.state)
     from .benchmark_publication import export_publication
     export_publication(output,matrix.state)
+    from .benchmark_export_integrity import write_export_manifest
+    write_export_manifest(output)
     return matrix.state
