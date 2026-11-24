@@ -45,6 +45,8 @@ def _run_model_major_batch(dataset_path, models, output, *, language="ms",
         identity["warmup_sha256"] = warmup_hash
     identity["resource_monitoring"] = monitor_factory is not None
     matrix = MatrixCheckpoint(output/"matrix.json",identity)
+    # A prior export manifest must not certify a new or interrupted run.
+    (output/'export_integrity.json').unlink(missing_ok=True)
 
     def reference(pid):
         p = pairs[pid]
