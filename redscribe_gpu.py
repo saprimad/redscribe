@@ -969,6 +969,7 @@ def save_docx_transcript(
 class RedScribeApp:
     def __init__(self, root):
         self.root = root
+        self.root.protocol("WM_DELETE_WINDOW", self.request_application_close)
         self.root.title(APP_TITLE)
         families = {family.casefold(): family for family in tkfont.families(root)}
         self.ui_font = next((families[name] for name in
@@ -1689,6 +1690,13 @@ class RedScribeApp:
         self.finish_run(cancelled)
         if completion is not None:
             completion()
+
+    def request_application_close(self):
+        from redscribe.ui.operation_guard import operation_active
+        if operation_active():
+            messagebox.showwarning("Operation active", "Stop the active operation and wait for cleanup before closing.", parent=self.root)
+            return
+        self.root.destroy()
 
     def start(self):
         inputs = {

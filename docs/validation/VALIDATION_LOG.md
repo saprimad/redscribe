@@ -38,3 +38,5 @@ Native segment export (b1d5037) withdrawn with researcher approval: whole-transc
 Run [45414564070](https://github.com/saprimad/redscribe/actions/runs/45414564070), commit 7d44d00: Windows 80/80 (53.166s), Ubuntu 80/80 (34.438s). Full synthetic artefact matrix and process termination tests passed. No actual ASR/GPU evidence.
 
 Run [45415489680](https://github.com/saprimad/redscribe/actions/runs/45415489680), commit 00fc726: Windows 81/81 (46.347s), Ubuntu 81/81 (30.775s); failed atomic checkpoint replacement regression passed. Model provenance completeness and other release gates remain open.
+
+Concurrency commit 1227ef6: run 45416877210 Windows 82/82 (33.241s), Ubuntu 82/82 (32.156s). Process-wide worker exclusion verified synthetically. Root and benchmark close guards added subsequently; actual GUI validation remains pending.

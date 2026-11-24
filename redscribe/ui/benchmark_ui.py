@@ -286,6 +286,10 @@ class BenchmarkWindow:
             self.pilot_complete()
 
     def request_close(self):
+        from .operation_guard import operation_active
+        if operation_active():
+            messagebox.showwarning("Operation active", "Wait for the active operation to finish before closing.", parent=self.window)
+            return
         if self.pilot_thread is not None and self.pilot_thread.is_alive():
             messagebox.showwarning(
                 "Benchmark running",

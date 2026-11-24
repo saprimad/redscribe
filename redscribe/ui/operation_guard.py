@@ -17,3 +17,6 @@ def start_exclusive(target, args=()):
         _lock.release()
         raise
     return thread
+
+def operation_active():
+    return _lock.locked()
