@@ -19,3 +19,6 @@ Duplicate CI triggers: [45386595446](https://github.com/saprimad/redscribe/actio
 No participant data uploaded. CI success does not establish ASR accuracy, real-data coverage, GPU compatibility or publication readiness. Do not merge solely on these results.
 
 For future entries record UTC date, commit SHA, run ID, environment, expected/observed results, failure cause, corrective action and remaining limitations.
+
+## Scope decision — 2026-11-24
+Native segment export (b1d5037) withdrawn with researcher approval: whole-transcript accuracy is the objective. Retain exact scoring prediction and SHA-256 (908303f). Reversion CI pending. Benchmark branch only.

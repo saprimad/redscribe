@@ -1,3 +1,3 @@
-# Native segment preservation
+# Native segment preservation — withdrawn
 
-Benchmark-only change. Preserve adapter-emitted segment text and available start/end fields in a separate JSON file with SHA-256. Existing strip/join scoring assembly is unchanged. This is adapter output, not necessarily raw model tokens. Partial segments on failure/cancellation are not yet persisted. CI pending. Target branch: redscribe-benchmark-timeline, not main.
+2026-11-24: researcher approved removal of native segment export because the study evaluates whole-transcript WER/CER, not segmentation or timestamp accuracy. Historical implementation: b1d5037. Exact scoring prediction TXT and SHA-256 remain required. No scoring policy change.
