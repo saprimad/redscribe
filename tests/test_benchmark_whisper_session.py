@@ -24,3 +24,38 @@ class WhisperSessionTests(unittest.TestCase):
         self.assertEqual([r[2]["result"] for r in rows],["hmm kawe"]*2)
         self.assertEqual(calls[0][1]["beam_size"],5)
         self.assertFalse(calls[0][1]["vad_filter"])
+
+    def test_explicit_native_unload_precedes_wrapper_close(self):
+        calls = []
+        class Native:
+            device = "cuda"
+            compute_type = "float16"
+            model_is_loaded = True
+            def unload_model(self, *, to_cpu):
+                calls.append(("unload", to_cpu))
+                self.model_is_loaded = False
+        class Fake:
+            def __init__(self):
+                self.model = Native()
+            def close(self):
+                if self.model.model_is_loaded:
+                    raise AssertionError("Model still loaded")
+                calls.append(("close",))
+        session = WhisperSession("whisper", loader=lambda *a, **k: (Fake(), "cuda", "float16"))
+        session.close()
+        session.close()
+        self.assertEqual(calls, [("unload", False), ("close",)])
+        self.assertIsNone(session.model)
+
+    def test_unload_failure_is_not_reported_as_success(self):
+        class Native:
+            device = "cuda"
+            compute_type = "float16"
+            model_is_loaded = True
+            def unload_model(self, *, to_cpu):
+                pass
+        session = WhisperSession("whisper", loader=lambda *a, **k:
+            (SimpleNamespace(model=Native()), "cuda", "float16"))
+        with self.assertRaisesRegex(RuntimeError, "remains loaded"):
+            session.close()
+        self.assertIsNone(session.model)
