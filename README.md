@@ -12,7 +12,7 @@ RedScribe Benchmarking extends the desktop transcription application to compare 
 
 [Architecture](docs/benchmark/ARCHITECTURE.md) · [Software validation record](docs/validation/FINAL_SOFTWARE_VALIDATION_2026-11-25.md) · [Draft PR #27](https://github.com/saprimad/redscribe/pull/27)
 
-[Verified synthetic regression run](https://github.com/saprimad/redscribe/actions/runs/45542332260) · [Verified CPU dependency run](https://github.com/saprimad/redscribe/actions/runs/45542332203)
+[Verified synthetic regression run](https://github.com/saprimad/redscribe/actions/runs/45642290643) · [Verified dependency run](https://github.com/saprimad/redscribe/actions/runs/45642290408) · [Actual Windows GPU runtime validation](docs/validation/WINDOWS_GPU_RUNTIME_VALIDATION_2026-11-25.md)
 
 ## Research documentation
 
@@ -38,7 +38,7 @@ RedScribe Benchmarking extends the desktop transcription application to compare 
 | Reporting | CSV, JSON, Excel summaries and scientific figures |
 | Speech analysis | Optional descriptive voice activity and overlapping speech analysis |
 
-**Validation status (25 November 2026):** 84/84 synthetic tests passed on each of Windows and Ubuntu; CPU dependency validation passed on both. Expert review, actual GUI/GPU inference and participant-data validation remain pending. See the [software validation record](docs/validation/FINAL_SOFTWARE_VALIDATION_2026-11-25.md). Do not upload confidential recordings or transcripts.
+**Validation status (25 November 2026):** Synthetic regression and dependency workflows passed for tested code commit `6721ae4`. Actual Windows RTX 5070 full-length GPU validation completed for Whisper Large-v3 and Turbo, both with worker exit code 0. Large-v3 uses a controlled shutdown workaround; the upstream destructor defect is not claimed fixed. Seven-model pilot, same-version repeatability and expert review remain pending. See the [software validation record](docs/validation/FINAL_SOFTWARE_VALIDATION_2026-11-25.md) and [Windows GPU runtime validation](docs/validation/WINDOWS_GPU_RUNTIME_VALIDATION_2026-11-25.md). Do not upload confidential recordings or transcripts.
 
 ## Getting started with benchmarking
 
