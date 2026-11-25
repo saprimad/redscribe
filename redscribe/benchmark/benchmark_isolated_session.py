@@ -14,6 +14,7 @@ def _serve(conn, key, language, log_path):
     with open(log_path, "a", encoding="utf-8", buffering=1) as log:
         sys.stdout = sys.stderr = log
         faulthandler.enable(file=log, all_threads=True)
+        print(f"MODEL: {key} | LANGUAGE: {language}", flush=True)
         session = None
         try:
             # Import the desktop entry point to initialise its existing module paths.
