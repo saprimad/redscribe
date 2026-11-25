@@ -19,3 +19,13 @@ class GroundTruthIntegrityTests(unittest.TestCase):
             result = extract_docx(str(p))
             self.assertEqual(result.blocks, (" Hmm\tkawe\nsetuju ", "ikae", "ikae", "makae"))
             self.assertEqual(p.read_bytes(), before)
+
+
+    def test_optional_speaker_prefix_removal(self):
+        from redscribe.benchmark.benchmark_ground_truth import remove_speaker_labels
+        text = "Penemu duga: Haa, P1: disebut\nP01: emm ikae\nP25: aa aa\nInterviewer: betul\nPenemuduga: ya\nP26: kekal\nP1 tanpa kolon"
+        expected = "Haa, P1: disebut\nemm ikae\naa aa\nbetul\nya\nP26: kekal\nP1 tanpa kolon"
+        result, counts = remove_speaker_labels(text)
+        self.assertEqual(result, expected)
+        self.assertEqual(sum(counts.values()), 5)
+        self.assertEqual(remove_speaker_labels(result), (result, {}))
