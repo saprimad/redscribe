@@ -118,14 +118,8 @@ def _run_model_major_batch(dataset_path, models, output, *, language="ms",
     def create_session(key):
         if session_factory is not None:
             return session_factory(key)
-        from asr_backends import EXTRA_MODELS
-        from model_options import preflight_model
-        preflight_model(key,language)
-        if key in EXTRA_MODELS:
-            from .benchmark_local_session import LocalBenchmarkSession
-            return LocalBenchmarkSession(key,language)
-        from .benchmark_whisper_session import WhisperSession
-        return WhisperSession(key,language)
+        from .benchmark_isolated_session import IsolatedSession
+        return IsolatedSession(key, language, output / ("asr-worker-" + uuid4().hex + ".log"))
 
     def open_session(key):
         session = create_session(key)
@@ -157,8 +151,14 @@ def _run_model_major_batch(dataset_path, models, output, *, language="ms",
                 progress(m,p,'completed')
             else:
                 progress(m,p,'pending')
+    def close_session(session):
+        session.close()
+        error = getattr(session, "cleanup_error", None)
+        if error:
+            progress(getattr(session, "provenance", {}).get("model_key", "ASR"), None,
+                     "cleanup_failed; verified predictions retained")
     run_model_major(models,pairs,open_model=open_session,infer=infer,
-        close_model=lambda s:s.close(),checkpoint=save,stopped=stopped,
+        close_model=close_session,checkpoint=save,stopped=stopped,
         is_verified=lambda m,p:(m,p) in verified_cells and matrix.verified(m,p,verified),
         warmup=warmup if warmup_path else None,progress=progress)
     # Never export stale completed cells after cancellation or failed verification.
@@ -169,10 +169,13 @@ def _run_model_major_batch(dataset_path, models, output, *, language="ms",
                 matrix.record(m,p,{'status':'failed','stage':'integrity','error':'Saved prediction or score failed verification'})
                 progress(m,p,'failed')
     from .benchmark_matrix_reporting import export_matrix_reporting
+    progress("Reporting", None, "CSV export")
     export_matrix_reporting(output,matrix.state)
     from .benchmark_publication import export_publication
+    progress("Reporting", None, "Excel and figures")
     export_publication(output,matrix.state)
     from .benchmark_export_integrity import write_export_manifest
+    progress("Reporting", None, "Export integrity manifest")
     write_export_manifest(output)
     return matrix.state
 
