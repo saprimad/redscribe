@@ -9,3 +9,5 @@ Canonical documents remain in their existing locations to preserve citations, re
 
 - [Validation log](VALIDATION_LOG.md)
 - [Scientific validation protocol](SCIENTIFIC_VALIDATION_PROTOCOL.md)
+
+- [Software validation record — 25 November 2026](FINAL_SOFTWARE_VALIDATION_2026-11-25.md)
