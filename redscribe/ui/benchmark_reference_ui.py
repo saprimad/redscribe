@@ -3,7 +3,7 @@ from pathlib import Path
 import tkinter as tk
 from tkinter import filedialog, messagebox, scrolledtext, ttk
 
-from benchmark_ground_truth import extract_docx
+from benchmark_ground_truth import extract_docx, remove_speaker_labels
 from benchmark_reference import approve_reference
 
 
@@ -28,6 +28,7 @@ class GroundTruthReview:
         }
         self.status = tk.StringVar(master=self.window, value="Reference not approved")
         self.current_draft = None
+        self.label_removal_history = []
         self.build()
         self.load_selected()
 
@@ -48,7 +49,7 @@ class GroundTruthReview:
         self.text = scrolledtext.ScrolledText(frame, wrap="word", undo=True, font=("TkDefaultFont", 11))
         self.text.pack(fill="both", expand=True, pady=(4, 8))
         ttk.Label(frame, text="NOTE: Extracted text may contain speaker labels, headings, "
-                  "tables, fillers and comments. No automatic speaker-label removal is performed.",
+                  "tables, fillers and comments. Optional rule-based removal is available; review the result.",
                   wraplength=770, foreground="#845a26").pack(anchor="w", pady=(0, 8))
         self.issues_summary = tk.StringVar(master=self.window, value="")
         ttk.Label(frame, textvariable=self.issues_summary, wraplength=770,
@@ -69,9 +70,26 @@ class GroundTruthReview:
         actions.pack(fill="x", pady=(12, 0))
         ttk.Button(actions, text="Reload extracted DOCX (discard edits)",
                    command=self.reload_confirm).pack(side="left")
+        ttk.Button(actions, text="Remove speaker labels", command=self.remove_labels).pack(side="left", padx=6)
         ttk.Button(actions, text="Close", command=self.window.destroy).pack(side="right")
         ttk.Button(actions, text="Approve & Freeze locally",
                    command=self.approve).pack(side="right", padx=(0, 8))
+
+    def remove_labels(self):
+        current = self.text.get("1.0", "end-1c")
+        proposed, counts = remove_speaker_labels(current)
+        if not counts:
+            messagebox.showinfo("Speaker labels", "No supported line-start labels found. Review manually.", parent=self.window)
+            return
+        if not messagebox.askyesno("Remove speaker labels?", f"Remove {sum(counts.values())} explicit prefixes from the scoring copy only? Review all changes before approval.", parent=self.window):
+            return
+        self.text.delete("1.0", "end")
+        self.text.insert("1.0", proposed)
+        self.label_removal_history.append(counts)
+        self.acknowledged.set(False)
+        for flag in self.verification.values():
+            flag.set(False)
+        self.status.set(f"Removed {sum(counts.values())} speaker labels; review required")
 
     def reload_confirm(self):
         if messagebox.askyesno("Discard edits?", "Reload extracted text from the original DOCX? "
@@ -79,6 +97,7 @@ class GroundTruthReview:
             self.load_selected()
 
     def load_selected(self):
+        self.label_removal_history = []
         self.acknowledged.set(False)
         for flag in self.verification.values():
             flag.set(False)
@@ -130,7 +149,7 @@ class GroundTruthReview:
             manifest_path, text_path, info = approve_reference(
                 self.current_draft.source_path, text, folder, reviewer_acknowledged=True,
                 expected_source_sha256=self.current_draft.source_sha256,
-                verification=verification)
+                verification=verification, label_removal_history=self.label_removal_history)
         except Exception as exc:
             messagebox.showerror("Approval failed", str(exc), parent=self.window)
             return
