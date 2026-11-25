@@ -4,8 +4,21 @@ Only the parent writes scientific checkpoints. The child exchanges Python messag
 a dedicated pipe (not stdout), so library output cannot corrupt the protocol.
 """
 import multiprocessing as mp
+import os
+import sys
 import traceback
 from pathlib import Path
+
+
+def _controlled_shutdown(session, conn, log):
+    """Windows Large-v3 workaround, exclusively inside the disposable worker."""
+    session.prepare_controlled_shutdown()
+    print("CONTROLLED PROCESS EXIT: wrapper destructor intentionally bypassed", file=log, flush=True)
+    log.flush()
+    os.fsync(log.fileno())
+    conn.send(("ok", "controlled_process_exit"))
+    conn.close()
+    os._exit(0)
 
 
 def _serve(conn, key, language, log_path):
@@ -33,10 +46,12 @@ def _serve(conn, key, language, log_path):
                 command, argument = conn.recv()
                 if command == "close":
                     print("CLEANUP START", flush=True)
+                    if key == "large-v3" and sys.platform == "win32":
+                        _controlled_shutdown(session, conn, log)
                     session.close()
                     session = None
                     print("CLEANUP PASS", flush=True)
-                    conn.send(("ok", None))
+                    conn.send(("ok", "normal_destructor"))
                     return
                 if command != "transcribe":
                     raise ValueError("Unknown worker command")
@@ -58,6 +73,7 @@ class IsolatedSession:
     def __init__(self, key, language, log_path, *, target=_serve):
         self.log_path = Path(log_path)
         self.cleanup_error = None
+        self.shutdown_strategy = None
         context = mp.get_context("spawn")
         self.conn, child = context.Pipe()
         self.process = context.Process(target=target,
@@ -114,7 +130,9 @@ class IsolatedSession:
         try:
             if self.process.is_alive():
                 self.conn.send(("close", None))
-                self._receive(timeout=60)
+                self.shutdown_strategy = self._receive(timeout=60)
+                if self.shutdown_strategy not in (None, "normal_destructor", "controlled_process_exit"):
+                    raise RuntimeError("Unexpected worker shutdown acknowledgement")
             else:
                 raise RuntimeError("ASR worker exited before cleanup")
         except (RuntimeError, OSError, EOFError) as exc:
