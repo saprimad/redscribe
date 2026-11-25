@@ -1,6 +1,6 @@
 # RedScribe Benchmarking Mode — Implementation status
 
-> **Latest status (18 November 2026):** A static code audit is available at [Critical Code Audit](benchmark/CRITICAL_CODE_AUDIT_2026-11-18.md). An experimental Single/Batch ASR runner, optional GPU/VAD/OSD modules and DOCX approval now exist in this branch. **All Windows/GPU checks and full automated test execution remain unverified; publication-grade scoring/comparability blockers remain open.** Historical dated sections below describe earlier development stages, not the current feature inventory.
+> **Latest status (25 November 2026):** [Software validation record](validation/FINAL_SOFTWARE_VALIDATION_2026-11-25.md). Synthetic regression suite passed 84/84 on each of Windows and Ubuntu; CPU dependency validation passed on both. Scientific figure checks passed within the synthetic scope. Expert review and local GUI/GPU runtime validation remain pending. All dated sections below are historical, including earlier smoke-test instructions and implementation limitations; use the current validation record for the review gate.
 
 **17 November 2026 — Phase 1 foundation + Tkinter configuration preview.** This is not a working benchmark runner or validated benchmark.
 
