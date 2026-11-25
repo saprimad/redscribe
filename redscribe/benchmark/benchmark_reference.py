@@ -1,7 +1,7 @@
 """Approved, immutable-by-convention local scoring references and audit hashes.
 
 Artifacts live beside an explicitly chosen local output folder, never in GitHub.
-Approval is manual, no DOCX editing or speaker stripping occurs automatically.
+Approval is manual; optional label removal affects only the scoring copy.
 """
 from datetime import datetime, timezone
 from hashlib import sha256
@@ -21,7 +21,7 @@ def sha256_file(path, chunk_bytes=1024 * 1024):
 
 
 def approve_reference(source_path, approved_text, output_dir, *, reviewer_acknowledged=False,
-                      expected_source_sha256=None, verification=None):
+                      expected_source_sha256=None, verification=None, label_removal_history=None):
     """Freeze a researcher-reviewed text file and metadata with exclusive filenames.
 
     Explicit approval is required. Never modifies the original DOCX. Resulting
@@ -59,7 +59,8 @@ def approve_reference(source_path, approved_text, output_dir, *, reviewer_acknow
         "approved_text_sha256": text_hash,
         "scoring_text_file": text_path.name,
         "approval": "researcher_confirmed",
-        "extraction_policy": "manual_review_no_automatic_label_removal",
+        "extraction_policy": ("optional_rule_based_label_removal_then_manual_review" if label_removal_history else "manual_review_no_automatic_label_removal"),
+        "speaker_label_removal_history": list(label_removal_history or []),
         "verification": verification,
         "normalisation_policy": "raw_unmodified_no_automatic_normalisation",
         "scoring_scope": "researcher_verified_audio_span" if verification else "unspecified",
