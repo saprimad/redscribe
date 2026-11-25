@@ -4,6 +4,15 @@
 
 RedScribe is a Windows and macOS desktop application for transcribing research interviews and other recorded speech. Version 2.0 uses Faster-Whisper by default, with optional local ASR adapters for additional models and can optionally use pyannote.audio to distinguish between speakers. Each completed run takes one recording and exports an Excel workbook and an editable Word report for researcher-led verification and qualitative analysis.
 
+## Research and development
+
+| Project area | Status and documentation |
+| --- | --- |
+| Desktop transcription | Default branch (`main`); installation and usage below |
+| ASR benchmarking | Experimental [research branch](https://github.com/saprimad/redscribe/tree/refactor/benchmark-architecture), separate from the public transcription application |
+
+For academic review: [benchmark architecture](https://github.com/saprimad/redscribe/blob/refactor/benchmark-architecture/docs/benchmark/ARCHITECTURE.md) · [software validation record](https://github.com/saprimad/redscribe/blob/refactor/benchmark-architecture/docs/validation/FINAL_SOFTWARE_VALIDATION_2026-11-25.md) · [draft PR #27](https://github.com/saprimad/redscribe/pull/27). Synthetic tests passed on Windows and Ubuntu; actual benchmark GPU/GUI validation and expert review remain pending. Benchmarking is not part of the default branch.
+
 ## Current source version
 
 **Version 2.0.0**
