@@ -21,7 +21,7 @@ def build_matrix_reports(state):
                 if _counts(r,word=word) is None:
                     for k in (*keys,metric):
                         row[k]=None
-            for k in ("cleanup_status","cleanup_error","worker_exit_code","worker_log"):
+            for k in ("cleanup_status","cleanup_error","shutdown_strategy","worker_exit_code","worker_log"):
                 row[k]=r.get(k)
             resources=r.get("resources") or {} if row["status"]=="completed" else {}
             for k in ("gpu_util_percent_peak","gpu_memory_used_mb_peak","gpu_temperature_c_peak","cpu_percent_peak","ram_used_mb_peak","sample_count","gpu_source","ram_source"):
