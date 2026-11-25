@@ -160,8 +160,12 @@ class TokenUITests(unittest.TestCase):
                 self.app.run_lock = threading.Lock()
                 self.app.run_phase = "idle"
                 namespace["os"].path.isfile.return_value = True
-                self.app.start()
-                inputs = namespace["threading"].Thread.call_args.kwargs["args"][0]
+                with patch("redscribe.ui.operation_guard.start_exclusive", return_value=Mock()) as launch:
+                    self.app.start()
+                    launch.assert_called_once()
+                    target, args = launch.call_args.args
+                    self.assertEqual(target, self.app.run_whisper)
+                    inputs = args[0]
                 self.assertEqual(inputs["hf_token"], "hf_example_only" if enabled else "")
                 self.assertEqual(inputs["diarization_model"], DIARIZATION_MODELS[choice])
                 self.assertEqual(namespace["resolve_token"].call_count, int(enabled))
