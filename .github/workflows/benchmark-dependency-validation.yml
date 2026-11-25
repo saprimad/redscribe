@@ -1,7 +1,7 @@
 name: Benchmark dependency validation
 on:
   pull_request:
-    branches: [main]
+    branches: [main, redscribe-benchmark-timeline]
   workflow_dispatch:
 permissions:
   contents: read
