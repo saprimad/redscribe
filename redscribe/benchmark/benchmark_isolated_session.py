@@ -1,6 +1,6 @@
 """Local subprocess boundary for native ASR sessions.
 
-Only the parent writes scientific checkpoints. The child exchanges JSON over
+Only the parent writes scientific checkpoints. The child exchanges Python messages over
 a dedicated pipe (not stdout), so library output cannot corrupt the protocol.
 """
 import multiprocessing as mp
@@ -108,6 +108,8 @@ class IsolatedSession:
             self.process.join()
 
     def close(self):
+        if self.conn.closed:
+            return
         try:
             if self.process.is_alive():
                 self.conn.send(("close", None))
@@ -121,5 +123,8 @@ class IsolatedSession:
         if self.process.exitcode != 0:
             self.cleanup_error = f"ASR worker exit code {self.process.exitcode}; {self.cleanup_error or 'abnormal termination'}"
         if self.cleanup_error:
-            with self.log_path.open("a", encoding="utf-8") as log:
-                log.write("\nCLEANUP FAILURE: " + self.cleanup_error + "\n")
+            try:
+                with self.log_path.open("a", encoding="utf-8") as log:
+                    log.write("\nCLEANUP FAILURE: " + self.cleanup_error + "\n")
+            except OSError as exc:
+                self.cleanup_error += f"; diagnostic log write failed: {exc}"
