@@ -29,8 +29,22 @@ class WhisperSession:
         model, self.model = self.model, None
         from gc import collect
         try:
-            if model is not None and hasattr(model, "close"):
-                model.close()
+            if model is not None:
+                # Release native weights explicitly before destroying the wrapper.
+                # The isolated worker still contains any native abort here.
+                native = getattr(model, "model", None)
+                unload = getattr(native, "unload_model", None)
+                if callable(unload):
+                    print("NATIVE UNLOAD START", flush=True)
+                    unload(to_cpu=False)
+                    if getattr(native, "model_is_loaded", False):
+                        raise RuntimeError("CTranslate2 model remains loaded")
+                    print("NATIVE UNLOAD PASS", flush=True)
+                del unload, native
+                if hasattr(model, "close"):
+                    model.close()
         finally:
+            print("WRAPPER RELEASE START", flush=True)
             del model
             collect()
+            print("WRAPPER RELEASE PASS", flush=True)
