@@ -94,3 +94,21 @@ def extract_docx(path: str) -> GroundTruthDraft:
         source_sha256=source_sha256,
         issues=tuple(issues),
     )
+
+
+# Only explicit, colon-terminated speaker prefixes at the start of a line.
+# Standalone table cells and ambiguous labels remain for manual review.
+import re
+
+_SPEAKER_PREFIX = re.compile(
+    r"(?im)^[ \t]*(?P<label>P(?:0?[1-9]|1[0-9]|2[0-5])|Penemu[ \t]*duga|Interviewer)[ \t]*:[ \t]*"
+)
+
+def remove_speaker_labels(text):
+    """Return a scoring-copy proposal and counts; never modify the source."""
+    counts = {}
+    def replace(match):
+        label = match.group("label")
+        counts[label] = counts.get(label, 0) + 1
+        return ""
+    return _SPEAKER_PREFIX.sub(replace, text), counts
