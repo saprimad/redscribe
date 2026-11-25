@@ -161,6 +161,7 @@ def _run_model_major_batch(dataset_path, models, output, *, language="ms",
                     matrix.record(model,pid,dict(row,
                         cleanup_status="failed" if error else "completed",
                         cleanup_error=error,
+                        shutdown_strategy=session.shutdown_strategy,
                         worker_exit_code=session.process.exitcode,
                         worker_log=session.log_path.name))
         if error:
