@@ -154,9 +154,17 @@ def _run_model_major_batch(dataset_path, models, output, *, language="ms",
     def close_session(session):
         session.close()
         error = getattr(session, "cleanup_error", None)
+        model = (getattr(session, "provenance", None) or {}).get("model_key", "ASR")
+        if session_factory is None:
+            for pid, row in list(matrix.state["results"].get(model, {}).items()):
+                if row.get("status") == "completed" and (model,pid) not in verified_cells:
+                    matrix.record(model,pid,dict(row,
+                        cleanup_status="failed" if error else "completed",
+                        cleanup_error=error,
+                        worker_exit_code=session.process.exitcode,
+                        worker_log=session.log_path.name))
         if error:
-            progress(getattr(session, "provenance", {}).get("model_key", "ASR"), None,
-                     "cleanup_failed; verified predictions retained")
+            progress(model, None, "cleanup_failed; verified predictions retained")
     run_model_major(models,pairs,open_model=open_session,infer=infer,
         close_model=close_session,checkpoint=save,stopped=stopped,
         is_verified=lambda m,p:(m,p) in verified_cells and matrix.verified(m,p,verified),
