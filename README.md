@@ -8,6 +8,12 @@ RedScribe Benchmarking extends the desktop transcription application to compare 
 
 [Stable transcription application](https://github.com/saprimad/redscribe/tree/main) · [Benchmark documentation](docs/benchmark/README.md) · [Implementation status](docs/BENCHMARK_IMPLEMENTATION_STATUS.md) · [Study timeline](docs/REDSCRIBE_BENCHMARK_TIMELINE.md)
 
+## Start here — expert review
+
+[Architecture](docs/benchmark/ARCHITECTURE.md) · [Software validation record](docs/validation/FINAL_SOFTWARE_VALIDATION_2026-11-25.md) · [Draft PR #27](https://github.com/saprimad/redscribe/pull/27)
+
+[Verified synthetic regression run](https://github.com/saprimad/redscribe/actions/runs/45542332260) · [Verified CPU dependency run](https://github.com/saprimad/redscribe/actions/runs/45542332203)
+
 ## Research documentation
 
 [Research documentation index](docs/README.md) · [Kelantan dialect study](docs/linguistics/README.md) · [Research protocols](docs/research/README.md) · [Validation records](docs/validation/README.md) · [Planning and HOLD decisions](docs/planning/README.md)
@@ -26,20 +32,20 @@ RedScribe Benchmarking extends the desktop transcription application to compare 
 | --- | --- |
 | Model selection | Eleven candidates; seven selected by default |
 | Reference preparation | DOCX extraction, manual review, approval and frozen reference |
-| Execution | Sequential single and batch pilots; maximum three minutes per recording |
+| Execution | Sequential single and batch execution; batch resume with integrity checks |
 | Accuracy | Raw word error rate (WER), character error rate (CER), substitutions, deletions and insertions |
 | Efficiency | Optional resource monitoring and processing-time measurements |
-| Reporting | CSV, JSON and experimental Excel summaries |
+| Reporting | CSV, JSON, Excel summaries and scientific figures |
 | Speech analysis | Optional descriptive voice activity and overlapping speech analysis |
 
-**Validation status:** This is an experimental implementation, not a validated scientific benchmark. Full-length interview execution, Windows/GPU validation, scoring comparability and methodological decisions remain subject to verification. See the [implementation status](docs/BENCHMARK_IMPLEMENTATION_STATUS.md) and [ground-truth protocol](docs/benchmark/GROUND_TRUTH_PROTOCOL.md). Do not upload confidential recordings or transcripts.
+**Validation status (25 November 2026):** 84/84 synthetic tests passed on each of Windows and Ubuntu; CPU dependency validation passed on both. Expert review, actual GUI/GPU inference and participant-data validation remain pending. See the [software validation record](docs/validation/FINAL_SOFTWARE_VALIDATION_2026-11-25.md). Do not upload confidential recordings or transcripts.
 
 ## Getting started with benchmarking
 
 Clone the experimental branch, rather than the default branch:
 
 ```bash
-git clone --branch redscribe-benchmark-timeline https://github.com/saprimad/redscribe.git
+git clone --branch refactor/benchmark-architecture https://github.com/saprimad/redscribe.git
 cd redscribe
 ```
 
@@ -133,7 +139,7 @@ During diarisation, the Live Transcript area logs the current processing stage. 
 1. Clone the repository and enter its folder:
 
    ```powershell
-   git clone --branch redscribe-benchmark-timeline https://github.com/saprimad/redscribe.git
+   git clone --branch refactor/benchmark-architecture https://github.com/saprimad/redscribe.git
    cd redscribe
    ```
 
@@ -176,7 +182,7 @@ RedScribe has been tested successfully on a Mac mini with an Apple M4 chip and 2
 3. Clone the repository and enter its folder:
 
    ```bash
-   git clone --branch redscribe-benchmark-timeline https://github.com/saprimad/redscribe.git
+   git clone --branch refactor/benchmark-architecture https://github.com/saprimad/redscribe.git
    cd redscribe
    ```
 
