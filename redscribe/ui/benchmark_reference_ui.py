@@ -49,7 +49,7 @@ class GroundTruthReview:
         self.text = scrolledtext.ScrolledText(frame, wrap="word", undo=True, font=("TkDefaultFont", 11))
         self.text.pack(fill="both", expand=True, pady=(4, 8))
         ttk.Label(frame, text="NOTE: Extracted text may contain speaker labels, headings, "
-                  "tables, fillers and comments. Optional rule-based removal is available; review the result.",
+                  "tables, fillers and comments. Optional removal supports P1–P25, Penemu duga and Interviewer with : or ;. Review the result.",
                   wraplength=770, foreground="#845a26").pack(anchor="w", pady=(0, 8))
         self.issues_summary = tk.StringVar(master=self.window, value="")
         ttk.Label(frame, textvariable=self.issues_summary, wraplength=770,
