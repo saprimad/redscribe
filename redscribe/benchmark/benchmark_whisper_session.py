@@ -48,3 +48,14 @@ class WhisperSession:
             del model
             collect()
             print("WRAPPER RELEASE PASS", flush=True)
+
+    def prepare_controlled_shutdown(self):
+        """Unload weights while retaining the wrapper until isolated process exit."""
+        if self.model is None:
+            raise RuntimeError("Session closed")
+        native = self.model.model
+        print("NATIVE UNLOAD START", flush=True)
+        native.unload_model(to_cpu=False)
+        if native.model_is_loaded:
+            raise RuntimeError("CTranslate2 model remains loaded")
+        print("NATIVE UNLOAD PASS", flush=True)
