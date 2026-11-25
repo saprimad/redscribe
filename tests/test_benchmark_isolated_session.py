@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from redscribe.benchmark.benchmark_isolated_session import IsolatedSession
+from redscribe.benchmark.benchmark_isolated_session import IsolatedSession, _controlled_shutdown
 
 
 def fake_worker(conn, key, language, log_path):
@@ -21,6 +21,26 @@ def fake_worker(conn, key, language, log_path):
             conn.send(("ok", None))
             conn.close()
             return
+
+class FakeControlledSession:
+    def prepare_controlled_shutdown(self):
+        pass
+    def close(self):
+        raise AssertionError("Destructor must not run")
+
+
+def controlled_worker(conn, key, language, log_path):
+    conn.send(("ok", ("cuda", "float16", {"model_key": key})))
+    command, argument = conn.recv()
+    if command != "transcribe":
+        raise AssertionError(command)
+    conn.send(("ok", "synthetic prediction"))
+    command, argument = conn.recv()
+    if command != "close":
+        raise AssertionError(command)
+    with open(log_path, "a", encoding="utf-8") as log:
+        _controlled_shutdown(FakeControlledSession(), conn, log)
+    raise AssertionError("Controlled shutdown returned")
 
 
 class IsolatedSessionTests(unittest.TestCase):
@@ -50,6 +70,19 @@ class IsolatedSessionTests(unittest.TestCase):
             finally:
                 session.close()
             self.assertFalse(session.process.is_alive())
+
+    def test_controlled_exit_acknowledged_and_process_ends(self):
+        with tempfile.TemporaryDirectory() as folder:
+            log = Path(folder) / "worker.log"
+            session = IsolatedSession("large-v3", "ms", log, target=controlled_worker)
+            try:
+                self.assertEqual(session.transcribe("fake.wav"), "synthetic prediction")
+            finally:
+                session.close()
+            self.assertIsNone(session.cleanup_error)
+            self.assertEqual(session.shutdown_strategy, "controlled_process_exit")
+            self.assertEqual(session.process.exitcode, 0)
+            self.assertIn("wrapper destructor intentionally bypassed", log.read_text())
 
 
 if __name__ == "__main__":
