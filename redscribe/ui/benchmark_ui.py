@@ -81,6 +81,7 @@ class BenchmarkWindow:
         ttk.Label(files, textvariable=self.reference_summary, wraplength=660).pack(anchor="w", pady=(4, 3))
         ttk.Button(files, text="Review / Approve / Freeze DOCX",
                    command=self.open_reference_review).pack(anchor="w", pady=(7, 0))
+        ttk.Button(files, text="Load approved reference (JSON)", command=self.load_approved_reference).pack(anchor="w", pady=(6, 0))
         ttk.Label(files, text="References are approved individually; selection alone is not approval.",
                   wraplength=660).pack(anchor="w", pady=(3, 0))
         ttk.Button(files, text="Verify batch audio / DOCX pairing",
@@ -134,7 +135,8 @@ class BenchmarkWindow:
 
         footer = ttk.Frame(outer)
         footer.pack(fill="x", pady=(12, 0))
-        ttk.Button(safety,text="Full-length model-major benchmark",command=self.open_full_matrix).pack(anchor="w",pady=8)
+        ttk.Button(safety, text="Full-length model-major benchmark", command=self.open_full_matrix).pack(anchor="w", pady=8)
+        ttk.Button(safety, text="Resume from approved dataset (JSON)", command=self.load_approved_dataset).pack(anchor="w", pady=(0, 8))
         ttk.Button(footer, text="Close", command=self.request_close).pack(side="right")
         self.stop_pilot_button = ttk.Button(footer, text="Stop pilot",
                                              command=self.stop_pilot, state="disabled")
@@ -157,16 +159,52 @@ class BenchmarkWindow:
             return
         from .benchmark_matrix_ui import open_matrix_window
         lang={"Bahasa Melayu":"ms","English":"en","Auto detect":None}[self.language.get()]
-        manifest=None
-        if self.mode.get()=="batch" and self.batch_pairs:
-            if len(self.batch_pairs)!=len(self.audio_files):
-                messagebox.showwarning("Pairing","Confirm every audio/reference pair first.",parent=self.window)
+        from .benchmark_dataset_ui import approve_pairs_dialog
+        if self.mode.get() == "single":
+            if len(self.audio_files) != 1 or len(self.reference_files) != 1:
+                messagebox.showwarning("Inputs", "Select one audio and one DOCX first.", parent=self.window)
                 return
-            from .benchmark_dataset_ui import approve_pairs_dialog
-            manifest=approve_pairs_dialog(self.window,self.batch_pairs)
-            if not manifest:
+            reference = self.approved_references.get(self.reference_files[0])
+            if not reference:
+                messagebox.showwarning("Approval", "Review / Approve / Freeze the DOCX, or load an approved reference.", parent=self.window)
                 return
-        open_matrix_window(self.window,models,lang,self.gpu_monitor.get(),manifest=manifest)
+            pairs = ((self.audio_files[0], reference),)
+        else:
+            if not self.audio_files or len(self.batch_pairs) != len(self.audio_files):
+                messagebox.showwarning("Pairing", "Verify batch audio / DOCX pairing first.", parent=self.window)
+                return
+            pairs = self.batch_pairs
+        manifest = approve_pairs_dialog(self.window, pairs)
+        if not manifest:
+            return
+        open_matrix_window(self.window, models, lang, self.gpu_monitor.get(), manifest=manifest)
+
+    def load_approved_reference(self):
+        if not self.reference_files:
+            messagebox.showwarning("Inputs", "Select the original DOCX first.", parent=self.window)
+            return
+        path = filedialog.askopenfilename(parent=self.window, title="Load frozen reference manifest (JSON)", filetypes=[("JSON", "*.json")])
+        if not path:
+            return
+        from redscribe.benchmark.benchmark_reference import verify_reference, sha256_file
+        try:
+            ref = verify_reference(path)
+            matches = [p for p in self.reference_files if sha256_file(p) == ref["source_sha256"]]
+            if len(matches) != 1:
+                raise ValueError("Frozen reference must match exactly one selected DOCX by SHA-256.")
+        except Exception as exc:
+            messagebox.showerror("Reference integrity", str(exc), parent=self.window)
+            return
+        self.mark_reference_approved(matches[0], path)
+
+    def load_approved_dataset(self):
+        from .benchmark_matrix_ui import open_matrix_window
+        models = ordered_selection(k for k, v in self.selected.items() if v.get())
+        if not models:
+            messagebox.showwarning("Models", "Select at least one model.", parent=self.window)
+            return
+        lang = {"Bahasa Melayu": "ms", "English": "en", "Auto detect": None}[self.language.get()]
+        open_matrix_window(self.window, models, lang, self.gpu_monitor.get())
 
     def open_batch_pairing(self):
         if self.mode.get() != "batch":
