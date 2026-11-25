@@ -50,8 +50,15 @@ class GroundTruthReview:
         canvas.pack(side="left", fill="both", expand=True)
         frame = ttk.Frame(canvas, padding=(0, 0, 8, 0))
         item = canvas.create_window((0, 0), window=frame, anchor="nw")
-        frame.bind("<Configure>", lambda _e: canvas.configure(scrollregion=canvas.bbox("all")))
-        canvas.bind("<Configure>", lambda e: canvas.itemconfigure(item, width=e.width))
+        def fit_body(_event=None):
+            # Fill the viewport when space is available; scroll only when needed.
+            width = max(1, canvas.winfo_width())
+            height = max(canvas.winfo_height(), frame.winfo_reqheight())
+            canvas.itemconfigure(item, width=width, height=height)
+            canvas.configure(scrollregion=(0, 0, width, height))
+
+        frame.bind("<Configure>", fit_body)
+        canvas.bind("<Configure>", fit_body)
         ttk.Label(frame, text="Ground Truth DOCX — Manual Review",
                   font=("TkDefaultFont", 15, "bold")).pack(anchor="w")
         ttk.Label(frame, text="Original Word documents stay unchanged. Edit the scoring copy below; "
@@ -63,7 +70,7 @@ class GroundTruthReview:
         combo.pack(side="left", fill="x", expand=True, padx=(8, 0))
         combo.bind("<<ComboboxSelected>>", lambda _e: self.load_selected())
 
-        self.text = scrolledtext.ScrolledText(frame, wrap="word", undo=True, height=12, font=("TkDefaultFont", 11))
+        self.text = scrolledtext.ScrolledText(frame, wrap="word", undo=True, height=10, font=("TkDefaultFont", 11))
         self.text.pack(fill="both", expand=True, pady=(4, 8))
         ttk.Label(frame, text="NOTE: Extracted text may contain speaker labels, headings, "
                   "tables, fillers and comments. Optional removal supports P1–P25, Penemu duga and Interviewer with : or ;. Review the result.",
@@ -83,16 +90,40 @@ class GroundTruthReview:
                         text="I have reviewed this complete reference and approve this scoring text.").pack(
             anchor="w", pady=(0, 7))
         ttk.Label(frame, textvariable=self.status, wraplength=770).pack(anchor="w")
-        for column in range(2):
-            actions.columnconfigure(column, weight=1)
-        ttk.Button(actions, text="Reload DOCX (discard edits)",
-                   command=self.reload_confirm).grid(row=0, column=0, sticky="ew", padx=(0, 4), pady=(0, 4))
-        ttk.Button(actions, text="Remove speaker labels", command=self.remove_labels).grid(
-            row=0, column=1, sticky="ew", padx=(4, 0), pady=(0, 4))
-        ttk.Button(actions, text="Close", command=self.window.destroy).grid(
-            row=1, column=0, sticky="ew", padx=(0, 4))
-        ttk.Button(actions, text="Approve & Freeze locally", command=self.approve).grid(
-            row=1, column=1, sticky="ew", padx=(4, 0))
+        ttk.Separator(actions, orient="horizontal").pack(fill="x", pady=(0, 9))
+        toolbar = ttk.Frame(actions)
+        toolbar.pack(fill="x")
+        reload_button = ttk.Button(toolbar, text="Reload DOCX", command=self.reload_confirm)
+        remove_button = ttk.Button(toolbar, text="Remove speaker labels", command=self.remove_labels)
+        close_button = ttk.Button(toolbar, text="Close", command=self.window.destroy)
+        approve_button = ttk.Button(toolbar, text="Approve & Freeze locally", command=self.approve)
+        buttons = (reload_button, remove_button, close_button, approve_button)
+        compact = None
+
+        def fit_toolbar(event=None):
+            nonlocal compact
+            width = toolbar.winfo_width()
+            narrow = width < sum(button.winfo_reqwidth() for button in buttons) + 30
+            if compact == narrow:
+                return
+            compact = narrow
+            for button in buttons:
+                button.grid_forget()
+            for column in range(5):
+                toolbar.columnconfigure(column, weight=0)
+            if narrow:
+                toolbar.columnconfigure(0, weight=1)
+                toolbar.columnconfigure(1, weight=1)
+                for i, button in enumerate(buttons):
+                    button.grid(row=i // 2, column=i % 2, sticky="ew", padx=3, pady=2)
+            else:
+                toolbar.columnconfigure(2, weight=1)
+                for button, column in zip(buttons, (0, 1, 3, 4)):
+                    button.grid(row=0, column=column, padx=3, pady=2)
+
+        toolbar.bind("<Configure>", fit_toolbar)
+        fit_toolbar()
+
 
     def remove_labels(self):
         current = self.text.get("1.0", "end-1c")
