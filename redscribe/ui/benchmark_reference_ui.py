@@ -16,8 +16,11 @@ class GroundTruthReview:
             raise ValueError("Select a DOCX file before opening review")
         self.window = tk.Toplevel(parent)
         self.window.title("Ground Truth — Review & Freeze")
-        self.window.geometry("840x680")
+        screen_w = self.window.winfo_screenwidth()
+        screen_h = self.window.winfo_screenheight()
+        self.window.geometry(f"{min(1000, int(screen_w * .85))}x{min(820, int(screen_h * .80))}")
         self.window.minsize(600, 450)
+        self.window.resizable(True, True)
         self.index = tk.StringVar(master=self.window, value=self.paths[0])
         self.acknowledged = tk.BooleanVar(master=self.window, value=False)
         self.verification = {
@@ -33,8 +36,22 @@ class GroundTruthReview:
         self.load_selected()
 
     def build(self):
-        frame = ttk.Frame(self.window, padding=14)
-        frame.pack(fill="both", expand=True)
+        outer = ttk.Frame(self.window, padding=12)
+        outer.pack(fill="both", expand=True)
+        # Reserve footer space before allocating the scrollable body.
+        actions = ttk.Frame(outer)
+        actions.pack(side="bottom", fill="x", pady=(8, 0))
+        body = ttk.Frame(outer)
+        body.pack(fill="both", expand=True)
+        canvas = tk.Canvas(body, highlightthickness=0)
+        scrollbar = ttk.Scrollbar(body, orient="vertical", command=canvas.yview)
+        canvas.configure(yscrollcommand=scrollbar.set)
+        scrollbar.pack(side="right", fill="y")
+        canvas.pack(side="left", fill="both", expand=True)
+        frame = ttk.Frame(canvas, padding=(0, 0, 8, 0))
+        item = canvas.create_window((0, 0), window=frame, anchor="nw")
+        frame.bind("<Configure>", lambda _e: canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas.bind("<Configure>", lambda e: canvas.itemconfigure(item, width=e.width))
         ttk.Label(frame, text="Ground Truth DOCX — Manual Review",
                   font=("TkDefaultFont", 15, "bold")).pack(anchor="w")
         ttk.Label(frame, text="Original Word documents stay unchanged. Edit the scoring copy below; "
@@ -46,7 +63,7 @@ class GroundTruthReview:
         combo.pack(side="left", fill="x", expand=True, padx=(8, 0))
         combo.bind("<<ComboboxSelected>>", lambda _e: self.load_selected())
 
-        self.text = scrolledtext.ScrolledText(frame, wrap="word", undo=True, font=("TkDefaultFont", 11))
+        self.text = scrolledtext.ScrolledText(frame, wrap="word", undo=True, height=12, font=("TkDefaultFont", 11))
         self.text.pack(fill="both", expand=True, pady=(4, 8))
         ttk.Label(frame, text="NOTE: Extracted text may contain speaker labels, headings, "
                   "tables, fillers and comments. Optional removal supports P1–P25, Penemu duga and Interviewer with : or ;. Review the result.",
@@ -66,14 +83,16 @@ class GroundTruthReview:
                         text="I have reviewed this complete reference and approve this scoring text.").pack(
             anchor="w", pady=(0, 7))
         ttk.Label(frame, textvariable=self.status, wraplength=770).pack(anchor="w")
-        actions = ttk.Frame(frame)
-        actions.pack(fill="x", pady=(12, 0))
-        ttk.Button(actions, text="Reload extracted DOCX (discard edits)",
-                   command=self.reload_confirm).pack(side="left")
-        ttk.Button(actions, text="Remove speaker labels", command=self.remove_labels).pack(side="left", padx=6)
-        ttk.Button(actions, text="Close", command=self.window.destroy).pack(side="right")
-        ttk.Button(actions, text="Approve & Freeze locally",
-                   command=self.approve).pack(side="right", padx=(0, 8))
+        for column in range(2):
+            actions.columnconfigure(column, weight=1)
+        ttk.Button(actions, text="Reload DOCX (discard edits)",
+                   command=self.reload_confirm).grid(row=0, column=0, sticky="ew", padx=(0, 4), pady=(0, 4))
+        ttk.Button(actions, text="Remove speaker labels", command=self.remove_labels).grid(
+            row=0, column=1, sticky="ew", padx=(4, 0), pady=(0, 4))
+        ttk.Button(actions, text="Close", command=self.window.destroy).grid(
+            row=1, column=0, sticky="ew", padx=(0, 4))
+        ttk.Button(actions, text="Approve & Freeze locally", command=self.approve).grid(
+            row=1, column=1, sticky="ew", padx=(4, 0))
 
     def remove_labels(self):
         current = self.text.get("1.0", "end-1c")
