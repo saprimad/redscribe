@@ -2,6 +2,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 from matplotlib.figure import Figure
+from matplotlib.axes import Axes
 from redscribe.benchmark.benchmark_publication import export_publication
 
 
@@ -22,9 +23,15 @@ class FigureValuesTests(unittest.TestCase):
                                    "P2": row(90, 18, 30, 3),
                                    "P3": {"status": "failed"}}}}
         figures = {}
+        medians = {}
+        original_boxplot = Axes.boxplot
+        def capture_boxplot(ax, *args, **kwargs):
+            artists = original_boxplot(ax, *args, **kwargs)
+            medians[ax] = artists['medians']
+            return artists
         def capture(fig, path, **kwargs):
             figures[path.stem] = fig.axes[0]
-        with tempfile.TemporaryDirectory() as d, patch.object(Figure, "savefig", capture):
+        with tempfile.TemporaryDirectory() as d, patch.object(Figure, "savefig", capture), patch.object(Axes, "boxplot", capture_boxplot):
             export_publication(d, state)
         accuracy = figures["corpus_accuracy"]
         self.assertEqual(accuracy.get_ylabel(), "Error rate (%)")
@@ -35,9 +42,9 @@ class FigureValuesTests(unittest.TestCase):
             ax = figures[metric + "_distribution"]
             self.assertEqual(ax.get_ylabel(), "Recording " + metric.upper() + " (%)")
             self.assertEqual([t.get_text() for t in ax.get_xticklabels()], ["a", "b"])
-            # Matplotlib boxplot line order: whiskers, caps, median, fliers.
-            self.assertAlmostEqual(ax.lines[4].get_ydata()[0], 30)
-            self.assertAlmostEqual(ax.lines[10].get_ydata()[0], 20)
+            self.assertEqual(len(medians[ax]), 2)
+            self.assertAlmostEqual(medians[ax][0].get_ydata()[0], 30)
+            self.assertAlmostEqual(medians[ax][1].get_ydata()[0], 20)
         speed = figures["accuracy_speed"]
         self.assertEqual(speed.get_xlabel(), "Aggregate real-time factor")
         for collection, expected in zip(speed.collections, [(0.35, 46), (0.1, 20)]):
