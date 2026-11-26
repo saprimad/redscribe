@@ -74,12 +74,12 @@ def _safe_root(root):
 
 def _publish(root,private,state):
     from .benchmark_matrix_reporting import export_matrix_reporting
-    from .benchmark_publication import export_publication
+    from .benchmark_publication import export_publication, report_metadata
     with tempfile.TemporaryDirectory(prefix="report-staging-",dir=private) as temp:
         stage = Path(temp)
         public = _public_state(state)
         export_matrix_reporting(stage,public)
-        export_publication(stage,public)
+        export_publication(stage,public, pdf_metadata=report_metadata(state))
         # Keep staging and all unfiltered data inside the sensitive workspace.
         supporting = stage/"support"
         figures = supporting/"Scientific Figures"
