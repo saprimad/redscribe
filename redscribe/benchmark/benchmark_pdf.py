@@ -58,6 +58,7 @@ def generate_pdf(directory, *, data=None, metadata=None):
     from matplotlib.figure import Figure
     from matplotlib.backends.backend_pdf import PdfPages
     from matplotlib.image import imread
+    from matplotlib.lines import Line2D
     directory=Path(directory)
     if data is None:
         data=tuple(_read(directory,n) for n in ("model_summary.csv","recording_results.csv","efficiency_summary.csv"))
@@ -105,7 +106,7 @@ def generate_pdf(directory, *, data=None, metadata=None):
                 fig=Figure(figsize=(8.27,11.69),facecolor="white")
                 fig.text(.075,.965,"RedScribe",fontsize=17,color=RED,weight="bold")
                 fig.text(.925,.967,"SCIENTIFIC BENCHMARK  /  V2",ha="right",fontsize=8,color=GREY)
-                fig.add_artist(__import__("matplotlib").lines.Line2D([.075,.925],[.947,.947],transform=fig.transFigure,color=NAVY,lw=1))
+                fig.add_artist(Line2D([.075,.925],[.947,.947],transform=fig.transFigure,color=NAVY,lw=1))
                 fig.text(.075,.92,kicker.upper(),fontsize=9,color=GREY,weight="bold")
                 fig.text(.075,.886,title,fontsize=20,color=NAVY,weight="bold")
                 fig.text(.075,.035,"RedScribe  |  Derived local research report",fontsize=8,color=GREY)
@@ -118,9 +119,9 @@ def generate_pdf(directory, *, data=None, metadata=None):
                     fig.text(.075,y,line,fontsize=9,color=NAVY)
                     y-=.017
                 return y-.012
-            def table(fig,top,headers,values,widths=None):
+            def table(fig,top,headers,values,widths=None,highlight_errors=False):
                 values=values or [["N/A"]+[""]*(len(headers)-1)]
-                height=.024*(len(values)+1)
+                height=(.020 if len(values)>7 else .024)*(len(values)+1)
                 ax=fig.add_axes([.075,top-height,.85,height])
                 ax.axis("off")
                 t=ax.table(cellText=values,colLabels=headers,cellLoc="right",colLoc="right",colWidths=widths,bbox=[0,0,1,1])
@@ -135,6 +136,14 @@ def generate_pdf(directory, *, data=None, metadata=None):
                         cell.get_text().set_weight("bold")
                     if j==0:
                         cell.get_text().set_ha("left")
+                if highlight_errors:
+                    # Within-row relative error composition, not clinical or validated quality thresholds.
+                    for i,row in enumerate(values,1):
+                        counts=[_number(str(v).replace(",","")) for v in row[1:4]]
+                        if any(v is None for v in counts) or len(set(counts))<2:
+                            continue
+                        for j,v in enumerate(counts,1):
+                            t[i,j].set_facecolor("#F8D7DA" if v==max(counts) else "#DDF1E3" if v==min(counts) else "#FFF0C2")
                 return top-height-.035
             def figure(fig,name,box):
                 p=directory/(name+".png")
@@ -194,12 +203,12 @@ def generate_pdf(directory, *, data=None, metadata=None):
             fig=base("07 / 08   Absolute edit counts","Error composition")
             heading(fig,.842,"Word-level errors")
             y=table(fig,.822,["Model","Substitutions","Deletions","Insertions","Reference words"],
-                table_rows(common,[(k,"count") for k in ("word_substitutions","word_deletions","word_insertions","reference_words")]))
+                table_rows(common,[(k,"count") for k in ("word_substitutions","word_deletions","word_insertions","reference_words")]),highlight_errors=True)
             heading(fig,y,"Character-level errors")
             y=table(fig,y-.02,["Model","Substitutions","Deletions","Insertions","Reference chars"],
-                table_rows(common,[(k,"count") for k in ("char_substitutions","char_deletions","char_insertions","reference_characters")]))
-            y=prose(fig,y,"Substitution: a reference unit is replaced. Deletion: a reference unit is missing. Insertion: an extra unit appears. Counts are exact integers, not rounded scientific notation.")
-            prose(fig,y,"Edit counts alone cannot distinguish dialect normalisation, hallucination, repetition or coverage failures. Text-level inspection is required.")
+                table_rows(common,[(k,"count") for k in ("char_substitutions","char_deletions","char_insertions","reference_characters")]),highlight_errors=True)
+            y=prose(fig,y,"Colour key within each model: red = largest error count; amber = intermediate; green = smallest. Equal counts share a colour; all-equal rows remain neutral. These are relative counts, not validated quality thresholds.")
+            prose(fig,y,"S = replacement; D = missing unit; I = extra unit. Counts are exact integers. Edit counts alone cannot identify dialect normalisation or hallucination.")
             save(fig)
 
             fig=base("09 / 10   Efficiency and resource observations","Computational performance")
