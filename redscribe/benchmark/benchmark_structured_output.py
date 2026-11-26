@@ -26,7 +26,8 @@ FIGURES = ("corpus_accuracy", "wer_distribution", "cer_distribution",
            "accuracy_speed", "participant_wer_heatmap")
 NUMERIC = ("wer","cer","word_substitutions","word_deletions","word_insertions",
            "reference_words","char_substitutions","char_deletions","char_insertions",
-           "reference_characters","audio_seconds","inference_seconds","rtf","worker_exit_code")
+           "reference_characters","audio_seconds","inference_seconds","rtf","worker_exit_code",
+           "session_loading_seconds","session_warmup_seconds")
 RESOURCES = ("gpu_util_percent_peak","gpu_memory_used_mb_peak","gpu_temperature_c_peak",
              "cpu_percent_peak","ram_used_mb_peak","sample_count")
 
@@ -52,11 +53,15 @@ def _public_state(state):
         ids[p]=p if p in reserved else f"R{i:03d}"
     out = {"identity":{"models":models,"recordings":list(ids.values())},"results":{}}
     for m in models:
+        session_aliases = {}
         out["results"][m] = {}
         for p,alias in ids.items():
             row = state["results"].get(m,{}).get(p,{})
             status = row.get("status")
             clean = {k:_numeric(row.get(k)) for k in NUMERIC}
+            sid=row.get("session_id")
+            if isinstance(sid,str) and sid:
+                clean["session_id"]=session_aliases.setdefault(sid,f"S{len(session_aliases)+1:03d}")
             clean["status"] = status if status in ("completed","failed","cancelled","not_run") else "not_run"
             for k,allowed in (
                 ("device",("cuda","cpu")),("precision",("float16","float32","int8","fp16","fp32")),
