@@ -8,7 +8,7 @@ from pathlib import Path
 
 def open_matrix_window(parent,models,language,monitor=True,manifest=None):
     from redscribe.benchmark.benchmark_dataset import verify_dataset
-    from redscribe.benchmark.benchmark_model_major_batch import run_model_major_batch
+    from redscribe.benchmark.benchmark_structured_output import run_structured_batch
     from redscribe.benchmark.benchmark_resources import ResourceMonitor
     manifest=manifest or filedialog.askopenfilename(parent=parent,title="Select approved dataset manifest",filetypes=[("JSON","*.json")])
     if not manifest:
@@ -61,13 +61,13 @@ def open_matrix_window(parent,models,language,monitor=True,manifest=None):
         status.set(f"{terminal}/{len(ids)*len(models)} resolved — {m}: {s}")
     def worker():
         try:
-            result=run_model_major_batch(manifest,models,output,language=language,
+            result=run_structured_batch(manifest,models,output,language=language,
                 stopped=cancel.is_set,monitor_factory=ResourceMonitor if monitor else None,
                 progress=lambda m,p,s:events.put(("cell",m,p,s)))
             for m,records in result["results"].items():
                 for p,r in records.items():
                     events.put(("cell",m,p,r["status"]))
-            events.put(("done","Stopped" if cancel.is_set() else "Run ended — inspect failures and reports"))
+            events.put(("published","Stopped — partial reports generated" if cancel.is_set() else "Run ended — inspect failures and reports"))
         except Exception as exc:
             events.put(("done",f"Error: {exc}"))
     from .operation_guard import start_exclusive
@@ -94,6 +94,9 @@ def open_matrix_window(parent,models,language,monitor=True,manifest=None):
                 update(*event[1:])
             else:
                 status.set(event[1])
+                if event[0]=="published":
+                    messagebox.showwarning("Confidential research data retained",
+                        "Scientific reports are in the selected output folder. The 04 - SENSITIVE DATA folder contains confidential transcripts, checkpoints and diagnostic materials. Do not distribute or upload it without authorisation. Folder segregation is not encryption. Review run failures before interpreting results.",parent=win)
         if thread.is_alive() or not events.empty():
             win.after(150,drain)
     win.after(150,drain)
