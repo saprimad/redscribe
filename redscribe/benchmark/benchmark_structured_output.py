@@ -42,7 +42,14 @@ def _public_state(state):
         raise ValueError("Unexpected model identifier: expected a registered RedScribe model")
     if len(set(models)) != len(models):
         raise ValueError("Duplicate model identifiers")
-    ids = {p:f"R{i:03d}" for i,p in enumerate(identity["recordings"],1)}
+    import re
+    # Preserve explicitly pseudonymous P-number codes; never publish arbitrary
+    # filenames, names or identifiers. Reserve codes before assigning aliases.
+    recordings=identity["recordings"]
+    ids={}
+    reserved={p for p in recordings if isinstance(p,str) and re.fullmatch(r"P[0-9]{1,6}",p)}
+    for i,p in enumerate(recordings,1):
+        ids[p]=p if p in reserved else f"R{i:03d}"
     out = {"identity":{"models":models,"recordings":list(ids.values())},"results":{}}
     for m in models:
         out["results"][m] = {}
@@ -100,7 +107,7 @@ def _publish(root,private,state):
                 if p.is_file():
                     shutil.copy2(p,figures/p.name)
         (integrity/"README.txt").write_text(
-            "Recording labels are sequential aliases. Raw checkpoint and source manifests remain sensitive. Hashes below cover published files only; they do not establish anonymity or audio coverage.",encoding="utf-8")
+            "Recording labels preserve P-number research codes; other identifiers are replaced with sequential aliases. Pseudonyms are not anonymity. Raw checkpoint and source manifests remain sensitive. Hashes below cover published files only; they do not establish anonymity or audio coverage.",encoding="utf-8")
         files = {PDF:stage/"scientific_report.pdf",EXCEL:stage/"scientific_results.xlsx"}
         files.update({str(Path(SUPPORT)/p.relative_to(supporting)).replace(os.sep,"/"):p for p in supporting.rglob("*") if p.is_file()})
         hashes={name:hashlib.sha256(p.read_bytes()).hexdigest() for name,p in files.items()}
