@@ -4,7 +4,7 @@ import math
 from .benchmark_reporting import _counts
 from .benchmark_matrix_reporting import build_matrix_reports
 
-def export_publication(directory,state):
+def export_publication(directory,state,*,pdf_metadata=None):
     from openpyxl import Workbook
     from openpyxl.styles import Font, PatternFill
     from openpyxl.utils import get_column_letter
@@ -95,7 +95,7 @@ def export_publication(directory,state):
                 (directory/(name+"."+ext)).unlink(missing_ok=True)
     # Derive the PDF from the CSV and figure exports without another ASR run.
     from .benchmark_pdf import generate_pdf
-    generate_pdf(directory, data=(summary,rows,efficiency), metadata=report_metadata(state))
+    generate_pdf(directory, data=(summary,rows,efficiency), metadata=report_metadata(state) if pdf_metadata is None else pdf_metadata)
 
 
 def report_metadata(state):
