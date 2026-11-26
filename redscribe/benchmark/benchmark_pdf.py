@@ -19,6 +19,16 @@ MODEL_NAMES = {
     "BuzzASR Malay": ("BuzzASR Malay", "BuzzASR/malay"),
     **{k:("OpenAI Whisper "+k.title(),"openai/whisper-"+k) for k in ("tiny","base","small","medium")}
 }
+SHORT_NAMES = {
+    "large-v3":"Whisper Large-v3", "turbo":"Whisper Turbo",
+    "Mesolitica Whisper v3":"Mesolitica Whisper", "Mesolitica XLS-R 300M":"Mesolitica XLS-R",
+    "Meta MMS 1B (Malay)":"Meta MMS 1B", "Qwen3-ASR 1.7B":"Qwen3-ASR 1.7B",
+    "BuzzASR Malay":"BuzzASR Malay",
+    **{k:"Whisper "+k.title() for k in ("tiny","base","small","medium")}
+}
+def short_name(key):
+    return SHORT_NAMES.get(key,str(key))
+
 NAVY="#243B53"
 GREY="#536579"
 RED="#A4262C"
@@ -70,9 +80,13 @@ def generate_pdf(directory, *, data=None, metadata=None):
     attempted=[r for r in summary if r.get("cohort")=="all_attempted"]
     models=list(dict.fromkeys(r.get("model_key","") for r in rows))
     # Labels are short, deterministic model references, not participant identifiers.
-    labels={m:f"M{i:02d}" for i,m in enumerate(models,1)}
+    labels={m:short_name(m) for m in models}
     completed=[r for r in rows if r.get("status")=="completed"]
     ids={r.get("participant_id") for r in rows}
+    import re
+    safe_ids=sorted(str(i) for i in ids if isinstance(i,str) and re.fullmatch(r"(?:P|R)[0-9]{1,6}",i))
+    scope=("Individual recording — "+(safe_ids[0] if len(safe_ids)==1 else "restricted ID")) if len(ids)==1 else f"Multi-recording corpus — {len(ids)} recordings"
+    common.sort(key=lambda r: (_number(r.get("corpus_wer")) is None, _number(r.get("corpus_wer")) or Decimal(0)))
     n_common=max((int(_number(r.get("word_scored")) or 0) for r in common),default=0)
     def best(metric):
         available=[r for r in common if _number(r.get(metric)) is not None]
@@ -105,12 +119,13 @@ def generate_pdf(directory, *, data=None, metadata=None):
                 page+=1
                 fig=Figure(figsize=(8.27,11.69),facecolor="white")
                 fig.text(.075,.965,"RedScribe",fontsize=17,color=RED,weight="bold")
-                fig.text(.925,.967,"SCIENTIFIC BENCHMARK  /  V2",ha="right",fontsize=8,color=GREY)
+                fig.text(.925,.967,"SCIENTIFIC BENCHMARK  /  V3",ha="right",fontsize=8,color=GREY)
                 fig.add_artist(Line2D([.075,.925],[.947,.947],transform=fig.transFigure,color=NAVY,lw=1))
                 fig.text(.075,.92,kicker.upper(),fontsize=9,color=GREY,weight="bold")
                 fig.text(.075,.886,title,fontsize=20,color=NAVY,weight="bold")
                 fig.text(.075,.035,"RedScribe  |  Derived local research report",fontsize=8,color=GREY)
-                fig.text(.925,.035,f"{page:02d}",ha="right",fontsize=9,color=GREY)
+                fig.text(.925,.035,f"{page:02d} / 08",ha="right",fontsize=9,color=GREY)
+                fig.text(.925,.929,scope,ha="right",fontsize=8,color=GREY)
                 return fig
             def heading(fig,y,text):
                 fig.text(.075,y,text,fontsize=12,weight="bold",color=NAVY)
@@ -121,7 +136,9 @@ def generate_pdf(directory, *, data=None, metadata=None):
                 return y-.012
             def table(fig,top,headers,values,widths=None,highlight_errors=False):
                 values=values or [["N/A"]+[""]*(len(headers)-1)]
-                height=(.020 if len(values)>7 else .024)*(len(values)+1)
+                if widths is None and headers[0]=="Model":
+                    widths=[.30]+[.70/(len(headers)-1)]*(len(headers)-1)
+                height=(.018 if len(values)>7 else .024)*(len(values)+1)
                 ax=fig.add_axes([.075,top-height,.85,height])
                 ax.axis("off")
                 t=ax.table(cellText=values,colLabels=headers,cellLoc="right",colLoc="right",colWidths=widths,bbox=[0,0,1,1])
@@ -157,7 +174,7 @@ def generate_pdf(directory, *, data=None, metadata=None):
                 pdf.savefig(fig)
                 fig.clear()
 
-            fig=base("01 / 02   Executive summary and scope","ASR benchmark overview")
+            fig=base("01   Executive summary and scope","ASR benchmark overview")
             for i,(value,caption) in enumerate(((str(len(models)),"Selected models"),(str(len(ids)),"Recordings"),(f"{len(completed)}/{len(rows)}","Completed observations"))):
                 x=.075+i*.29
                 fig.text(x,.81,value,fontsize=28,color=NAVY,weight="bold")
@@ -165,23 +182,24 @@ def generate_pdf(directory, *, data=None, metadata=None):
             y=prose(fig,.735,"Full-length local ASR evaluation. Results are descriptive; completion does not establish accuracy or full audio coverage.")
             heading(fig,y,"Dataset and benchmark coverage")
             y=table(fig,y-.02,["Measure","Value"],[
+                ["Recording ID / scope",safe_ids[0] if len(ids)==1 and len(safe_ids)==1 else f"{len(ids)} recordings"],
                 ["Unique audio duration",_fmt(consistent_total("audio_seconds"),"seconds")],
                 ["Reference words",_fmt(consistent_total("reference_words"))],
                 ["Reference characters",_fmt(consistent_total("reference_characters"))],
                 ["Common scored recordings",str(n_common)],
                 ["Lowest common-cohort WER",best("corpus_wer")],
-                ["Lowest common-cohort CER",best("corpus_cer")]], [.58,.42])
-            heading(fig,y,"04  Completion and failures")
+                ["Lowest common-cohort CER",best("corpus_cer")]], [.48,.52])
+            heading(fig,y,"02  Completion and failures")
             y=table(fig,y-.02,["Model","Total","Done","Failed","Cancelled","Not run","Unavailable"],
                 table_rows(attempted,[(k,"count") for k in ("recordings_total","recordings_completed","recordings_failed","recordings_cancelled","recordings_not_run","recordings_unavailable")]))
-            prose(fig,y,"Model codes are defined on the next page. Repeated observations of the same recording are paired, not independent.")
+            prose(fig,y,"Model names are defined on the next page. Repeated observations of the same recording are paired, not independent.")
             save(fig)
 
             fig=base("03   Model inventory and provenance","Models and environment")
             y=.842
             for m in models:
                 full,checkpoint=MODEL_NAMES.get(m,(str(m),"Not recorded"))
-                fig.text(.075,y,labels[m]+"  "+full,fontsize=9.5,weight="bold",color=NAVY)
+                fig.text(.075,y,full,fontsize=9.5,weight="bold",color=NAVY)
                 fig.text(.10,y-.017,checkpoint,fontsize=8,color=GREY)
                 y-=.042
             heading(fig,y-.012,"Recorded runtime environment")
@@ -191,16 +209,21 @@ def generate_pdf(directory, *, data=None, metadata=None):
             prose(fig,y,"Model identifiers are registry labels; exact loaded revisions must be checked in the protected checkpoint. Report generated (UTC): "+datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M"))
             save(fig)
 
-            fig=base("05 / 06   Corpus and recording-average accuracy","Recognition performance")
-            y=table(fig,.845,["Model","Scored n","Corpus WER","Corpus CER","Macro WER","Macro CER"],
-                table_rows(common,[("word_scored","count"),("corpus_wer","percent"),("corpus_cer","percent"),("macro_wer","percent"),("macro_cer","percent")]))
+            fig=base("04   Recognition accuracy","Recognition performance")
+            fields=[("corpus_wer","percent"),("corpus_cer","percent")]
+            headers=["Model","WER","CER"]
+            if len(ids)>1:
+                headers=["Model","Scored n","Corpus WER","Corpus CER","Macro WER","Macro CER"]
+                fields=[("word_scored","count")]+fields+[("macro_wer","percent"),("macro_cer","percent")]
+            y=table(fig,.845,headers,table_rows(common,fields))
+            y=prose(fig,y,"Ordered by unrounded WER (ascending); missing scores last. Equal scores are not distinct ranks.")
             y=prose(fig,y,"WER = (word substitutions + deletions + insertions) / reference words. CER applies the same formula to characters. Corpus rates pool counts; macro rates average recording-level rates.")
             figure(fig,"corpus_accuracy",[.075,.15,.85,min(.39,max(.1,y-.18))])
             fig.text(.075,.115,"Figure 1. Corpus WER and CER on the common completed cohort.",fontsize=9,color=GREY)
             prose(fig,.087,"Lower is better. WER can exceed 100%; neither metric measures semantic accuracy.")
             save(fig)
 
-            fig=base("07 / 08   Absolute edit counts","Error composition")
+            fig=base("05   Absolute edit counts","Error composition")
             heading(fig,.842,"Word-level errors")
             y=table(fig,.822,["Model","Substitutions","Deletions","Insertions","Reference words"],
                 table_rows(common,[(k,"count") for k in ("word_substitutions","word_deletions","word_insertions","reference_words")]),highlight_errors=True)
@@ -211,9 +234,42 @@ def generate_pdf(directory, *, data=None, metadata=None):
             prose(fig,y,"S = replacement; D = missing unit; I = extra unit. Counts are exact integers. Edit counts alone cannot identify dialect normalisation or hallucination.")
             save(fig)
 
-            fig=base("09 / 10   Efficiency and resource observations","Computational performance")
+            fig=base("06   Output length and error profile","Output length analysis")
+            def length_values(row,prefix,refkey):
+                ref,d,i=(_number(row.get(k)) for k in (refkey,prefix+"_deletions",prefix+"_insertions"))
+                if any(v is None for v in (ref,d,i)) or ref<=0 or d>ref:
+                    return None,None
+                return ref-d+i,(ref-d+i)/ref
+            lengths=[]
+            for row in common:
+                words,wr=length_values(row,"word","reference_words")
+                chars,cr=length_values(row,"char","reference_characters")
+                lengths.append([labels[row["model_key"]],_fmt(words),_fmt(wr,"percent"),_fmt(chars),_fmt(cr,"percent")])
+            y=table(fig,.845,["Model","ASR words","Word ratio","ASR chars","Char ratio"],lengths)
+            y=prose(fig,y,"Generated units = reference units − deletions + insertions. A ratio of 100% indicates equal length, not accurate transcription.")
+            available=[]
+            for row in common:
+                counts=[_number(row.get("word_"+k)) for k in ("substitutions","deletions","insertions")]
+                if all(v is not None for v in counts):
+                    available.append((labels[row["model_key"]],counts))
+            if available:
+                ax=fig.add_axes([.32,.16,.58,min(.33,max(.16,y-.20))])
+                left=[0.0]*len(available)
+                for j,(name,color) in enumerate(zip(("Substitution","Deletion","Insertion"),("#D5A43C","#C45B5B","#648BB4"))):
+                    vals=[float(v[j]) for _,v in available]
+                    ax.barh(range(len(vals)),vals,left=left,label=name,color=color)
+                    left=[a+b for a,b in zip(left,vals)]
+                ax.set_yticks(range(len(available)),[n for n,_ in available],fontsize=7)
+                ax.invert_yaxis()
+                ax.set_xlabel("Absolute word-level edit counts",fontsize=8)
+                ax.tick_params(axis="x",labelsize=8)
+                ax.legend(loc="upper center",bbox_to_anchor=(.5,-.20),ncol=3,fontsize=7,frameon=False)
+            prose(fig,.075,"Length imbalance and edit composition are diagnostic indicators, not evidence of truncation or hallucination.")
+            save(fig)
+
+            fig=base("07   Efficiency and resource observations","Computational performance")
             values=[[labels[r["model_key"]],_fmt(r.get("recordings_timed")),_fmt(total_time(r["model_key"]),"seconds"),_fmt(r.get("aggregate_rtf"),"rtf"),_fmt(r.get("mean_rtf"),"rtf"),_fmt(r.get("median_rtf"),"rtf")] for r in efficiency]
-            y=table(fig,.845,["Model","Timed n","Inference time","Aggregate RTF","Mean RTF","Median RTF"],values,[.12,.12,.24,.18,.17,.17])
+            y=table(fig,.845,["Model","Timed n","Inference time","Aggregate RTF","Mean RTF","Median RTF"],values,[.30,.10,.19,.15,.13,.13])
             heading(fig,y,"Observed system-wide peaks")
             y=table(fig,y-.02,["Model","GPU MB","GPU °C","RAM MB","GPU util. %"],
                 table_rows(efficiency,[(k,"decimal") for k in ("gpu_memory_used_mb_peak_max","gpu_temperature_c_peak_max","ram_used_mb_peak_max","gpu_util_percent_peak_max")]))
@@ -221,7 +277,7 @@ def generate_pdf(directory, *, data=None, metadata=None):
             prose(fig,y,"GPU and RAM observations are system-wide sampled peaks, not model-exclusive allocations. N/A means unavailable, not zero.")
             save(fig)
 
-            fig=base("11   Scientific figures","Accuracy and speed")
+            fig=base("08   Scientific figures","Accuracy and speed")
             figure(fig,"accuracy_speed",[.075,.46,.85,.38])
             fig.text(.075,.435,"Figure 2. Aggregate RTF versus corpus WER, common timed cohort.",fontsize=9,color=GREY)
             if n_common>1:
@@ -232,9 +288,9 @@ def generate_pdf(directory, *, data=None, metadata=None):
                 prose(fig,.39,"Distribution plots omitted: fewer than two common scored recordings. A single observation does not describe variability.")
             save(fig)
 
-            fig=base("12 / 13   Integrity and interpretation","Scientific safeguards")
+            fig=base("09   Integrity and interpretation","Scientific safeguards")
             y=.84
-            y=prose(fig,y,f"Completed observations with recorded zero worker exit code: {sum(str(r.get('worker_exit_code'))=='0' for r in completed)} of {len(completed)}.")
+            y=prose(fig,y,f"Completed observations with recorded zero worker exit code: {sum(_number(r.get('worker_exit_code'))==0 for r in completed)} of {len(completed)}.")
             y=prose(fig,y,"This report is derived from saved benchmark results. Structured publication includes PDF and supporting files in its publication checksum manifest; standalone legacy exports may not.")
             heading(fig,y,"Limitations")
             y-=.025
