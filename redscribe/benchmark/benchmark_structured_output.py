@@ -73,12 +73,17 @@ def _public_state(state):
             out["results"][m][alias] = clean
     return out
 
-def _safe_root(root):
+def validate_output_root(root):
     root = Path(root).resolve()
-    root.mkdir(parents=True,exist_ok=True)
     allowed = {PRIVATE,SUPPORT,PDF,EXCEL}
-    if any(p.name not in allowed or p.is_symlink() for p in root.iterdir()):
-        raise ValueError("Choose an empty or existing structured output folder; legacy output is not moved automatically.")
+    if root.exists():
+        if not root.is_dir() or any(p.name not in allowed or p.is_symlink() for p in root.iterdir()):
+            raise ValueError("Select a separate empty output folder or an existing structured output folder. Keep approved_dataset.json and original inputs outside it. No files were moved or deleted.")
+    return root
+
+def _safe_root(root):
+    root = validate_output_root(root)
+    root.mkdir(parents=True,exist_ok=True)
     private = root / PRIVATE
     private.mkdir(exist_ok=True)
     (private/"CONFIDENTIAL - READ ME.txt").write_text(NOTICE,encoding="utf-8")
@@ -146,9 +151,13 @@ def verify_publication(root):
 def run_structured_batch(dataset_path,models,output,**kwargs):
     from .benchmark_output_lock import output_lock
     from .benchmark_model_major_batch import _run_model_major_batch
+    progress=kwargs.get('progress',lambda *args: None)
+    progress('Startup',None,'Validating structured output folder')
     root,private=_safe_root(output)
+    progress('Startup',None,'Acquiring output lock')
     with output_lock(private):
         state=_run_model_major_batch(dataset_path,models,private,**kwargs)
+        progress('Reporting',None,'Publishing structured scientific reports')
         _publish(root,private,state)
         return state
 
