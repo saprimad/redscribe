@@ -11,7 +11,11 @@ RedScribe is a Windows and macOS desktop application for transcribing research i
 | Desktop transcription | Default branch (`main`); installation and usage below |
 | ASR benchmarking | Experimental [research branch](https://github.com/saprimad/redscribe/tree/refactor/benchmark-architecture), separate from the public transcription application |
 
-For academic review: [benchmark architecture](https://github.com/saprimad/redscribe/blob/refactor/benchmark-architecture/docs/benchmark/ARCHITECTURE.md) · [software validation record](https://github.com/saprimad/redscribe/blob/refactor/benchmark-architecture/docs/validation/FINAL_SOFTWARE_VALIDATION_2026-11-25.md) · [draft PR #27](https://github.com/saprimad/redscribe/pull/27). Synthetic tests passed on Windows and Ubuntu; actual benchmark GPU/GUI validation and expert review remain pending. Benchmarking is not part of the default branch.
+For academic review: [benchmark architecture](https://github.com/saprimad/redscribe/blob/refactor/benchmark-architecture/docs/benchmark/ARCHITECTURE.md) · [software validation record](https://github.com/saprimad/redscribe/blob/refactor/benchmark-architecture/docs/validation/FINAL_SOFTWARE_VALIDATION_2026-11-25.md) · [draft PR #27](https://github.com/saprimad/redscribe/pull/27). Synthetic tests passed on Windows and Ubuntu. A user-reported seven-model GPU run completed on one recording on 26 November 2026; see the [sanitised runtime record](https://github.com/saprimad/redscribe/blob/refactor/benchmark-architecture/docs/validation/P1_SEVEN_MODEL_GPU_VALIDATION_2026-11-26.md). Full scientific validation and expert review remain pending. Benchmarking is not part of the default branch.
+
+## Scientific guide and limitations
+
+Read the **[ASR Science, Model Architecture and Benchmarking Methodology](docs/ASR_SCIENCE.md)** guide for illustrated processing pathways, CTC versus autoregressive decoding, the seven model profiles, WER/CER, computational efficiency, audio coverage, speaker diarisation limitations and responsible research use. Automated output is a draft, not a certified verbatim transcript.
 
 ## Current source version
 
