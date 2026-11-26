@@ -1,4 +1,6 @@
 import tempfile
+from pathlib import Path
+from matplotlib.backends.backend_pdf import PdfPages
 import unittest
 from unittest.mock import patch
 from matplotlib.figure import Figure
@@ -29,10 +31,15 @@ class FigureValuesTests(unittest.TestCase):
             artists = original_boxplot(ax, *args, **kwargs)
             medians[ax] = artists['medians']
             return artists
+        original_savefig = Figure.savefig
         def capture(fig, path, **kwargs):
-            figures[path.stem] = fig.axes[0]
+            if isinstance(path, PdfPages):
+                return original_savefig(fig, path, **kwargs)
+            figures[Path(path).stem] = fig.axes[0]
         with tempfile.TemporaryDirectory() as d, patch.object(Figure, "savefig", capture), patch.object(Axes, "boxplot", capture_boxplot):
             export_publication(d, state)
+            pdf = Path(d) / 'scientific_report.pdf'
+            self.assertTrue(pdf.read_bytes().startswith(b'%PDF-'))
         accuracy = figures["corpus_accuracy"]
         self.assertEqual(accuracy.get_ylabel(), "Error rate (%)")
         for actual, expected in zip([p.get_height() for p in accuracy.patches], [46, 20, 46, 20]):
