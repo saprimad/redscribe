@@ -20,7 +20,7 @@ Here N is window length, H is hop length and w is a window function. Power is th
 
 Transformer attention combines information across positions:
 
-$$\operatorname{Attention}(Q,K,V)=\operatorname{softmax}(QK^T/\sqrt{d_k})V$$
+$\mathrm{Attention}(Q,K,V)=\mathrm{softmax}\left(\frac{QK^{T}}{\sqrt{d_k}}\right)V$
 
 Queries determine relevance to keys; values provide the information combined. Both CTC and autoregressive systems can have contextual acoustic encoders. Dense attention has a quadratic sequence-length component, so long recordings require careful segmentation. Parameter count measures learned weights, not intelligence, accuracy or actual inference latency.
 
@@ -40,7 +40,7 @@ Potential failure modes include excessive blanks, incorrect word boundaries, lan
 
 Whisper encodes log-Mel features and generates text with a Transformer decoder using self-attention over prior output and cross-attention to audio features.
 
-$$P(Y|X)=\prod_{i=1}^{L}P(y_i|y_{<i},X)$$
+$P(Y\mid X)=\prod_{i=1}^{L}P(y_i\mid y_1,\ldots,y_{i-1},X)$
 
 Training commonly uses token-level cross-entropy; inference generates tokens sequentially until a stopping criterion. Tokens may be subwords rather than words. KV caching, batching and optimised kernels reduce overhead but do not remove ordinary sequential token dependence. Linguistic priors can aid recognition of ambiguous speech or introduce plausible but unsupported text. Repetition, unwanted standardisation, early termination and hallucination are possible. Insertions are edit operations, not automatic proof of hallucination.
 
