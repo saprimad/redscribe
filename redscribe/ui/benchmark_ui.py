@@ -135,8 +135,11 @@ class BenchmarkWindow:
 
         footer = ttk.Frame(outer)
         footer.pack(fill="x", pady=(12, 0))
-        ttk.Button(safety, text="Full-length model-major benchmark", command=self.open_full_matrix).pack(anchor="w", pady=8)
-        ttk.Button(safety, text="Resume from approved dataset (JSON)", command=self.load_approved_dataset).pack(anchor="w", pady=(0, 8))
+        ttk.Button(safety, text="New Experiment — Full-length Benchmark", command=self.open_full_matrix).pack(anchor="w", pady=8)
+        ttk.Button(safety, text="Resume Experiment", command=self.resume_experiment).pack(anchor="w", pady=4)
+        ttk.Button(safety, text="Regenerate Reports", command=self.regenerate_experiment).pack(anchor="w", pady=4)
+        ttk.Button(safety, text="Change Master Output Folder", command=lambda: self.master_folder(change=True)).pack(anchor="w", pady=4)
+        ttk.Button(safety, text="Advanced: Load Approved Dataset (JSON)", command=self.load_approved_dataset).pack(anchor="w", pady=(0, 8))
         ttk.Button(footer, text="Close", command=self.request_close).pack(side="right")
         self.stop_pilot_button = ttk.Button(footer, text="Stop pilot",
                                              command=self.stop_pilot, state="disabled")
@@ -174,10 +177,80 @@ class BenchmarkWindow:
                 messagebox.showwarning("Pairing", "Verify batch audio / DOCX pairing first.", parent=self.window)
                 return
             pairs = self.batch_pairs
-        manifest = approve_pairs_dialog(self.window, pairs)
-        if not manifest:
+        master = self.master_folder()
+        if not master:
             return
-        open_matrix_window(self.window, models, lang, self.gpu_monitor.get(), manifest=manifest)
+        from redscribe.benchmark.benchmark_experiments import new_experiment
+        monitor = self.gpu_monitor.get()
+        prepared = approve_pairs_dialog(self.window, pairs, prepare_experiment=lambda rows:
+            new_experiment(master, rows, models, lang, monitor, researcher_acknowledged=True))
+        if not prepared:
+            return
+        output, manifest = prepared
+        open_matrix_window(self.window, models, lang, monitor, manifest=str(manifest), output=str(output))
+
+    def master_folder(self, change=False):
+        from redscribe.benchmark.benchmark_experiments import saved_master, save_master
+        master = saved_master()
+        if master and not change:
+            return master
+        folder = filedialog.askdirectory(parent=self.window, title="Choose PRIVATE master benchmark folder", initialdir=str(master) if master else None)
+        if not folder:
+            return None
+        try:
+            master = save_master(folder)
+            self.pilot_status.set("Master output folder: " + str(master))
+            return master
+        except Exception as exc:
+            messagebox.showerror("Master folder", str(exc), parent=self.window)
+            return None
+
+    def choose_experiment(self):
+        master = self.master_folder()
+        if not master:
+            return None
+        return filedialog.askdirectory(parent=self.window, title="Choose existing experiment folder", initialdir=str(master))
+
+    def resume_experiment(self):
+        from redscribe.benchmark.benchmark_experiments import load_experiment
+        from .benchmark_matrix_ui import open_matrix_window
+        root = self.choose_experiment()
+        if not root:
+            return
+        try:
+            manifest, models, language, monitor = load_experiment(root)
+        except Exception as exc:
+            messagebox.showerror("Experiment integrity", str(exc), parent=self.window)
+            return
+        open_matrix_window(self.window, models, language, monitor, manifest=str(manifest), output=root)
+
+    def regenerate_experiment(self):
+        from redscribe.benchmark.benchmark_structured_output import regenerate
+        from .operation_guard import start_exclusive
+        root = self.choose_experiment()
+        if not root:
+            return
+        events = queue.Queue()
+        def worker():
+            try:
+                regenerate(root)
+                events.put((True, "Scientific reports regenerated without ASR."))
+            except Exception as exc:
+                events.put((False, str(exc)))
+        thread = start_exclusive(worker)
+        if thread is None:
+            messagebox.showwarning("Operation active", "Finish the active operation first.", parent=self.window)
+            return
+        self.pilot_status.set("Regenerating scientific reports...")
+        def poll():
+            try:
+                ok, detail = events.get_nowait()
+            except queue.Empty:
+                self.window.after(150, poll)
+                return
+            self.pilot_status.set(detail)
+            (messagebox.showinfo if ok else messagebox.showerror)("Report regeneration", detail, parent=self.window)
+        self.window.after(150, poll)
 
     def load_approved_reference(self):
         if not self.reference_files:
@@ -358,7 +431,16 @@ class BenchmarkWindow:
                                    parent=self.window)
             return
         from benchmark_reference_ui import open_ground_truth_review
-        open_ground_truth_review(self.window, self.reference_files, self.mark_reference_approved)
+        master = self.master_folder()
+        if not master:
+            return
+        from redscribe.benchmark.benchmark_experiments import reference_cache
+        try:
+            cache = reference_cache(master)
+        except Exception as exc:
+            messagebox.showerror("Reference storage", str(exc), parent=self.window)
+            return
+        open_ground_truth_review(self.window, self.reference_files, self.mark_reference_approved, output_dir=str(cache))
 
     def mark_reference_approved(self, source_path, manifest_path):
         self.approved_references[source_path] = manifest_path
