@@ -24,6 +24,7 @@ def decode_full_duration(path):
 def _run_model_major_batch(dataset_path, models, output, *, language="ms",
                           session_factory=None, stopped=lambda:False, duration_check=None,
                           warmup_audio=None, monitor_factory=None, progress=lambda *args: None):
+    progress('Startup',None,'Verifying approved dataset and reference integrity')
     dataset = verify_dataset(dataset_path)
     models = list(models)
     if not models or len(set(models)) != len(models):
@@ -31,14 +32,19 @@ def _run_model_major_batch(dataset_path, models, output, *, language="ms",
     pairs = {p["participant_id"]:p for p in dataset["pairs"]}
     if duration_check is None:
         duration_check = decode_full_duration
-    durations = {pid:validate_duration(duration_check(p["audio"])) for pid,p in pairs.items()}
+    durations = {}
+    for index,(pid,p) in enumerate(pairs.items(),1):
+        progress("Startup",None,f"Decoding audio duration {index}/{len(pairs)}")
+        durations[pid]=validate_duration(duration_check(p["audio"]))
     output = Path(output).resolve()
     output.mkdir(parents=True,exist_ok=True)
     identity = {"models":models,"recordings":list(pairs),"dataset":dataset,
                 "language":language,"policy":"raw-v1-cuda-fp16","scoring_engine":ENGINE,
                 "rapidfuzz_version":version("rapidfuzz"),"max_audio_seconds":MAX_FULL_AUDIO_SECONDS,"reporting_schema":1}
     from .benchmark_provenance import runtime_provenance, hardware_provenance
+    progress("Startup",None,"Collecting runtime provenance")
     identity["runtime_provenance"] = runtime_provenance()
+    progress("Startup",None,"Collecting hardware and CUDA provenance")
     identity["hardware_provenance"] = hardware_provenance() if session_factory is None else None
     identity["requested_device"] = "cuda"
     identity["requested_precision"] = "float16"
@@ -50,6 +56,7 @@ def _run_model_major_batch(dataset_path, models, output, *, language="ms",
             raise ValueError("Warm-up must not use study audio")
         identity["warmup_sha256"] = warmup_hash
     identity["resource_monitoring"] = monitor_factory is not None
+    progress("Startup",None,"Initialising checkpoint")
     matrix = MatrixCheckpoint(output/"matrix.json",identity)
     # A prior export manifest must not certify a new or interrupted run.
     (output/'export_integrity.json').unlink(missing_ok=True)
@@ -141,6 +148,7 @@ def _run_model_major_batch(dataset_path, models, output, *, language="ms",
             raise ValueError("Warm-up audio changed")
         session.transcribe(str(warmup_path))
 
+    progress('Startup',None,'Checking saved benchmark cells')
     verified_cells=set()
     for m in models:
         for p in pairs:
