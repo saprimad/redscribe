@@ -2,13 +2,14 @@
 import json
 import queue
 import threading
+import traceback
 import tkinter as tk
 from tkinter import ttk,messagebox,filedialog
 from pathlib import Path
 
 def open_matrix_window(parent,models,language,monitor=True,manifest=None):
     from redscribe.benchmark.benchmark_dataset import verify_dataset
-    from redscribe.benchmark.benchmark_structured_output import run_structured_batch
+    from redscribe.benchmark.benchmark_structured_output import run_structured_batch, validate_output_root
     from redscribe.benchmark.benchmark_resources import ResourceMonitor
     manifest=manifest or filedialog.askopenfilename(parent=parent,title="Select approved dataset manifest",filetypes=[("JSON","*.json")])
     if not manifest:
@@ -17,9 +18,10 @@ def open_matrix_window(parent,models,language,monitor=True,manifest=None):
     if not output:
         return
     try:
+        validate_output_root(output)
         dataset=verify_dataset(manifest)
     except Exception as exc:
-        messagebox.showerror("Dataset integrity",str(exc),parent=parent)
+        messagebox.showerror("Benchmark preflight",str(exc),parent=parent)
         return
     ids=[p["participant_id"] for p in dataset["pairs"]]
     if not messagebox.askyesno("Full-length benchmark",f"Run {len(models)} models on {len(ids)} recordings? Existing compatible checkpoints will be resumed. CUDA FP16 required.",parent=parent):
@@ -60,16 +62,20 @@ def open_matrix_window(parent,models,language,monitor=True,manifest=None):
         bar["value"]=terminal
         status.set(f"{terminal}/{len(ids)*len(models)} resolved — {m}: {s}")
     def worker():
+        def progress(m,p,s):
+            print(f"[Benchmark] {m}: {s}",flush=True)
+            events.put(("cell",m,p,s))
         try:
             result=run_structured_batch(manifest,models,output,language=language,
                 stopped=cancel.is_set,monitor_factory=ResourceMonitor if monitor else None,
-                progress=lambda m,p,s:events.put(("cell",m,p,s)))
+                progress=progress)
             for m,records in result["results"].items():
                 for p,r in records.items():
                     events.put(("cell",m,p,r["status"]))
             events.put(("published","Stopped — partial reports generated" if cancel.is_set() else "Run ended — inspect failures and reports"))
         except Exception as exc:
-            events.put(("done",f"Error: {exc}"))
+            traceback.print_exc()
+            events.put(("error",f"{type(exc).__name__}: {exc}"))
     from .operation_guard import start_exclusive
     thread=start_exclusive(worker)
     if thread is None:
@@ -94,6 +100,8 @@ def open_matrix_window(parent,models,language,monitor=True,manifest=None):
                 update(*event[1:])
             else:
                 status.set(event[1])
+                if event[0]=="error":
+                    messagebox.showerror("Benchmark failed",event[1],parent=win)
                 if event[0]=="published":
                     messagebox.showwarning("Confidential research data retained",
                         "Scientific reports are in the selected output folder. The 04 - SENSITIVE DATA folder contains confidential transcripts, checkpoints and diagnostic materials. Do not distribute or upload it without authorisation. Folder segregation is not encryption. Review run failures before interpreting results.",parent=win)
