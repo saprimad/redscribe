@@ -34,4 +34,5 @@ class ExperimentTests(unittest.TestCase):
             with patch("redscribe.benchmark.benchmark_experiments.SETTINGS", root / "settings" / "config.json"):
                 self.assertIsNone(saved_master())
                 save_master(root)
-                self.assertEqual(saved_master(), root)
+                self.assertEqual(saved_master(), root.resolve())
+                self.assertTrue(saved_master().samefile(root))
