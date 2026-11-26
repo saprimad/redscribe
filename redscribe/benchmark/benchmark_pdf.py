@@ -122,7 +122,7 @@ def generate_pdf(directory, *, data=None, metadata=None):
                 page+=1
                 fig=Figure(figsize=(8.27,11.69),facecolor="white")
                 fig.text(.075,.965,"RedScribe",fontsize=17,color=RED,weight="bold")
-                fig.text(.925,.967,"SCIENTIFIC BENCHMARK  /  V4",ha="right",fontsize=8,color=GREY)
+                fig.text(.925,.967,"SCIENTIFIC BENCHMARK  /  V4.1",ha="right",fontsize=8,color=GREY)
                 fig.add_artist(Line2D([.075,.925],[.947,.947],transform=fig.transFigure,color=NAVY,lw=1))
                 fig.text(.075,.92,kicker.upper(),fontsize=9,color=GREY,weight="bold")
                 fig.text(.075,.886,title,fontsize=20,color=NAVY,weight="bold")
@@ -295,11 +295,10 @@ def generate_pdf(directory, *, data=None, metadata=None):
             save(fig)
 
             fig=base("07   Efficiency and resource observations","Computational performance")
-            values=[[labels[r["model_key"]],_fmt(r.get("recordings_timed")),_fmt(total_time(r["model_key"]),"seconds"),_fmt(r.get("aggregate_rtf"),"rtf"),_fmt(r.get("mean_rtf"),"rtf"),_fmt(r.get("median_rtf"),"rtf")] for r in efficiency]
-            if len(ids)==1:
-                y=table(fig,.845,["Model","Timed n","Inference time","RTF"],[v[:4] for v in values],[.40,.15,.25,.20])
-            else:
-                y=table(fig,.845,["Model","Timed n","Inference time","Aggregate RTF","Mean RTF","Median RTF"],values,[.30,.10,.19,.15,.13,.13])
+            values=table_rows(efficiency,[(k,kind) for k,kind in (("loading_seconds_total","decimal"),("inference_seconds_total","decimal"),("loading_inference_seconds_total","decimal"),("aggregate_rtf","rtf"))])
+            # All durations are seconds; loading is counted once per observed session.
+            y=table(fig,.845,["Model","Loading (s)","Inference (s)","Combined (s)","RTF"],values,[.32,.17,.17,.18,.16])
+            y=prose(fig,y,"Loading is counted once per recorded completed session. Combined = loading + inference; excludes warm-up, scoring, cleanup and reporting. RTF excludes loading. Missing timings remain N/A.")
             heading(fig,y,"Observed system-wide peaks")
             y=table(fig,y-.02,["Model","GPU MB","GPU °C","RAM MB","GPU util. %"],
                 table_rows(efficiency,[(k,"decimal") for k in ("gpu_memory_used_mb_peak_max","gpu_temperature_c_peak_max","ram_used_mb_peak_max","gpu_util_percent_peak_max")]))
