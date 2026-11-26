@@ -95,4 +95,25 @@ def export_publication(directory,state):
                 (directory/(name+"."+ext)).unlink(missing_ok=True)
     # Derive the PDF from the CSV and figure exports without another ASR run.
     from .benchmark_pdf import generate_pdf
-    generate_pdf(directory)
+    generate_pdf(directory, data=(summary,rows,efficiency), metadata=report_metadata(state))
+
+
+def report_metadata(state):
+    """Select non-text, non-path runtime metadata for publication."""
+    identity=state["identity"]
+    runtime=identity.get("runtime_provenance") or {}
+    hardware=identity.get("hardware_provenance") or {}
+    import re
+    def clean(value, pattern):
+        return value if isinstance(value,str) and re.fullmatch(pattern,value) else None
+    gpu=hardware.get("gpu_inventory") or []
+    names=[clean(x.get("name"),r"(?:NVIDIA|AMD|Intel) [A-Za-z0-9 .()_-]{1,80}") for x in gpu if isinstance(x,dict)]
+    ram=hardware.get("ram_bytes")
+    return {"Run commit":clean(runtime.get("git_commit"),r"[0-9a-f]{40}"),
+            "Python":clean(str(runtime.get("python","")).split()[0] if runtime.get("python") else None,r"[0-9.]{1,20}"),
+            "Platform":clean(runtime.get("platform"),r"(?:Windows|Linux|macOS)-[A-Za-z0-9._-]{1,100}"),
+            "CUDA build":clean(hardware.get("cuda_build_version"),r"[0-9.]{1,20}"),
+            "GPU":", ".join(x for x in names if x),
+            "RAM":f"{ram/1024**3:.1f} GiB" if type(ram) is int and ram>0 else None,
+            "Scoring engine":clean(identity.get("scoring_engine"),r"[A-Za-z0-9_.-]{1,80}"),
+            "RapidFuzz":clean(identity.get("rapidfuzz_version"),r"[0-9.]{1,20}")}
