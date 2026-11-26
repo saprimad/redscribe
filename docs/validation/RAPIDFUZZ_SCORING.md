@@ -1,0 +1,3 @@
+# RapidFuzz scoring validation
+
+Model-major batch explicitly uses RapidFuzz editops, preserving whitespace word tokenisation and Unicode codepoint CER, including fillers, punctuation and case. No normalisation. Original Python scorer remains unchanged as independent oracle. Equal minimum edit totals do not imply identical S/D/I breakdown under tied alignments. Record engine and installed version in checkpoint identity; reject mixed-engine resume. Synthetic exhaustive comparisons and near-identical strings up to 100,000 characters are included; these are not worst-case runtime tests. Pilot duration guard remains until representative long-form stress and GPU validation. Install benchmark dependency with python -m pip install -r requirements-benchmark.txt.

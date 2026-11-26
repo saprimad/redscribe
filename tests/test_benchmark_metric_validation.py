@@ -50,9 +50,9 @@ class IndependentMetricValidation(unittest.TestCase):
         self.assertAlmostEqual(raw_wer("kawe dok setuju", "kawe setuju").rate, 1 / 3)
         self.assertAlmostEqual(raw_wer("makae", "makan").rate, 1)
         self.assertEqual(raw_wer("Ganja", "ganja").rate, 1)
-        self.assertEqual(raw_cer("ikan\\npatin", "ikan patin").rate, 1 / 10)
-        self.assertEqual(raw_cer("e\\u0301", "\\u00e9").reference_units, 2)
-        self.assertEqual(raw_cer("e\\u0301", "\\u00e9").rate, 1)
+        self.assertEqual(raw_cer("ikan\npatin", "ikan patin").rate, 1 / 10)
+        self.assertEqual(raw_cer("e\u0301", "\u00e9").reference_units, 2)
+        self.assertEqual(raw_cer("e\u0301", "\u00e9").rate, 1)
         self.assertIsNone(raw_wer("", "tambahan").rate)
         self.assertIsNone(raw_cer("", "tambahan").rate)
 

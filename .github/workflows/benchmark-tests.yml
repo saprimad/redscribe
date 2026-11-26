@@ -4,11 +4,18 @@ on:
   push:
     branches:
       - redscribe-benchmark-timeline
+      - refactor/benchmark-architecture
     paths:
       - "benchmark_*.py"
+      - "redscribe/**"
+      - "redscribe_gpu.py"
+      - "asr_backends.py"
       - "benchmark*.py"
       - "tests/test_benchmark*.py"
       - ".github/workflows/benchmark-tests.yml"
+  pull_request:
+    branches:
+      - redscribe-benchmark-timeline
   workflow_dispatch:
 
 permissions:
@@ -16,7 +23,11 @@ permissions:
 
 jobs:
   synthetic-benchmark-tests:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 10
     steps:
       - name: Checkout benchmark branch
@@ -26,8 +37,8 @@ jobs:
         with:
           python-version: "3.11"
       - name: Install test-only dependencies
-        run: python -m pip install python-docx
+        run: python -m pip install python-docx jiwer==4.0.0 openpyxl -r requirements-benchmark.txt
       - name: Compile benchmark modules
-        run: python -m compileall -q benchmark_config.py benchmark_metrics.py benchmark_reporting.py benchmark_excel.py benchmark_ground_truth.py benchmark_reference.py benchmark_reference_ui.py benchmark_pilot.py benchmark_batch.py benchmark_ui.py benchmark_batch_ui.py benchmark_resources.py benchmark_speech.py tests
+        run: python -m compileall -q benchmark_config.py benchmark_metrics.py benchmark_reporting.py benchmark_excel.py benchmark_ground_truth.py benchmark_reference.py benchmark_reference_ui.py benchmark_pilot.py benchmark_batch.py benchmark_ui.py benchmark_batch_ui.py benchmark_resources.py benchmark_speech.py redscribe tests
       - name: Synthetic benchmark tests (no model downloads)
         run: python -m unittest discover -s tests -p "test_benchmark*.py" -v

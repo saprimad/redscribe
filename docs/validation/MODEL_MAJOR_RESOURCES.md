@@ -1,0 +1,3 @@
+# Model-major resource and warm-up integration
+
+Optional monitor factory can be ResourceMonitor from benchmark_resources. Samples are system-wide GPU index 0 and RAM, not process-specific. Missing samples must remain null. Monitoring wraps transcription, while scheduler inference wall time also includes reference checks and monitor overhead; RTF is therefore provisional end-to-end inference-stage RTF, not pure ASR latency. Warm-up is optional, separately hashed, and rejected if identical to any study audio. Warm-up output is not scored. Researcher must ensure it is genuinely outside the study. Actual GPU release and sampling accuracy remain runtime gates. No normal transcription changes.

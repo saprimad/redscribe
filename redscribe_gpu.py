@@ -265,7 +265,7 @@ def open_folder(path: str):
         pass
 
 
-def create_whisper_model(model_size: str, status_callback=None):
+def create_whisper_model(model_size: str, status_callback=None, *, strict_benchmark=False):
     """Prepare cached/downloaded weights, then try CUDA FP16 and CPU INT8."""
     from faster_whisper.utils import download_model
     from huggingface_hub.errors import LocalEntryNotFoundError
@@ -282,15 +282,18 @@ def create_whisper_model(model_size: str, status_callback=None):
             model_path = download_model(model_size)
             notify("stage", "Download complete. Loading model into memory...")
         last_error = None
-        for device in WHISPER_DEVICE_PRIORITY:
-            compute_type = WHISPER_COMPUTE_TYPE.get(device, "int8")
+        for device in (('cuda',) if strict_benchmark else WHISPER_DEVICE_PRIORITY):
+            compute_type = "float16" if strict_benchmark else WHISPER_COMPUTE_TYPE.get(device, "int8")
             try:
                 options = {"cpu_threads": cpu_thread_budget(), "num_workers": 1} if device == "cpu" else {}
                 model = WhisperModel(model_path, device=device, compute_type=compute_type, **options)
+                if strict_benchmark:
+                    from redscribe.benchmark.benchmark_provenance import snapshot_revision
+                    model.benchmark_revision = snapshot_revision(model_path)
                 return model, device, compute_type
             except Exception as exc:
                 last_error = exc
-                if device == "cuda":
+                if device == "cuda" and not strict_benchmark:
                     notify("stage", "CUDA model loading failed; trying the existing CPU INT8 fallback...")
         raise RuntimeError(f"Unable to load the Whisper model on any available device. Last error: {last_error}")
 
@@ -966,6 +969,7 @@ def save_docx_transcript(
 class RedScribeApp:
     def __init__(self, root):
         self.root = root
+        self.root.protocol("WM_DELETE_WINDOW", self.request_application_close)
         self.root.title(APP_TITLE)
         families = {family.casefold(): family for family in tkfont.families(root)}
         self.ui_font = next((families[name] for name in
@@ -1687,6 +1691,13 @@ class RedScribeApp:
         if completion is not None:
             completion()
 
+    def request_application_close(self):
+        from redscribe.ui.operation_guard import operation_active
+        if operation_active():
+            messagebox.showwarning("Operation active", "Stop the active operation and wait for cleanup before closing.", parent=self.root)
+            return
+        self.root.destroy()
+
     def start(self):
         inputs = {
             "audio_path": self.audio_path.get().strip(),
@@ -1740,7 +1751,10 @@ class RedScribeApp:
         self.start_btn.config(state="disabled")
         self.stop_btn.config(state="normal")
 
-        threading.Thread(target=self.run_whisper, args=(inputs,), daemon=True).start()
+        from redscribe.ui.operation_guard import start_exclusive
+        if start_exclusive(self.run_whisper, (inputs,)) is None:
+            self.finish_run(False)
+            messagebox.showwarning("Operation active", "Wait for the current ASR operation to finish.")
 
     def run_whisper(self, inputs: dict):
         cancelled = False

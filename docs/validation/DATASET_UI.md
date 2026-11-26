@@ -1,0 +1,2 @@
+# Dataset approval UI
+Confirmed batch pairs can create an approved manifest directly from full-length launch. Explicit participant ID prompts default to audio stem; researcher must confirm correct IDs. Existing approved manifests can be selected without new pairing. Exclusive creation prevents overwriting. Current implementation uses sequential ID dialogs rather than a consolidated table; runtime validation pending.

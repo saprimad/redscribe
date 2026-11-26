@@ -1,0 +1,3 @@
+# Recording-level checkpoint resume
+
+Batch API accepts resume_directory for schema v3 checkpoints. Caller supplies original ordered pairs and settings. Completed recordings are skipped only after matching audio/reference hashes, model list, language, saved rows and offline prediction rescoring. Incomplete recordings are retried in fresh output folders; prior folder references retained when available. No per-model resume inside a partially completed recording, GUI integration, process lock or hard-kill recovery guarantee yet. Do not run concurrent resume sessions. Older schema v2 checkpoints rejected. Synthetic CI pending.
