@@ -8,10 +8,11 @@ from benchmark_reference import approve_reference
 
 
 class GroundTruthReview:
-    def __init__(self, parent, paths, on_approved=None):
+    def __init__(self, parent, paths, on_approved=None, output_dir=None):
         self.parent = parent
         self.paths = tuple(paths)
         self.on_approved = on_approved
+        self.output_dir = output_dir
         if not self.paths:
             raise ValueError("Select a DOCX file before opening review")
         self.window = tk.Toplevel(parent)
@@ -192,7 +193,7 @@ class GroundTruthReview:
                 "Save a PRIVATE, immutable-by-convention reference text and its SHA-256 manifest? "
                 "This does not run any ASR model.", parent=self.window):
             return
-        folder = filedialog.askdirectory(parent=self.window, title="Choose PRIVATE output folder for approved references")
+        folder = self.output_dir or filedialog.askdirectory(parent=self.window, title="Choose PRIVATE output folder for approved references")
         if not folder:
             return
         try:
@@ -215,5 +216,5 @@ class GroundTruthReview:
                             parent=self.window)
 
 
-def open_ground_truth_review(parent, paths, on_approved=None):
-    return GroundTruthReview(parent, paths, on_approved=on_approved)
+def open_ground_truth_review(parent, paths, on_approved=None, output_dir=None):
+    return GroundTruthReview(parent, paths, on_approved=on_approved, output_dir=output_dir)
