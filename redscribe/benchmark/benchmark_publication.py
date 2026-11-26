@@ -93,3 +93,6 @@ def export_publication(directory,state):
         for name in ("corpus_accuracy","wer_distribution","cer_distribution","accuracy_speed"):
             for ext in ("svg","png"):
                 (directory/(name+"."+ext)).unlink(missing_ok=True)
+    # Derive the PDF from the CSV and figure exports without another ASR run.
+    from .benchmark_pdf import generate_pdf
+    generate_pdf(directory)
