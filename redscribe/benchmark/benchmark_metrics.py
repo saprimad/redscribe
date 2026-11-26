@@ -19,6 +19,39 @@ class ErrorCounts:
             return None
         return (self.substitutions + self.deletions + self.insertions) / self.reference_units
 
+    @property
+    def hits(self):
+        """Correctly matched units for this scoring engine's alignment."""
+        return self.reference_units - self.substitutions - self.deletions
+
+    @property
+    def hypothesis_units(self):
+        return self.hits + self.substitutions + self.insertions
+
+    @property
+    def total_errors(self):
+        return self.substitutions + self.deletions + self.insertions
+
+    def as_extended_dict(self):
+        """Validated additive reporting view; does not change the legacy schema.
+
+        Rates remain fractions, including values above 1.0. An empty
+        reference retains the existing RedScribe undefined-rate policy.
+        Counts use the original scorer's alignment, not a second scorer.
+        """
+        values = (self.substitutions, self.deletions, self.insertions,
+                  self.reference_units)
+        if any(type(value) is not int or value < 0 for value in values):
+            raise ValueError("Error counts must be non-negative integers")
+        if self.hits < 0:
+            raise ValueError("Substitutions plus deletions exceed reference units")
+        return {
+            **self.as_dict(),
+            "hypothesis_units": self.hypothesis_units,
+            "hits": self.hits,
+            "total_errors": self.total_errors,
+        }
+
     def as_dict(self):
         return {
             "substitutions": self.substitutions, "deletions": self.deletions,
