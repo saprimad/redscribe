@@ -8,6 +8,7 @@ def export_publication(directory,state,*,pdf_metadata=None):
     from openpyxl import Workbook
     from openpyxl.styles import Font, PatternFill
     from openpyxl.utils import get_column_letter
+    from .benchmark_pdf import short_name
     from matplotlib.figure import Figure
     from matplotlib.backends.backend_agg import FigureCanvasAgg
     directory=Path(directory)
@@ -48,13 +49,13 @@ def export_publication(directory,state,*,pdf_metadata=None):
         x=list(range(len(common)))
         ax.bar([i-.19 for i in x],[100*r["corpus_wer"] for r in common],.38,label="WER")
         ax.bar([i+.19 for i in x],[100*r["corpus_cer"] for r in common],.38,label="CER")
-        ax.set_xticks(x,[r["model_key"] for r in common],rotation=30,ha="right")
+        ax.set_xticks(x,[short_name(r["model_key"]) for r in common],rotation=30,ha="right")
         ax.set_ylabel("Error rate (%)")
         ax.legend()
     def distribution(ax,metric="wer"):
         labels=[r["model_key"] for r in common]
         pids=common_ids
-        ax.boxplot([[100*r[metric] for r in rows if r["model_key"]==m and r["participant_id"] in pids] for m in labels],tick_labels=labels)
+        ax.boxplot([[100*r[metric] for r in rows if r["model_key"]==m and r["participant_id"] in pids] for m in labels],tick_labels=[short_name(m) for m in labels])
         ax.tick_params(axis="x",labelrotation=30)
         ax.set_ylabel("Recording "+metric.upper()+" (%)")
     def heatmap(ax):
@@ -64,7 +65,7 @@ def export_publication(directory,state,*,pdf_metadata=None):
         lookup={(r["model_key"],r["participant_id"]):r["wer"] if _counts(r,word=True) is not None else None for r in rows}
         values=np.array([[100*lookup[m,p] if lookup[m,p] is not None else np.nan for m in models] for p in ids])
         im=ax.imshow(np.ma.masked_invalid(values),aspect="auto",cmap="viridis")
-        ax.set_xticks(range(len(models)),models,rotation=30,ha="right")
+        ax.set_xticks(range(len(models)),[short_name(m) for m in models],rotation=30,ha="right")
         ax.set_yticks(range(len(ids)),ids,fontsize=7)
         ax.figure.colorbar(im,ax=ax,label="WER (%)")
     def speed(ax):
@@ -75,7 +76,7 @@ def export_publication(directory,state,*,pdf_metadata=None):
             x=sum(t["inference_seconds"] for t in subset)/sum(t["audio_seconds"] for t in subset)
             y=100*r["corpus_wer"]
             ax.scatter(x,y)
-            ax.annotate(r["model_key"],(x,y),fontsize=8)
+            ax.annotate(short_name(r["model_key"]),(x,y),fontsize=8,xytext=(4,5),textcoords="offset points",ha="left" if x<0.5*ax.get_xlim()[1] else "right")
         ax.set_xlabel("Aggregate real-time factor")
         ax.set_ylabel("Corpus WER (%)")
     common_ids={pid for pid in state["identity"]["recordings"] if all(any(r["participant_id"]==pid and r["model_key"]==m and _counts(r,word=True) is not None and _counts(r,word=False) is not None for r in rows) for m in state["identity"]["models"])}
