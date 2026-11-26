@@ -7,14 +7,14 @@ import tkinter as tk
 from tkinter import ttk,messagebox,filedialog
 from pathlib import Path
 
-def open_matrix_window(parent,models,language,monitor=True,manifest=None):
+def open_matrix_window(parent,models,language,monitor=True,manifest=None,output=None):
     from redscribe.benchmark.benchmark_dataset import verify_dataset
     from redscribe.benchmark.benchmark_structured_output import run_structured_batch, validate_output_root
     from redscribe.benchmark.benchmark_resources import ResourceMonitor
     manifest=manifest or filedialog.askopenfilename(parent=parent,title="Select approved dataset manifest",filetypes=[("JSON","*.json")])
     if not manifest:
         return
-    output=filedialog.askdirectory(parent=parent,title="Select new or existing benchmark output folder")
+    output=output or filedialog.askdirectory(parent=parent,title="Select new or existing benchmark output folder")
     if not output:
         return
     try:
