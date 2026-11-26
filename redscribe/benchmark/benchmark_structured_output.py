@@ -8,7 +8,6 @@ import json
 import math
 import os
 from pathlib import Path
-import re
 import shutil
 import tempfile
 
@@ -38,8 +37,11 @@ def _public_state(state):
     """Allowlist numbers and fixed enums; replace source participant identifiers."""
     identity = state["identity"]
     models = identity["models"]
-    if any(not isinstance(m,str) or not re.fullmatch(r"[A-Za-z0-9_.-]{1,100}",m) for m in models):
-        raise ValueError("Unexpected model identifier")
+    from .benchmark_config import ALL_MODELS
+    if not models or any(not isinstance(m,str) or m not in ALL_MODELS for m in models):
+        raise ValueError("Unexpected model identifier: expected a registered RedScribe model")
+    if len(set(models)) != len(models):
+        raise ValueError("Duplicate model identifiers")
     ids = {p:f"R{i:03d}" for i,p in enumerate(identity["recordings"],1)}
     out = {"identity":{"models":models,"recordings":list(ids.values())},"results":{}}
     for m in models:
