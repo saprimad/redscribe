@@ -86,7 +86,6 @@ class BenchmarkWindow:
         wrap = 300 if self.embedded else 660
         self.setup_widgets = []
         self.model_checks = {}
-        self.output_summary = tk.StringVar(master=self.window)
         style = ttk.Style(self.window)
         style.configure("Benchmark.TLabelframe", background="white", bordercolor="#E4DDE2")
         style.configure("Benchmark.TLabelframe.Label", foreground="#8E1235", background="white", font=("TkDefaultFont", 11, "bold"))
@@ -146,13 +145,6 @@ class BenchmarkWindow:
                                            anchor="w", bg="white", activebackground="white", selectcolor="white")
         self.monitor_check.pack(fill="x", pady=5)
         self.setup_widgets.append((self.monitor_check, "normal"))
-        location = ttk.LabelFrame(inner, text="04. Output location", padding=12, style="Benchmark.TLabelframe")
-        location.pack(fill="x", pady=(0, 10))
-        ttk.Label(location, text="Master output folder", foreground="#667085").pack(anchor="w")
-        self.output_label = ttk.Label(location, textvariable=self.output_summary, wraplength=wrap, justify="left", anchor="w")
-        self.output_label.pack(fill="x", pady=(2, 5))
-        ttk.Label(location, text="Experiment folders are created automatically here.", foreground="#667085", wraplength=wrap, justify="left", anchor="w").pack(fill="x", pady=(0, 5))
-        ttk.Label(location, text="Change the location in Configuration Review.", foreground="#667085", wraplength=wrap, justify="left").pack(fill="x")
         footer = self.controls if self.embedded else ttk.Frame(outer)
         if not self.embedded:
             footer.pack(fill="x", pady=(12, 0))
@@ -214,7 +206,6 @@ class BenchmarkWindow:
             self.pilot_status.set("Configuration review required")
 
     def refresh_setup(self):
-        from redscribe.benchmark.benchmark_experiments import saved_master
         locked = bool(self.active_run)
         for widget, normal in self.setup_widgets:
             widget.configure(state="disabled" if locked else normal)
@@ -235,9 +226,6 @@ class BenchmarkWindow:
         for key, widget in self.model_checks.items():
             widget.configure(fg="#247a46" if self.selected[key].get() else "#667085")
         self.monitor_check.configure(fg="#247a46" if self.gpu_monitor.get() else "#667085")
-        master = saved_master()
-        self.output_summary.set(str(master) if master else "No master output folder configured")
-        self.output_label.configure(foreground="#247a46" if master else "#667085")
         self.refresh_models()
 
     def open_full_matrix(self):
