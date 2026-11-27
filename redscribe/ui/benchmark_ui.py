@@ -218,7 +218,7 @@ class BenchmarkWindow:
         frozen = reference and all(p in self.approved_references for p in self.reference_files)
         status_button(self.audio_button, audio)
         status_button(self.reference_button, reference)
-        status_button(self.ground_button, audio and reference, audio and reference)
+        status_button(self.ground_button, audio and frozen, audio and reference)
         self.audio_label.configure(foreground="#247a46" if audio else "#667085")
         self.reference_label.configure(foreground="#247a46" if reference else "#667085")
         self.ground_status.configure(text="Ground truth approved and frozen" if frozen else "Awaiting verification",
@@ -646,7 +646,8 @@ class BenchmarkWindow:
         self.approved_references = {}
         self.batch_pairs = ()
         self.reference_summary.set(self.describe_files(self.reference_files))
-        self.restore_approved_references()
+        # Selecting a DOCX is not approval for the current audio/reference pair.
+        # Keep earlier frozen artifacts on disk, but require explicit review again.
         self.invalidate_review()
 
     def restore_approved_references(self):
