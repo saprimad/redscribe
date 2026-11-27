@@ -70,7 +70,7 @@ def cpu_thread_budget() -> int:
 DIARIZATION_MODEL = DEFAULT_DIARIZATION_MODEL
 
 APP_VERSION = "2.0.0"
-APP_TITLE = f"RedScribe v{APP_VERSION} – Research Speech Transcription System"
+APP_TITLE = "RedScribe – Research Speech Transcription and Benchmarking System"
 TRANSCRIPTION_LANGUAGES = {"Auto detect": None, "Bahasa Melayu": "ms", "English": "en"}
 
 
@@ -1064,9 +1064,9 @@ class RedScribeApp:
                              width=5, fill=c["accent"], capstyle="round")
         brand = tk.Frame(header, bg="white")
         brand.pack(side="left")
-        tk.Label(brand, text=f"RedScribe  v{APP_VERSION}", font=(self.ui_font, 21, "bold"),
+        tk.Label(brand, text="RedScribe", font=(self.ui_font, 21, "bold"),
                  bg="white", fg=c["accent"]).pack(anchor="w")
-        tk.Label(brand, text="Research Speech Transcription System", bg="white", fg=c["muted"]).pack(anchor="w")
+        tk.Label(brand, text="Research Speech Transcription and Benchmarking System", bg="white", fg=c["muted"]).pack(anchor="w")
         ttk.Button(header, text="Settings", style="RedScribe.TButton",
                    command=self.open_token_settings).pack(side="right")
         self.mode_button = ttk.Button(header, text="Benchmark", style="RedScribe.TButton",
@@ -1085,7 +1085,7 @@ class RedScribeApp:
         sidebar.grid(row=0, column=0, sticky="ns", padx=(0, 16))
         sidebar.rowconfigure(0, weight=1)
         # Scroll only the settings column: actions and transcript stay visible.
-        self.sidebar_canvas = tk.Canvas(sidebar, width=300, bg=c["background"], highlightthickness=0)
+        self.sidebar_canvas = tk.Canvas(sidebar, width=350, bg=c["background"], highlightthickness=0)
         self.sidebar_canvas.grid(row=0, column=0, sticky="ns")
         scroll = ttk.Scrollbar(sidebar, orient="vertical", command=self.sidebar_canvas.yview)
         scroll.grid(row=0, column=1, sticky="ns")
@@ -1220,7 +1220,9 @@ class RedScribeApp:
         self.start_btn.pack(side="left")
         footer = tk.Frame(bottom, bg="white")
         footer.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(10, 0))
-        support = tk.Label(footer, text="RedScribe | CRDV2026W02110 | Authors & support", bg="white", fg=c["muted"],
+        tk.Label(footer, text="RedScribe©", bg="white", fg=c["accent"], font=(self.ui_font, 9, "bold")).pack(side="left")
+        tk.Label(footer, text=" | Faculty of Pharmacy, UiTM |", bg="white", fg=c["muted"], font=(self.ui_font, 9)).pack(side="left")
+        support = tk.Label(footer, text="Authors & support", bg="white", fg=c["muted"],
                            font=(self.ui_font, 9), cursor="hand2")
         support.pack(side="left")
         support.bind("<Button-1>", self.show_support)
@@ -1238,6 +1240,7 @@ class RedScribeApp:
                 from benchmark_ui import open_benchmark_window
                 self.benchmark_window = open_benchmark_window(self.root, on_live=self.benchmark_live_event,
                     sidebar=self.benchmark_sidebar, controls=self.benchmark_controls)
+                self.benchmark_window.pilot_status.trace_add("write", self.update_benchmark_status)
             self.transcription_view = (self.live_box.dump("1.0", "end-1c", text=True, tag=True),
                                        self.status.get(), self.progress_var.get())
             self.sidebar_content.pack_forget()
@@ -1263,6 +1266,10 @@ class RedScribeApp:
             self.live_subtitle.configure(textvariable=self.file_summary)
             self.restore_workspace_view(self.transcription_view, "")
         self.sidebar_canvas.yview_moveto(0)
+
+    def update_benchmark_status(self, *_):
+        if self.active_mode == "benchmark":
+            self.status.set(self.benchmark_window.pilot_status.get())
 
     def restore_workspace_view(self, saved, placeholder):
         self.live_box.configure(state="normal")
@@ -1539,15 +1546,22 @@ class RedScribeApp:
         messagebox.showinfo(
             "About RedScribe",
             f"RedScribe v{APP_VERSION}\n"
-            "Research Speech Transcription System\n\n"
+            "Research Speech Transcription and Benchmarking System\n\n"
             "Authors:\n"
             "Mad Sapri bin Tumiran\n"
             "Mohd Shahezwan bin Abd Wahab\n"
             "Janattul Ain binti Jamal\n"
             "Nursyuhadah binti Othman\n\n"
+            "Institutional affiliation:\n"
+            "Faculty of Pharmacy, Universiti Teknologi MARA (UiTM)\n"
+            "Level 11, FF1 Building, UiTM Selangor, Puncak Alam Campus\n"
+            "42300 Bandar Puncak Alam, Selangor, Malaysia\n\n"
             "Malaysia copyright notification: CRDV2026W02110\n\n"
             "Support:\n"
-            "saprimad@moh.gov.my"
+            "saprimad@moh.gov.my\n\n"
+            "https://github.com/saprimad/redscribe\n"
+            "https://doi.org/10.5281/zenodo.22941754\n"
+            "https://pharmacy.uitm.edu.my/", parent=self.root
         )
 
     def open_token_settings(self):
