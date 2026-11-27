@@ -20,8 +20,9 @@ flowchart TD
     F --> G[Model-major scheduler]
     G --> H[Isolated ASR worker]
     H --> I[Prediction and worker metadata]
-    I --> J[RapidFuzz scoring against frozen reference]
-    J --> K[Matrix checkpoint and private prediction]
+    I --> P[Write and read back private prediction]
+    P --> J[RapidFuzz scoring against frozen reference]
+    J --> K[Matrix checkpoint]
     K --> L[Validated matrix reporting]
     L --> M[PDF XLSX CSV and figures]
     K --> N[Restricted private state]
@@ -62,9 +63,9 @@ The UI requires manual review checks. At the lower-level API, `approve_reference
 
 ## 4. Experimental conditions and scoring
 
-Eleven model options, seven default; see [model inventory](../MODEL_INVENTORY.md). Model-major policy requests CUDA FP16, rejects incompatible device/precision, checks the decoded source duration (positive and at most 7,200 s), verifies input identity, and records model provenance. Identical source bytes and references do not imply identical acoustic windows or decoding strategies. Standard Faster-Whisper model-major decoding explicitly sets task transcribe, beam size 5, VAD off and previous-text conditioning on. Local adapters decode to 16 kHz and partition into intervals of at most 30 s without intentional overlap, with backend-specific decoding and token ceilings.
+Eleven model options, seven default; see [model inventory](../MODELS.md). Model-major policy requests CUDA FP16, rejects incompatible device/precision, checks the decoded source duration (positive and at most 7,200 s), verifies input identity, and records model provenance. Identical source bytes and references do not imply identical acoustic windows or decoding strategies. Standard Faster-Whisper model-major decoding explicitly sets task transcribe, beam size 5, VAD off and previous-text conditioning on. Local adapters decode to 16 kHz and partition into intervals of at most 30 s without intentional overlap, with backend-specific decoding and token ceilings.
 
-See [Benchmark Methodology](../BENCHMARK_METHODOLOGY.md) for metric definitions, alignment, aggregation, timing and resource measurement; see [Statistical Analysis Protocol](../STATISTICAL_ANALYSIS_PROTOCOL.md) for proposed inferential analyses. No inferential statistical tests are claimed to be implemented by the scientific report generator.
+See [Benchmark Methodology](../BENCHMARK_METHODOLOGY.md) for metric definitions, alignment, aggregation, timing and resource measurement; see [Statistical Analysis Protocol](../STATISTICS.md) for proposed inferential analyses. No inferential statistical tests are claimed to be implemented by the scientific report generator.
 
 ## 5. Experiment management and reproducibility
 
@@ -91,12 +92,12 @@ flowchart LR
 
 *Figure II-3. Logical publication boundary. Folder separation and pseudonymisation do not provide encryption or anonymity.*
 
-The workbook contains Model summary, Recording results and Efficiency. Accuracy and efficiency exports retain valid denominators, counts and unavailable observations. Figures include corpus accuracy, recording WER heatmap, WER/CER distributions and an accuracy–speed plot. Distribution graphics are generated even for a single common recording but are not informative about variability in that case. The report supports descriptive interpretation only; consult underlying counts and common-cohort membership before comparing models.
+The workbook contains Model summary, Recording results and Efficiency. Accuracy and efficiency exports retain valid denominators, counts and unavailable observations. Figures include corpus accuracy, recording WER heatmap, WER/CER distributions and an accuracy–speed plot. The figure exporter writes standalone WER and CER distribution graphics whenever a common cohort exists. The PDF renderer omits both plots when fewer than two recordings have valid scores for all compared models. A single recording supplies no estimate of between-recording variation. The report supports descriptive interpretation only; consult underlying counts and common-cohort membership before comparing models.
 
 See the [illustrated guide](../../user-guide/README.md) for workflow screenshots and sample exports. These are actual single-recording outputs and may only be distributed consistently with research permissions. Source audio, raw speech, checkpoints and logs are restricted. Publication manifests cover output bytes, not confidentiality, completeness or scientific validity.
 
 ## 7. Validation and open gates
 
-The [consolidated development record](../../validation/CONSOLIDATED_DEVELOPMENT_RECORD_2026-11-28.md) reports the full-length P1 run with all seven model observations completed. The [numerical revalidation record](../NUMERICAL_REVALIDATION.md) separately checks accessible evidence. P1 results are preliminary and not general model rankings. Higher WER may reflect formatting, linguistic mismatch, inference constraints or incomplete recognition; edit totals alone cannot attribute causation.
+The [consolidated development record](../../validation/CONSOLIDATED_DEVELOPMENT_RECORD_2026-11-28.md) reports the full-length P1 run with all seven model observations completed. The [numerical revalidation record](../STATISTICS.md) separately checks accessible evidence. P1 results are preliminary and not general model rankings. Higher WER may reflect formatting, linguistic mismatch, inference constraints or incomplete recognition; edit totals alone cannot attribute causation.
 
 The [release and outstanding validation gates](../RELEASE_READINESS.md) distinguish documentation completion, software readiness and research readiness. No official release or human peer review is asserted.

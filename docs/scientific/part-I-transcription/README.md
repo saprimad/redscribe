@@ -30,9 +30,11 @@ flowchart TD
 
 *Figure I-1. Logical transcription workflow derived from the desktop entry point. The figure omits detailed error branches; it is not a measured timing diagram.*
 
-The standard Faster-Whisper route tries CUDA FP16 first and falls back to CPU INT8 if loading fails. Optional adapters require CUDA FP16 and reject incompatible environments. The primary registry and backend routes are documented in the [model inventory](../MODEL_INVENTORY.md). The default desktop model is Large-v3; the user's saved preference can differ.
+The standard Faster-Whisper route tries CUDA FP16 first and falls back to CPU INT8 if loading fails. Optional adapters require CUDA FP16 and reject incompatible environments. The primary registry and backend routes are documented in the [model inventory](../MODELS.md). The default desktop model is Large-v3; the user's saved preference can differ.
 
 ## 3. Audio processing and decoding
+
+The desktop file picker lists MP3, WAV, M4A and MP4. A listed extension identifies a candidate file. Successful decoding depends on its actual streams and the installed backend. The desktop passes the original file to ASR. Diarisation creates its own temporary mono 16 kHz WAV and attempts to remove the temporary directory after loading.
 
 The main transcription call in the desktop source requests `vad_filter=True` and beam size 5 for Faster-Whisper. The local adapter accepts the same interface but does not implement that VAD flag; it decodes a 16 kHz waveform and partitions it using `chunk_ranges` with a maximum interval of 30 s, optionally splitting at diarisation boundaries. It retains gaps and avoids intentional overlapping intervals. Chunk endpoints are converted to rounded sample indices.
 
@@ -42,7 +44,7 @@ These policies are not interchangeable. Standard transcription is not the raw-v1
 
 ### Timing and segmentation
 
-Faster-Whisper returns model segments; RedScribe distributes estimated sentence times within those segments using its own sentence-splitting and timing functions. Optional adapters report approximate chunk/turn boundaries, not forced-aligned word times. Speaker attribution uses interval overlap rather than a verified word-level alignment. Do not interpret these timings as independently measured lexical onset and offset.
+Faster-Whisper returns model segments; RedScribe distributes estimated sentence times within those segments by splitting after configured terminal punctuation followed by whitespace and allocating segment duration in proportion to sentence character counts. Optional adapters report approximate chunk/turn boundaries, not forced-aligned word times. Speaker attribution uses interval overlap rather than a verified word-level alignment. Do not interpret these timings as independently measured lexical onset and offset.
 
 ## 4. Speaker diarisation
 
@@ -57,11 +59,13 @@ No speaker-identity verification, diarisation error rate (DER), Jaccard error ra
 | Artefact | Implementation and meaning |
 | --- | --- |
 | DOCX | Editable research report, metadata, descriptive summaries, speaker-labelled grouped transcript and estimated times. |
-| XLSX | Early_Report metadata and descriptive summaries, transcript/utterance data for subsequent manual verification and coding. |
+| XLSX | Early_Report metadata and descriptive summaries, and a Transcription sheet with utterance number, speaker, start, end, automated text, researcher verification/correction and notes. |
 | Performance log | Stage timings and software/runtime metadata through performance_log.py. |
 | Descriptive summaries | Utterance counts, speaker counts, basic token/keyword counts, timeline density and segment-derived speech/silence where applicable. |
 
 The summaries describe model output, not necessarily actual speech activity. Segment-derived speech/silence is not an independent VAD measurement; for chunk-based output, speech and silence are explicitly reported as not measured. Frequency counts are not validated themes, topic models or qualitative coding. These files may contain participant text and research metadata and must remain in authorised storage.
+
+Stop is cooperative during processing. The desktop checks a stop event at processing boundaries and during segment iteration. Saving begins under the run lock and disables Stop. A Word export error after a successful Excel export yields a partial outcome. When optional diarisation fails, the application issues a warning and can continue transcription with unknown speakers. Review the completion message, performance record and each expected output before accepting a run.
 
 ## 6. Validation and appropriate use
 
@@ -81,4 +85,4 @@ Suitable use: creating draft research transcripts and editable supporting files,
 
 [5] pyannote, “Speaker diarization 3.1,” model card. https://huggingface.co/pyannote/speaker-diarization-3.1
 
-See the [citation verification register](../CITATION_VERIFICATION_REGISTER.md) for the scope of source verification.
+See the [citation verification register](../REFERENCES.md) for the scope of source verification.
