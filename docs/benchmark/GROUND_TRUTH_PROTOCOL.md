@@ -1,81 +1,170 @@
-# Ground-truth reference preparation and review protocol (experimental)
+# RedScribe — Ground Truth Preparation and Verification Protocol
 
-**Updated:** 28 November 2026. Applies to the experimental benchmarking workflow, including `feature/benchmark-experiment-manager` (PR #28). This is **not** an IEEE-mandated universal standard, a certified NIST-conformant pipeline, or a completed scientific validation. The implementation follows principles described in authoritative scoring documentation and published speech-recognition evaluation studies.
+**Protocol version:** 1.0  
+**Revision date:** 28 November 2026  
+**Scope:** Verbatim, conversation-level automatic speech recognition (ASR) benchmarking
 
-## Rationale and research references
+## 1. Purpose and scientific basis
 
-1. **NIST SCTK/SCLITE** documents reference/hypothesis alignment and scoring, including `TRN` and time-labelled `STM` formats. RedScribe currently uses a researcher-approved plain-text source, **not yet exported or independently validated as NIST STM/TRN**: https://github.com/usnistgov/SCTK/blob/master/doc/sclite.htm and https://github.com/usnistgov/SCTK/blob/master/doc/infmts.htm
-2. **Faria et al., Interspeech 2022** demonstrate that transcription-reference corrections and normalisation policy can materially alter reported WER. This motivates separately retaining original source, approved scoring text, and explicit rules: https://www.isca-archive.org/interspeech_2022/faria22_interspeech.pdf
-3. **Gorisch & Schmidt, LREC-COLING 2024**, *Evaluating Workflows for Creating Orthographic Transcripts for Oral Corpora by Transcribing from Scratch or Correcting ASR-Output*, examine human transcription/correction workflows relevant to conversational and dialect data: https://aclanthology.org/2024.lrec-main.582/
-4. **LDC Hub-4 annotation specification** illustrates why segment identity and temporal boundaries matter for labelled multi-speaker transcripts. This does not imply the current implementation is Hub-4 compliant: https://catalog.ldc.upenn.edu/docs/LDC2001S91/h4annot.pdf
+This protocol establishes a systematic, evidence-based framework for the preparation, verification and preservation of verbatim reference transcripts for automatic speech recognition (ASR) benchmarking. It is grounded in established speech recognition evaluation methodologies, the National Institute of Standards and Technology (NIST) scoring framework [1], and peer-reviewed research in computational linguistics and speech processing [2]–[6].
 
-These sources motivate quality control and reproducibility; **they do not prescribe one mandatory scoring normalisation for Malay/Kelantan dialect data**. That design decision remains HOLD.
+Reference integrity is essential because transcription corrections and scoring conventions can materially affect measured word error rate (WER) [2]. Orthographic transcription of interviews and dialectal speech requires careful human review [3]. Research on spontaneous speech and disfluency recognition further supports distinguishing speech fidelity from fluent-text transcription [4]. RedScribe employs inclusive verbatim evaluation, retaining audible verbal content rather than reconstructing the speaker's intended or grammatically corrected message.
 
-## Current controls
+The operational requirements below define RedScribe's research protocol. They are informed by the literature rather than presented as a single universal transcription convention. The protocol applies consistently to every recording and every evaluated model.
 
-1. Import an existing DOCX; preserve the original file without editing it. Reject Word temporary lock files and empty readable bodies.
-2. Extract paragraphs and table cells in document-body order. Preserve verbatim words and surface speaker labels, headings, fillers and punctuation for manual review.
-3. Capture SHA-256 of the DOCX when preview is opened; flag detectable Word features requiring manual inspection (tracked insertions/deletions, comments, text boxes, Word fields and non-empty header/footer content). These flags are **warnings**, not an exhaustive parser or automatic cleanup.
-4. The researcher edits a separate scoring copy and confirms (a) source audio reviewed, (b) scoring text covers exactly the relevant audio clip, (c) speaker labels/headings/metadata reviewed, (d) fillers, overlap, interruptions and non-speech notes reviewed. **No words are silently deleted or normalised.**
-5. On approval, reject when the source DOCX SHA-256 differs from the preview snapshot. The approval stores a separate UTF-8 text file plus JSON manifest (source location/hash, text hash, checklist, policy, timestamp) in a private folder.
-6. At scoring time, re-check both scoring-text and original DOCX hashes. Legacy manifests without original-source location must be re-approved.
-7. Manual pairing remains required for each audio-reference pair; the SHA-256 evidence does **not** prove that the reference actually corresponds to the selected audio. The researcher's signed-off review and later alignment verification remain necessary.
+## 2. Reference materials and scope
 
-## Mandatory pre-benchmark reference preparation (verbatim speech only)
+Maintain three distinct local artefacts:
 
-The original qualitative interview transcript and the ASR scoring reference serve different purposes. Qualitative transcripts may contain speaker identifiers, observational notes, gestures, editorial explanations and other annotations useful for research interpretation. These are not necessarily words spoken in the recording. WER and CER evaluate transcription of speech, not the reproduction of qualitative annotations or recognition of non-verbal behaviour.
-
-Prepare a separate local DOCX scoring copy **before** running any model. Preserve the original qualitative transcript unchanged. Apply the same written preparation rules to every recording and every model, without using model predictions to decide which reference words to retain.
-
-| Material | Required action |
+| Artefact | Purpose |
 | --- | --- |
-| Speaker identifiers (e.g. `Interviewer:`, `Penemu duga:`, `P1:`, including formatting variants) | Remove labels only; retain all actual spoken words from the interviewer, participant and any other audible speakers within the evaluated audio span. |
-| Non-verbal observations (e.g. `[nods]`, `(points to the door)`, gestures, facial expressions) | Remove the editorial annotation from the scoring copy, even when it describes an audible event. Non-verbal event detection is outside this word/character scoring task. |
-| Unspoken editorial glosses, translations, explanatory text, timestamps, headings, page numbers | Remove only verified non-spoken metadata; retain any words that were actually spoken. Do not delete all parenthesised text blindly. |
-| Laughter, coughing, silence and other non-speech sounds | Remove descriptive tags such as `[laughs]` or `[coughs]`. Retain genuine spoken interjections and lexical fillers; adjudicate ambiguous written forms such as "haha" against the audio under a consistent policy. |
-| Unintelligible or missing speech markers (e.g. `**`, `[inaudible]`) | These markers are not reference words. Re-listen first and transcribe recoverable speech; never invent missing words. If unresolved, document the occurrence privately and disclose the incomplete coverage. Removing a marker does not exclude the corresponding audio from scoring. |
-| Dialect, code-switching, fillers, repeated words, false starts and interruptions | Preserve audible verbal content in original order; do not translate, standardise dialect, paraphrase, summarise or remove repetitions. |
-| Overlapping speech | Retain recoverable speech from all speakers and verify ordering against the audio. Document ambiguity; conversation-level WER/CER is not a speaker-attribution metric. |
-| Layout and whitespace | Review extraction for artificial line breaks, tabs and extra spaces. Adopt a fixed documented formatting convention before experiments; raw CER is sensitive to these characters. Do not silently change the metric or introduce one-sided lexical normalisation. |
+| Original audio recording | Primary evidence of the speech within the evaluated time span |
+| Original verbatim transcript | Authoritative source document for qualitative research, including speaker labels and relevant annotations |
+| Benchmark scoring reference | Researcher-verified speech-only derivative used for quantitative ASR evaluation |
 
-### Researcher checklist before Approve & Freeze
+The original audio and source transcript shall remain unchanged. The scoring reference shall represent the same evaluated audio span, including the speech of the interviewer, participant and any other audible speakers within scope. Prepare the reference independently of the outputs of the models under evaluation to reduce reference bias.
 
-- [ ] Confirm the audio and DOCX represent the same recording and entire evaluated time span.
-- [ ] Compare the scoring copy against the original transcript and listen to the audio to resolve doubtful annotations, words and omissions.
-- [ ] Remove speaker labels and non-spoken annotations while retaining all audible speech in scope.
-- [ ] Review any uncertain or overlapping speech; record unresolved regions, preparation decisions and reviewer/date in a private audit log.
-- [ ] Inspect the extracted scoring text, especially whitespace, punctuation, casing and residual annotation markers.
-- [ ] Approve and freeze one reference for use by all models evaluating that recording. Retain the source and frozen hashes with the experiment.
+## 3. Reference preparation rules
 
-### Effect on reported metrics and comparability
+The benchmark targets the transcription of verbal content. Qualitative observations, non-verbal behaviour and editorial metadata are retained in the original transcript where required for qualitative interpretation but are excluded from the scoring text.
 
-Reference preparation can change the reference word and character denominators and the optimal substitution, deletion and insertion alignment. WER and CER may increase, decrease or remain unchanged; improvement is not guaranteed. The existing RapidFuzz implementation computes WER on whitespace-delimited tokens and CER on raw Unicode code points (including punctuation, spaces and line breaks). Removing non-spoken metadata is reference preparation, not a new scoring algorithm.
+| Material | Required treatment |
+| --- | --- |
+| Speaker labels, including `Interviewer:`, `Penemu duga:`, `P1:` and variants | Remove the label; retain the utterance. |
+| Gestures, facial expressions and observational notes | Remove the annotation, e.g. `[nods]` or `(points towards the door)`. |
+| Non-speech acoustic event tags | Remove editorial descriptions such as `[coughs]`, `[laughs]`, `[silence]` and `[background noise]`. |
+| Unspoken explanations, translations and glosses | Remove after verifying that the content was not uttered. Parentheses alone do not establish that content is unspoken. |
+| Timestamps, page numbers, headings and administrative metadata | Remove verified non-speech material. |
+| Fillers, hesitation and spoken interjections | Retain audible forms such as `erm`, `haa` and `hmm`; adjudicate ambiguous forms against the recording. |
+| Repetition, false starts, incomplete words and self-correction | Retain recoverable verbal content without rewriting the utterance. |
+| Dialect and colloquial language | Retain the original verified orthography; do not convert regional forms into standard Malay or another language. |
+| Code-switching | Retain words in the language actually spoken. |
+| Interruptions and overlapping speech | Retain recoverable speech from all speakers in the most defensible verified sequence. Record ambiguous order. |
+| Unintelligible speech markers, e.g. `**` or `[inaudible]` | Re-listen, recover words where possible, and remove the marker itself from scoring text. Do not invent words. Record unresolved speech privately. |
+| Word formatting and layout | Remove document-layout artefacts. Preserve verified text and apply a consistent, recorded convention for spacing and paragraph boundaries. |
 
-Any optional scoring normalisation (such as case folding, punctuation stripping or general text normalisation) remains a separate methodological decision and must be prespecified and applied consistently to both reference and hypothesis. Verify that hypotheses contain speech text rather than exported labels or annotations; do not selectively correct model errors. The current raw scorer does not support time-region masking or exclusion of unintelligible audio; do not claim that removing an annotation excludes a region from evaluation. If unresolved audio materially compromises the reference, defer that recording or explicitly design and validate an identical audio/reference exclusion procedure for all models before scoring.
+Do not delete text merely because it matches a speaker name, annotation keyword or bracket pattern. Such forms may be spoken words. Do not remove personal names from the scoring reference solely for de-identification if they were spoken; protect the reference through restricted local access instead. A study requiring de-identified scoring must prespecify a matching audio/reference procedure.
 
-If a frozen reference changes, create a new approved reference and a new experiment; rerun all compared models under the same settings and report the new reference hash. Do not mix results based on different reference versions in the main comparison. Earlier runs may be retained as preliminary validation, not pooled as equivalent observations. Keep all real audio, participant transcripts, annotation logs and private manifests outside GitHub. This checklist is a research preparation requirement, not an automatic annotation-removal feature or a claim of independent validation.
+### 3.1 Dialect and disfluency preservation
 
-## Explicit non-goals and outstanding constraints
+For conversational Malay and Kelantan dialect, preserve verified regional vocabulary, pronunciation-based orthographic forms, lexical repetitions and fillers. Use a consistent transcription convention across recordings; resolve doubtful spellings by consulting the audio and a competent language reviewer where feasible. This protocol does not authorise grammatical correction, translation, paraphrasing, summarisation or conversion to fluent intended speech. The distinction between verbatim and intended-speech evaluation is consequential for disfluency-rich recordings [4].
 
-- **Do not automatically strip labels or annotations in the scorer.** Manually remove verified non-spoken metadata during reference preparation as described above. Preserve audible words; any optional scoring normalisation must be agreed before scoring, recorded and applied consistently to both hypothesis and reference.
-- A raw character-error rate counts Unicode code points **including spaces, punctuation and line breaks**. Consequently, Word paragraph boundaries can affect CER; *raw scoring is exploratory*. A prespecified matching scoring policy is needed before comparison.
-- Conversation-level WER does not measure speaker attribution. Timestamped and manually adjudicated speaker ground truth is needed to claim DER/JER or diarisation accuracy.
-- Complex DOCX constructs (nested/merged tables, revisions, fields, footnotes, comments, images and drawn text boxes) still require visual comparison with the original DOCX.
-- Human verification is an **attestation**, not independent proof of perfect transcription. Document reviewer identity/protocol externally when preparing the final study design.
-- A reference approved through programmatic compatibility calls with no checklist is recorded as `scoring_scope=unspecified`; it must not be treated as publication-ready.
-- A full 45–60-minute DOCX may **not** correspond to a 180-second pilot clip. Clip-to-reference coverage must be verified; do not calculate WER against a mismatched complete interview transcript.
-- Results from private participant audio/transcripts and reference manifests must not be uploaded to public GitHub.
+### 3.2 Illustrative example (synthetic)
 
-## Verification steps on the researcher's machine
+**Original qualitative transcript**
 
-```powershell
-git fetch origin
-git switch redscribe-benchmark-timeline
-git pull --ff-only
-python -m unittest discover -s tests -p "test_benchmark*.py"
-python redscribe_gpu.py
+```text
+Interviewer: Haa, demo tahu gapo?
+P1: Hm, tahu, tahu. (Nods)
+Penemu duga: Okey, terima kasih.
 ```
 
-Perform human review on a **de-identified** representative DOCX, including a file with tables and one with speaker labels, then deliberately alter the DOCX between preview and approval to confirm the application blocks the freeze. Re-open the GUI and verify the four checklist confirmations, raw text, saved hashes, and private output path.
+**Speech-only scoring reference**
 
-**Validation status: tests are authored but have not been executed on the user’s Windows/GPU environment as part of this remote review.**
+```text
+Haa, demo tahu gapo?
+Hm, tahu, tahu.
+Okey, terima kasih.
+```
+
+The example is invented for documentation; it does not reproduce participant data.
+
+### 3.3 Unresolved speech and overlapping speech
+
+Re-listen to uncertain regions and record unresolved instances, approximate time locations where feasible, reasons and reviewer decisions in a private audit log. The current raw scoring method does not mask time regions. Deleting an unintelligibility marker therefore does not remove the corresponding audio from evaluation; model words in that region may still affect the edit distance. If unresolved speech materially compromises reference coverage, withhold approval until it is resolved or a prespecified, consistently applied audio/reference exclusion procedure has been designed and validated. Document any deferred recordings and the reason for their exclusion.
+
+Conversation-level WER/CER assesses the sequence of recognised text. It does not measure speaker attribution or diarisation accuracy. Overlap and uncertain ordering shall be acknowledged as potential influences on sequence-based error rates.
+
+## 4. Researcher verification and approval
+
+Complete the following procedure before starting model execution:
+
+1. Create a separate scoring DOCX from the original transcript and apply Section 3.
+2. Match the scoring DOCX to its source recording and verify the beginning, end and full evaluated span.
+3. Listen to the audio while reviewing the text; resolve omissions, questionable wording, annotation boundaries and overlapping speech. Where feasible, obtain an additional qualified review and adjudicate disagreements. Do not claim independent double review unless performed.
+4. Review extracted text in RedScribe's Ground Truth Review window. Inspect inconsistent speaker labels, metadata, residual annotations, punctuation, spacing and document-layout artefacts.
+5. Record reference preparation decisions, reviewer identity, review date, unresolved regions and source/derivative versions in a private audit log.
+6. Confirm all four verification checks in the application: audio verification, coverage verification, speaker-label review and non-speech review.
+7. Select **Approve & Freeze**. Use the same frozen reference for every model evaluating the recording.
+8. Confirm the experiment configuration, then start benchmarking.
+
+Human approval records the researcher's verification; it is not a guarantee of error-free transcription. Review the full audio rather than relying solely on document structure or a file hash.
+
+### Pre-run checklist
+
+- [ ] Audio and reference correspond to the same recording and time span.
+- [ ] Both interviewer and participant speech are retained.
+- [ ] Speaker labels and non-spoken annotations are removed.
+- [ ] Dialect, code-switching, fillers and repetitions are preserved.
+- [ ] Uncertain speech and overlap have been reviewed and documented.
+- [ ] Extracted text has been inspected for omissions and formatting artefacts.
+- [ ] Reference preparation and reviewer details are recorded privately.
+- [ ] One reference has been approved and frozen for all models.
+
+## 5. Scoring methodology
+
+RedScribe uses minimum-edit alignment to quantify differences between the frozen reference and ASR hypothesis, consistent with the general edit-distance approach in ASR research [1], [5]. WER and CER provide complementary word-level and character-level measures; the value of CER for multilingual evaluation has also been examined in recent research [6].
+
+```math
+WER = \frac{S_w+D_w+I_w}{N_w}\times100\%
+```
+
+```math
+CER = \frac{S_c+D_c+I_c}{N_c}\times100\%
+```
+
+Here, S, D and I denote substitutions, deletions and insertions; N is the reference length in the corresponding unit. A score of zero indicates an exact match under the specified scoring policy. Insertions can result in scores exceeding 100%. An empty reference has an undefined error rate.
+
+The current implementation uses RapidFuzz's `Levenshtein.editops` [7] with unit-cost operations:
+
+| Property | Current raw scoring implementation |
+| --- | --- |
+| WER unit | Whitespace-delimited tokens using Python `str.split()` |
+| CER unit | Unicode code points, including punctuation, spaces and line breaks |
+| Case, punctuation and spelling | Retained; differences can contribute to error |
+| Scoring normalisation | No automatic lexical or Unicode normalisation in the raw scorer |
+| Scoring reference | One researcher-approved immutable-by-convention text artefact per recording |
+
+See [scoring implementation](../../redscribe/benchmark/benchmark_fast_metrics.py). Report the raw scoring policy explicitly. These values are formatting-sensitive and should not be equated directly with scores obtained under normalised WER/CER or NIST SCLITE-specific alignment conventions. RedScribe uses its own RapidFuzz implementation rather than executing SCLITE.
+
+Reference cleaning removes verified non-spoken material, not model recognition errors. Any future normalised scoring analysis requires a separately prespecified policy applied consistently to references and hypotheses. This protocol retains the existing raw scoring policy and does not resolve the separate normalisation research decision.
+
+## 6. Integrity, traceability and quality control
+
+The application extracts readable DOCX body content, including paragraphs and table cells, and retains the source file unchanged. Review extraction warnings and visually inspect complex DOCX content, including tracked changes, comments, text boxes, headers, footers, fields, footnotes, merged or nested tables. Extraction warnings are not an exhaustive inspection of all Word structures.
+
+At reference approval, RedScribe checks the source DOCX SHA-256 against the preview snapshot and stores the approved UTF-8 text and a JSON manifest in a private local directory. The manifest records the source location/hash, scoring text hash, verification responses, preparation metadata and approval timestamp. Both source and approved-text integrity are verified during benchmarking. A changed source or missing integrity evidence requires renewed verification. Legacy manifests without source provenance must be re-approved.
+
+For each recording, retain a private preparation log with recording ID, source and derivative filenames, preparation version, removal categories, unresolved speech, review decisions, reviewer/date, frozen reference identifier and hashes. Record model identifiers, software commit/version, scoring library version and evaluation settings in the experiment documentation.
+
+A file hash establishes integrity, not transcription accuracy or correct audio pairing. Audio-span verification remains mandatory, including whenever a shorter excerpt is used.
+
+## 7. Reproducibility and change control
+
+Reference preparation may change the denominator and optimal alignment of WER/CER; a lower score is not guaranteed [2]. Freeze references before official model comparisons and do not revise them in response to a model's score. If a genuine transcription defect is discovered after freezing, document the independent evidence, create a new approved reference and rerun all compared models with the same settings. Retain earlier results as separately identified preliminary or superseded runs. Do not pool incompatible reference versions in the principal comparison.
+
+Verify hypotheses contain the model's speech output rather than export-only speaker labels or editorial metadata. Do not selectively correct model predictions. Where preprocessing is necessary, prespecify and apply the same rule to all models.
+
+Maintain source and frozen references, audio, annotation logs and private manifests in access-controlled local storage. Public repository documentation and test fixtures shall contain synthetic or appropriately authorised non-confidential material only.
+
+## 8. Method verification
+
+Software checks should include synthetic examples with known substitution, deletion and insertion totals; empty references; Unicode and whitespace sensitivity; source/reference modification detection; and reference-approval gating. Verify DOCX extraction against visually inspected representative documents and confirm the four manual verification controls and private output path on the research workstation.
+
+Independent metric comparison should use matching tokenisation, preprocessing and alignment assumptions. Full runtime validation, reviewer verification and experimental outcomes are recorded separately in the [validation records](../validation/README.md).
+
+## References
+
+[1] National Institute of Standards and Technology (NIST), “Speech Recognition Scoring Toolkit (SCTK): SCLITE scoring documentation.” [Online]. Available: https://github.com/usnistgov/SCTK/blob/master/doc/sclite.htm. Input formats: https://github.com/usnistgov/SCTK/blob/master/doc/infmts.htm
+
+[2] A. Faria, A. Janin, S. Adkoli, and K. Riedhammer, “Toward zero oracle word error rate on the Switchboard benchmark,” in *Proc. Interspeech*, 2022. [Online]. Available: https://www.isca-archive.org/interspeech_2022/faria22_interspeech.html
+
+[3] J. Gorisch and T. Schmidt, “Evaluating workflows for creating orthographic transcripts for oral corpora by transcribing from scratch or correcting ASR-output,” in *Proc. LREC-COLING*, 2024, pp. 6564–6574. [Online]. Available: https://aclanthology.org/2024.lrec-main.582/
+
+[4] A. Romana, M. Niu, M. Perez, and E. M. Provost, “FluencyBank Timestamped: An updated data set for disfluency detection and automatic intended speech recognition,” *Journal of Speech, Language, and Hearing Research*, 2024, doi: [10.1044/2024_JSLHR-24-00070](https://doi.org/10.1044/2024_JSLHR-24-00070). See also R. Amann, Z. Li, B. Bruno, and J. Niehues, “Augmenting automatic speech recognition models with disfluency detection,” in *2024 IEEE Spoken Language Technology Workshop (SLT)*, 2024, doi: [10.1109/SLT61566.2024.10832349](https://doi.org/10.1109/SLT61566.2024.10832349).
+
+[5] K. Kuhn, V. Kersken, and G. Zimmermann, “Beyond Levenshtein: Leveraging multiple algorithms for robust word error rate computations and granular error classifications,” in *Proc. Interspeech*, 2024, doi: [10.21437/Interspeech.2024-32](https://doi.org/10.21437/Interspeech.2024-32).
+
+[6] T. D. K, J. James, D. P. Gopinath, and M. A. K, “Advocating character error rate for multilingual ASR evaluation,” in *Findings of the Association for Computational Linguistics: NAACL 2025*, 2025. [Online]. Available: https://aclanthology.org/2025.findings-naacl.277/
+
+[7] RapidFuzz, “Levenshtein distance: API documentation.” [Online]. Available: https://rapidfuzz.github.io/RapidFuzz/Usage/distance/Levenshtein.html
