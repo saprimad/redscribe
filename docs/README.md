@@ -1,5 +1,7 @@
 # RedScribe research documentation
 
+[Scientific documentation index](scientific/README.md) · [Scientific Transcription System](scientific/part-I-transcription/README.md) · [Scientific Benchmarking System](scientific/part-II-benchmarking/README.md)
+
 This index organises the experimental benchmark documentation without duplicating or relocating canonical records.
 
 - [User Guide and Demonstration](user-guide/README.md)
@@ -13,7 +15,7 @@ This index organises the experimental benchmark documentation without duplicatin
 
 ## Expert review entry point
 
-[Software architecture](benchmark/ARCHITECTURE.md) · [Current software validation record](validation/FINAL_SOFTWARE_VALIDATION_2026-11-25.md) · [Implementation status](BENCHMARK_IMPLEMENTATION_STATUS.md)
+[Software architecture](benchmark/ARCHITECTURE.md) · [Consolidated development and validation record](validation/CONSOLIDATED_DEVELOPMENT_RECORD_2026-11-28.md) · [Implementation status](BENCHMARK_IMPLEMENTATION_STATUS.md)
 
 ## Research integrity
 

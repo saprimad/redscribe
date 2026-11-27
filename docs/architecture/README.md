@@ -1,5 +1,7 @@
 # Architecture
 
+[Transcription architecture](../scientific/part-I-transcription/README.md) · [Structured benchmarking architecture](../scientific/part-II-benchmarking/README.md)
+
 Canonical documents remain in their existing locations to preserve citations, relative links and history.
 
 - [Software architecture and migration](../benchmark/ARCHITECTURE.md)

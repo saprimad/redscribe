@@ -179,7 +179,7 @@ Independent metric comparison should use matching tokenisation, preprocessing an
 
 [1] National Institute of Standards and Technology (NIST), “Speech Recognition Scoring Toolkit (SCTK): SCLITE scoring documentation.” [Online]. Available: https://github.com/usnistgov/SCTK/blob/master/doc/sclite.htm. Input formats: https://github.com/usnistgov/SCTK/blob/master/doc/infmts.htm
 
-[2] A. Faria, A. Janin, S. Adkoli, and K. Riedhammer, “Toward zero oracle word error rate on the Switchboard benchmark,” in *Proc. Interspeech*, 2022. [Online]. Available: https://www.isca-archive.org/interspeech_2022/faria22_interspeech.html
+[2] A. Faria, A. Janin, K. Riedhammer, and S. Adkoli, “Toward zero oracle word error rate on the Switchboard benchmark,” in *Proc. Interspeech*, 2022, pp. 3973–3977, doi: 10.21437/Interspeech.2022-10959. [Original paper](https://www.isca-archive.org/interspeech_2022/faria22_interspeech.pdf). The author order follows the paper byline.
 
 [3] J. Gorisch and T. Schmidt, “Evaluating workflows for creating orthographic transcripts for oral corpora by transcribing from scratch or correcting ASR-output,” in *Proc. LREC-COLING*, 2024, pp. 6564–6574. [Online]. Available: https://aclanthology.org/2024.lrec-main.582/
 

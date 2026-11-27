@@ -8,21 +8,21 @@ RedScribe Benchmarking extends the desktop transcription application to compare 
 
 [Stable transcription application](https://github.com/saprimad/redscribe/tree/main) · [Benchmark documentation](docs/benchmark/README.md) · [Implementation status](docs/BENCHMARK_IMPLEMENTATION_STATUS.md) · [Study timeline](docs/REDSCRIBE_BENCHMARK_TIMELINE.md)
 
-## Start here — expert review
+## Scientific documentation and review
 
-[Architecture](docs/benchmark/ARCHITECTURE.md) · [Software validation record](docs/validation/FINAL_SOFTWARE_VALIDATION_2026-11-25.md) · [Draft PR #27](https://github.com/saprimad/redscribe/pull/27)
+[Scientific documentation index](docs/scientific/README.md) · [Illustrated user guide](docs/user-guide/README.md) · [Consolidated development and validation record](docs/validation/CONSOLIDATED_DEVELOPMENT_RECORD_2026-11-28.md)
 
-[Verified synthetic regression run](https://github.com/saprimad/redscribe/actions/runs/45642290643) · [Verified dependency run](https://github.com/saprimad/redscribe/actions/runs/45642290408) · [Actual Windows GPU runtime validation](docs/validation/WINDOWS_GPU_RUNTIME_VALIDATION_2026-11-25.md)
+[Historical synthetic regression run](https://github.com/saprimad/redscribe/actions/runs/45642290643) · [Historical dependency run](https://github.com/saprimad/redscribe/actions/runs/45642290408) · [Actual Windows GPU runtime validation](docs/validation/WINDOWS_GPU_RUNTIME_VALIDATION_2026-11-25.md)
 
 ## Research documentation
 
 [Research documentation index](docs/README.md) · [Kelantan dialect study](docs/linguistics/README.md) · [Research protocols](docs/research/README.md) · [Validation records](docs/validation/README.md) · [Planning and HOLD decisions](docs/planning/README.md)
 
-## Benchmark workflow
+## Historical benchmark design figure
 
 [![Experimental RedScribe benchmarking workflow](docs/benchmark/RedScribe_Benchmark_Workflow_Academic_v8.svg)](docs/benchmark/RedScribe_Benchmark_Workflow_Academic_v8.svg)
 
-*Figure 1. Experimental benchmarking workflow: reference preparation, model execution, evaluation and reporting.*
+*Figure 1. Earlier experimental design, including optional analysis stages. For the active structured workflow see [Part II](docs/scientific/part-II-benchmarking/README.md).*
 
 [Full-size SVG](docs/benchmark/RedScribe_Benchmark_Workflow_Academic_v8.svg) · [Editable HTML figure](docs/benchmark/RedScribe_Benchmark_Workflow_Academic_v8.html)
 
@@ -32,20 +32,20 @@ RedScribe Benchmarking extends the desktop transcription application to compare 
 | --- | --- |
 | Model selection | Eleven candidates; seven selected by default |
 | Reference preparation | DOCX extraction, manual review, approval and frozen reference |
-| Execution | Sequential single and batch execution; batch resume with integrity checks |
+| Execution | Single-recording desktop workflow with model-major scheduling. Separate modules support dataset and batch processing. |
 | Accuracy | Raw word error rate (WER), character error rate (CER), substitutions, deletions and insertions |
 | Efficiency | Optional resource monitoring and processing-time measurements |
 | Reporting | CSV, JSON, Excel summaries and scientific figures |
-| Speech analysis | Optional descriptive voice activity and overlapping speech analysis |
+| Speech analysis | Legacy pilot analysis. The structured run measures recording duration and reference counts. |
 
-**Validation status (25 November 2026):** Synthetic regression and dependency workflows passed for tested code commit `6721ae4`. Actual Windows RTX 5070 full-length GPU validation completed for Whisper Large-v3 and Turbo, both with worker exit code 0. Large-v3 uses a controlled shutdown workaround; the upstream destructor defect is not claimed fixed. Seven-model pilot, same-version repeatability and expert review remain pending. See the [software validation record](docs/validation/FINAL_SOFTWARE_VALIDATION_2026-11-25.md) and [Windows GPU runtime validation](docs/validation/WINDOWS_GPU_RUNTIME_VALIDATION_2026-11-25.md). Do not upload confidential recordings or transcripts.
+The [seven-model P1 runtime record](docs/validation/P1_SEVEN_MODEL_GPU_VALIDATION_2026-11-26.md) documents one full-length recording on an RTX 5070. Same-version repeatability, processed audio coverage and the planned multi-recording comparison require additional evidence. Earlier synthetic and dependency checks are recorded against their tested commits.
 
 ## Getting started with benchmarking
 
 Clone the experimental branch, rather than the default branch:
 
 ```bash
-git clone --branch refactor/benchmark-architecture https://github.com/saprimad/redscribe.git
+git clone --branch redscribe-benchmark-timeline https://github.com/saprimad/redscribe.git
 cd redscribe
 ```
 
@@ -56,7 +56,7 @@ python -m pip install -r requirements-benchmark.txt
 python redscribe_gpu.py
 ```
 
-Open Benchmarking from the desktop application, select models and recordings, review and approve the reference text, and configure the pilot. Optional model dependencies are described in the [multi-model setup guide](docs/MULTI_MODEL_ASR.md).
+Open Benchmarking from the desktop application, select the models, pair one recording with its reference DOCX, review the extracted text and approve it before starting the benchmark. Optional model dependencies are described in the [multi-model setup guide](docs/MULTI_MODEL_ASR.md).
 
 ## Benchmark source and protocols
 
@@ -68,8 +68,10 @@ Benchmark implementations are grouped under `redscribe/benchmark/` and `redscrib
 | --- | --- |
 | Configuration and interface | [benchmark_config.py](redscribe/benchmark/benchmark_config.py), [benchmark_ui.py](redscribe/ui/benchmark_ui.py) |
 | Reference preparation | [benchmark_ground_truth.py](redscribe/benchmark/benchmark_ground_truth.py), [benchmark_reference.py](redscribe/benchmark/benchmark_reference.py) |
-| Execution | [benchmark_pilot.py](redscribe/benchmark/benchmark_pilot.py), [benchmark_batch.py](redscribe/benchmark/benchmark_batch.py) |
-| Accuracy | [benchmark_metrics.py](redscribe/benchmark/benchmark_metrics.py) |
+| Structured execution | [Structured runner](redscribe/benchmark/benchmark_structured_output.py) |
+| Legacy execution | [benchmark_pilot.py](redscribe/benchmark/benchmark_pilot.py), [benchmark_batch.py](redscribe/benchmark/benchmark_batch.py) |
+| Structured scoring | [RapidFuzz scorer](redscribe/benchmark/benchmark_fast_metrics.py) |
+| Legacy scoring | [benchmark_metrics.py](redscribe/benchmark/benchmark_metrics.py) |
 | Resource and speech analysis | [benchmark_resources.py](redscribe/benchmark/benchmark_resources.py), [benchmark_speech.py](redscribe/benchmark/benchmark_speech.py) |
 | Reporting | [benchmark_reporting.py](redscribe/benchmark/benchmark_reporting.py), [benchmark_excel.py](redscribe/benchmark/benchmark_excel.py) |
 | Validation | [Tests](tests/), [Code audits and protocols](docs/benchmark/README.md) |
@@ -139,7 +141,7 @@ During diarisation, the Live Transcript area logs the current processing stage. 
 1. Clone the repository and enter its folder:
 
    ```powershell
-   git clone --branch refactor/benchmark-architecture https://github.com/saprimad/redscribe.git
+   git clone --branch redscribe-benchmark-timeline https://github.com/saprimad/redscribe.git
    cd redscribe
    ```
 
@@ -182,7 +184,7 @@ RedScribe has been tested successfully on a Mac mini with an Apple M4 chip and 2
 3. Clone the repository and enter its folder:
 
    ```bash
-   git clone --branch refactor/benchmark-architecture https://github.com/saprimad/redscribe.git
+   git clone --branch redscribe-benchmark-timeline https://github.com/saprimad/redscribe.git
    cd redscribe
    ```
 
@@ -298,7 +300,7 @@ The repository's `.gitignore` excludes common audio, video, spreadsheet, transcr
 
 The [pre-merge trial record](docs/PRE_MERGE_TEST_LOG.md) documents user-reported runs, the MMS Malay adapter correction and unresolved quality checks.
 
-The optional ASR backends require NVIDIA CUDA FP16 and never fall back silently to CPU or another precision. See [multi-model setup](docs/MULTI_MODEL_ASR.md) for installation, timing limitations and pending GPU validation.
+The optional ASR backends require NVIDIA CUDA FP16 and never fall back silently to CPU or another precision. See [multi-model setup](docs/MULTI_MODEL_ASR.md) for installation, timing limitations and model dependencies.
 
 On Windows, RedScribe attempts to load the original Faster-Whisper choices with CUDA and `float16`. If CUDA is unavailable or loading fails, it falls back to CPU with `int8`. On macOS, the current version uses CPU mode with `int8`. Speaker diarisation is sent to CUDA only when CUDA is available; otherwise it runs on CPU. A diarisation failure does not stop transcription.
 

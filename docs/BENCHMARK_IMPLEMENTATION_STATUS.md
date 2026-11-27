@@ -1,6 +1,8 @@
 # RedScribe Benchmarking Mode — Implementation status
 
-> **Latest status (25 November 2026):** [Software validation record](validation/FINAL_SOFTWARE_VALIDATION_2026-11-25.md). Synthetic regression suite passed 84/84 on each of Windows and Ubuntu; CPU dependency validation passed on both. Scientific figure checks passed within the synthetic scope. Expert review and local GUI/GPU runtime validation remain pending. All dated sections below are historical, including earlier smoke-test instructions and implementation limitations; use the current validation record for the review gate.
+For the integrated single-recording, seven-model milestone and remaining release gates, see the [consolidated development record](validation/CONSOLIDATED_DEVELOPMENT_RECORD_2026-11-28.md).
+
+> **Historical status (25 November 2026):** [Software validation record](validation/FINAL_SOFTWARE_VALIDATION_2026-11-25.md). Synthetic regression suite passed 84/84 on each of Windows and Ubuntu; CPU dependency validation passed on both. Scientific figure checks passed within the synthetic scope. Expert review and local GUI/GPU runtime validation remain pending. All dated sections below are historical, including earlier smoke-test instructions and implementation limitations; use the current validation record for the review gate.
 
 **17 November 2026 — Phase 1 foundation + Tkinter configuration preview.** This is not a working benchmark runner or validated benchmark.
 

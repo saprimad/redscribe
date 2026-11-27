@@ -1,5 +1,7 @@
 # Benchmark software architecture
 
+The sections below record the package migration and its historical acceptance checks. For current execution routes and subsequent runtime evidence see [Part II](../scientific/part-II-benchmarking/README.md) and the [consolidated record](../validation/CONSOLIDATED_DEVELOPMENT_RECORD_2026-11-28.md).
+
 ## Package layout
 
 ```text

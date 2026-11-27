@@ -2,7 +2,11 @@
 
 All notable changes to RedScribe are documented in this file. The dated 2.0.0 entry records the repository baseline on 22 September 2026; no tagged GitHub Release has been published yet. Features under **Unreleased** are already on the main branch but have not been assigned to a tagged release.
 
-## Experimental benchmarking branch — 25 November 2026
+## Development documentation for the v2.1.0 target
+
+The [scientific index](docs/scientific/README.md) covers transcription and structured benchmarking. The [consolidated record](docs/validation/CONSOLIDATED_DEVELOPMENT_RECORD_2026-11-28.md) documents the subsequent P1 seven-model execution.
+
+## Historical experimental benchmarking branch — 25 November 2026
 
 Not released or merged into main. Staged package architecture with compatibility entry points; reference approval and integrity checks; single/batch execution and resume; reporting recovery and publication figures. Synthetic regression and CPU dependency validation passed on Windows and Ubuntu. See [validation evidence](docs/validation/FINAL_SOFTWARE_VALIDATION_2026-11-25.md). Actual GPU/GUI and expert review remain pending.
 
