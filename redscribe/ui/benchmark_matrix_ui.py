@@ -7,7 +7,7 @@ import tkinter as tk
 from tkinter import ttk,messagebox,filedialog
 from pathlib import Path
 
-def open_matrix_window(parent,models,language,monitor=True,manifest=None,output=None):
+def open_matrix_window(parent,models,language,monitor=True,manifest=None,output=None, *, confirmed=False, on_finished=None):
     from redscribe.benchmark.benchmark_dataset import verify_dataset
     from redscribe.benchmark.benchmark_structured_output import run_structured_batch, validate_output_root
     from redscribe.benchmark.benchmark_resources import ResourceMonitor
@@ -24,13 +24,14 @@ def open_matrix_window(parent,models,language,monitor=True,manifest=None,output=
         messagebox.showerror("Benchmark preflight",str(exc),parent=parent)
         return
     ids=[p["participant_id"] for p in dataset["pairs"]]
-    if not messagebox.askyesno("Full-length benchmark",f"Run {len(models)} models on {len(ids)} recordings? Existing compatible checkpoints will be resumed. CUDA FP16 required.",parent=parent):
+    if not confirmed and not messagebox.askyesno("Full-length benchmark",f"Run {len(models)} models on {len(ids)} recordings? Existing compatible checkpoints will be resumed. CUDA FP16 required.",parent=parent):
         return
     win=tk.Toplevel(parent)
     win.title("RedScribe — Full-length Benchmark")
     win.geometry("1000x650")
     win.transient(parent)
-    win.grab_set()
+    if not confirmed:
+        win.grab_set()
     status=tk.StringVar(master=win,value="Preparing benchmark")
     ttk.Label(win,textvariable=status).pack(fill="x",padx=12,pady=8)
     frame=ttk.Frame(win)
@@ -82,14 +83,19 @@ def open_matrix_window(parent,models,language,monitor=True,manifest=None,output=
         win.destroy()
         messagebox.showwarning("Operation active","Wait for the current ASR operation to finish.",parent=parent)
         return
+    def request_stop():
+        cancel.set()
+        status.set("Stop requested; waiting for current operation")
     def close():
         if thread.is_alive():
-            cancel.set()
-            status.set("Stop requested; waiting for current operation")
+            request_stop()
         else:
             win.destroy()
     win.protocol("WM_DELETE_WINDOW",close)
-    ttk.Button(win,text="Stop / Close",command=close).pack(pady=8)
+    stop_button = ttk.Button(win,text="Stop benchmark",command=request_stop)
+    stop_button.pack(pady=8)
+    close_button = ttk.Button(win,text="Close",command=close,state="disabled")
+    close_button.pack(pady=4)
     def drain():
         while True:
             try:
@@ -107,4 +113,10 @@ def open_matrix_window(parent,models,language,monitor=True,manifest=None,output=
                         "Scientific reports are in the selected output folder. The 04 - SENSITIVE DATA folder contains confidential transcripts, checkpoints and diagnostic materials. Do not distribute or upload it without authorisation. Folder segregation is not encryption. Review run failures before interpreting results.",parent=win)
         if thread.is_alive() or not events.empty():
             win.after(150,drain)
+        else:
+            stop_button.configure(state="disabled")
+            close_button.configure(state="normal")
+            if on_finished is not None:
+                on_finished()
     win.after(150,drain)
+    return request_stop
