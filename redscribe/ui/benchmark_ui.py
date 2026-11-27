@@ -152,7 +152,7 @@ class BenchmarkWindow:
         self.output_label = ttk.Label(location, textvariable=self.output_summary, wraplength=wrap, justify="left", anchor="w")
         self.output_label.pack(fill="x", pady=(2, 5))
         ttk.Label(location, text="Experiment folders are created automatically here.", foreground="#667085", wraplength=wrap, justify="left", anchor="w").pack(fill="x", pady=(0, 5))
-        self.folder_button = action(location, "Choose output folder", lambda: self.master_folder(change=True))
+        ttk.Label(location, text="Change the location in Configuration Review.", foreground="#667085", wraplength=wrap, justify="left").pack(fill="x")
         footer = self.controls if self.embedded else ttk.Frame(outer)
         if not self.embedded:
             footer.pack(fill="x", pady=(12, 0))
@@ -173,7 +173,7 @@ class BenchmarkWindow:
         if not self.embedded:
             ttk.Label(outer, textvariable=self.pilot_status, wraplength=720).pack(anchor="w", pady=(7, 0))
 
-    def configuration(self):
+    def configuration(self, *, require_master=True):
         from redscribe.benchmark.benchmark_experiments import saved_master
         from redscribe.benchmark.benchmark_reference import verify_reference, sha256_file
         if len(self.audio_files) != 1 or len(self.reference_files) != 1:
@@ -190,13 +190,13 @@ class BenchmarkWindow:
             raise ValueError("Complete all ground truth verification checks.")
         models = ordered_selection(k for k,v in self.selected.items() if v.get())
         master = saved_master()
-        if not models or not master:
+        if not models or (require_master and not master):
             raise ValueError("Choose models and a private output folder.")
         return dict(audio=audio, audio_sha256=sha256_file(audio), source=source,
                     manifest=manifest, reference_sha256=info["approved_text_sha256"],
                     manifest_sha256=sha256_file(manifest), models=list(models),
                     language={"Bahasa Melayu":"ms","English":"en","Auto detect":None}[self.language.get()],
-                    monitor=bool(self.gpu_monitor.get()), master=str(master))
+                    monitor=bool(self.gpu_monitor.get()), master=str(master) if master else None)
 
     def invalidate_review(self):
         self.confirmed_configuration = None
@@ -238,7 +238,6 @@ class BenchmarkWindow:
         master = saved_master()
         self.output_summary.set(str(master) if master else "No master output folder configured")
         self.output_label.configure(foreground="#247a46" if master else "#667085")
-        self.folder_button.configure(text="Change output folder" if master else "Choose output folder")
         self.refresh_models()
 
     def open_full_matrix(self):
@@ -707,10 +706,8 @@ class BenchmarkWindow:
         if self.active_run:
             return
         self.invalidate_review()
-        if not self.master_folder():
-            return
         try:
-            config = self.configuration()
+            config = self.configuration(require_master=False)
         except Exception as exc:
             messagebox.showwarning("Review configuration", str(exc), parent=self.window)
             return
@@ -732,10 +729,13 @@ class BenchmarkWindow:
             "Evaluation method: Raw WER and CER using RapidFuzz Levenshtein alignment.",
             "Requested device / precision: CUDA / FP16",
             "Resource monitoring: " + ("Enabled" if config["monitor"] else "Disabled"),
-            "Master output folder: " + config["master"],
-            "An experiment subfolder will be created automatically.",
         ]
         ttk.Label(frame, text="\n".join(details), wraplength=640, justify="left").pack(anchor="w", pady=10)
+        output_path = tk.StringVar(master=dialog, value=config["master"] or "No output folder selected")
+        ttk.Label(frame, text="Master output folder", foreground="#8E1235", font=("TkDefaultFont", 11, "bold")).pack(anchor="w")
+        path_label = ttk.Label(frame, textvariable=output_path, foreground="#247a46" if config["master"] else "#667085", wraplength=640, justify="left")
+        path_label.pack(fill="x", pady=(2, 4))
+        ttk.Label(frame, text="An experiment subfolder will be created automatically.", wraplength=640).pack(anchor="w", pady=(0, 8))
         labels = (
             "I confirm that the selected audio corresponds to the approved ground truth.",
             "I confirm the selected ASR models, benchmark settings and output location.",
@@ -746,7 +746,7 @@ class BenchmarkWindow:
         def update(*_):
             for widget, flag in zip(widgets, flags):
                 widget.configure(fg="#247a46" if flag.get() else "#202332")
-            ready = all(v.get() for v in flags) and bool(participant.get().strip())
+            ready = bool(config["master"]) and all(v.get() for v in flags) and bool(participant.get().strip())
             confirm.configure(state="normal" if ready else "disabled", bg="#247a46" if ready else "#eeeeee", fg="white" if ready else "#999999")
         def approve():
             try:
@@ -769,9 +769,38 @@ class BenchmarkWindow:
                                     wraplength=620, justify="left", bg="white", activebackground="white", selectcolor="white")
             widget.pack(fill="x", pady=3)
             widgets.append(widget)
-        confirm = tk.Button(frame, text="Confirm configuration", command=approve, state="disabled",
+        def change_location():
+            nonlocal config
+            previous = config["master"]
+            folder = self.master_folder(change=True)
+            if not folder:
+                return
+            try:
+                config = self.configuration(require_master=False)
+            except Exception as exc:
+                # Do not retain an approval against an invalid configuration.
+                config = dict(config, master=None)
+                output_path.set("Configuration invalid — reopen review")
+                path_label.configure(foreground="#B42318")
+                for flag in flags:
+                    flag.set(False)
+                update()
+                messagebox.showerror("Configuration review", str(exc), parent=dialog)
+                return
+            output_path.set(config["master"] or "No output folder selected")
+            path_label.configure(foreground="#247a46" if config["master"] else "#667085")
+            folder_button.configure(text="Change output folder" if config["master"] else "Select output folder")
+            if previous != config["master"]:
+                for flag in flags:
+                    flag.set(False)
+            update()
+        actions = ttk.Frame(frame)
+        actions.pack(fill="x", pady=8)
+        confirm = tk.Button(actions, text="Confirm configuration", command=approve, state="disabled",
                             bg="#eeeeee", disabledforeground="#999999", padx=10, pady=7)
-        confirm.pack(anchor="e", pady=8)
+        confirm.pack(side="right")
+        folder_button = ttk.Button(actions, text="Change output folder" if config["master"] else "Select output folder", command=change_location)
+        folder_button.pack(side="right", padx=(0, 8))
         participant.trace_add("write", update)
         update()
 
