@@ -6,9 +6,9 @@
 
 ## 1. Purpose and scientific basis
 
-This protocol establishes a systematic, evidence-based framework for the preparation, verification and preservation of verbatim reference transcripts for automatic speech recognition (ASR) benchmarking. It is grounded in established speech recognition evaluation methodologies, the National Institute of Standards and Technology (NIST) scoring framework [1], and peer-reviewed research in computational linguistics and speech processing [2]–[6].
+This protocol establishes a systematic, evidence-based framework for the preparation, verification and preservation of verbatim reference transcripts for automatic speech recognition (ASR) benchmarking. It is grounded in established speech recognition evaluation methodologies, the National Institute of Standards and Technology (NIST) scoring framework [1], and peer-reviewed research in computational linguistics and speech processing [2]–[7].
 
-Reference integrity is essential because transcription corrections and scoring conventions can materially affect measured word error rate (WER) [2]. Orthographic transcription of interviews and dialectal speech requires careful human review [3]. Research on spontaneous speech and disfluency recognition further supports distinguishing speech fidelity from fluent-text transcription [4]. RedScribe employs inclusive verbatim evaluation, retaining audible verbal content rather than reconstructing the speaker's intended or grammatically corrected message.
+Reference integrity is essential because transcription corrections and scoring conventions can materially affect measured word error rate (WER) [2]. Orthographic transcription of interviews and dialectal speech requires careful human review [3]. Research on spontaneous speech and disfluency recognition further supports distinguishing speech fidelity from fluent-text transcription [4], [5]. RedScribe employs inclusive verbatim evaluation, retaining audible verbal content rather than reconstructing the speaker's intended or grammatically corrected message.
 
 The operational requirements below define RedScribe's research protocol. They are informed by the literature rather than presented as a single universal transcription convention. The protocol applies consistently to every recording and every evaluated model.
 
@@ -103,7 +103,7 @@ Human approval records the researcher's verification; it is not a guarantee of e
 
 ## 5. Scoring methodology
 
-RedScribe uses minimum-edit alignment to quantify differences between the frozen reference and ASR hypothesis, consistent with the general edit-distance approach in ASR research [1], [5]. WER and CER provide complementary word-level and character-level measures; the value of CER for multilingual evaluation has also been examined in recent research [6].
+RedScribe uses minimum-edit alignment to quantify differences between the frozen reference and ASR hypothesis, consistent with the general edit-distance approach in ASR research [1], [6]. WER and CER provide complementary word-level and character-level measures; the value of CER for multilingual evaluation has also been examined in recent research [7].
 
 ```math
 WER = \frac{S_w+D_w+I_w}{N_w}\times100\%
@@ -115,7 +115,7 @@ CER = \frac{S_c+D_c+I_c}{N_c}\times100\%
 
 Here, S, D and I denote substitutions, deletions and insertions; N is the reference length in the corresponding unit. A score of zero indicates an exact match under the specified scoring policy. Insertions can result in scores exceeding 100%. An empty reference has an undefined error rate.
 
-The current implementation uses RapidFuzz's `Levenshtein.editops` [7] with unit-cost operations:
+The current implementation uses RapidFuzz's `Levenshtein.editops` [8] with unit-cost operations:
 
 | Property | Current raw scoring implementation |
 | --- | --- |
@@ -161,10 +161,12 @@ Independent metric comparison should use matching tokenisation, preprocessing an
 
 [3] J. Gorisch and T. Schmidt, “Evaluating workflows for creating orthographic transcripts for oral corpora by transcribing from scratch or correcting ASR-output,” in *Proc. LREC-COLING*, 2024, pp. 6564–6574. [Online]. Available: https://aclanthology.org/2024.lrec-main.582/
 
-[4] A. Romana, M. Niu, M. Perez, and E. M. Provost, “FluencyBank Timestamped: An updated data set for disfluency detection and automatic intended speech recognition,” *Journal of Speech, Language, and Hearing Research*, 2024, doi: [10.1044/2024_JSLHR-24-00070](https://doi.org/10.1044/2024_JSLHR-24-00070). See also R. Amann, Z. Li, B. Bruno, and J. Niehues, “Augmenting automatic speech recognition models with disfluency detection,” in *2024 IEEE Spoken Language Technology Workshop (SLT)*, 2024, doi: [10.1109/SLT61566.2024.10832349](https://doi.org/10.1109/SLT61566.2024.10832349).
+[4] A. Romana, M. Niu, M. Perez, and E. M. Provost, “FluencyBank Timestamped: An updated data set for disfluency detection and automatic intended speech recognition,” *Journal of Speech, Language, and Hearing Research*, 2024, doi: [10.1044/2024_JSLHR-24-00070](https://doi.org/10.1044/2024_JSLHR-24-00070). 
 
-[5] K. Kuhn, V. Kersken, and G. Zimmermann, “Beyond Levenshtein: Leveraging multiple algorithms for robust word error rate computations and granular error classifications,” in *Proc. Interspeech*, 2024, doi: [10.21437/Interspeech.2024-32](https://doi.org/10.21437/Interspeech.2024-32).
+[5] R. Amann, Z. Li, B. Bruno, and J. Niehues, “Augmenting automatic speech recognition models with disfluency detection,” in *2024 IEEE Spoken Language Technology Workshop (SLT)*, 2024, doi: [10.1109/SLT61566.2024.10832349](https://doi.org/10.1109/SLT61566.2024.10832349).
 
-[6] T. D. K, J. James, D. P. Gopinath, and M. A. K, “Advocating character error rate for multilingual ASR evaluation,” in *Findings of the Association for Computational Linguistics: NAACL 2025*, 2025. [Online]. Available: https://aclanthology.org/2025.findings-naacl.277/
+[6] K. Kuhn, V. Kersken, and G. Zimmermann, “Beyond Levenshtein: Leveraging multiple algorithms for robust word error rate computations and granular error classifications,” in *Proc. Interspeech*, 2024, doi: [10.21437/Interspeech.2024-32](https://doi.org/10.21437/Interspeech.2024-32).
 
-[7] RapidFuzz, “Levenshtein distance: API documentation.” [Online]. Available: https://rapidfuzz.github.io/RapidFuzz/Usage/distance/Levenshtein.html
+[7] T. D. K, J. James, D. P. Gopinath, and M. A. K, “Advocating character error rate for multilingual ASR evaluation,” in *Findings of the Association for Computational Linguistics: NAACL 2025*, 2025. [Online]. Available: https://aclanthology.org/2025.findings-naacl.277/
+
+[8] RapidFuzz, “Levenshtein distance: API documentation.” [Online]. Available: https://rapidfuzz.github.io/RapidFuzz/Usage/distance/Levenshtein.html
