@@ -3,7 +3,7 @@ import tkinter as tk
 from tkinter import ttk,filedialog,messagebox,simpledialog
 from pathlib import Path
 
-def approve_pairs_dialog(parent,pairs):
+def approve_pairs_dialog(parent,pairs, *, prepare_experiment=None):
     from redscribe.benchmark.benchmark_dataset import approve_dataset
     rows=[]
     for audio,reference in pairs:
@@ -15,6 +15,12 @@ def approve_pairs_dialog(parent,pairs):
         rows.append({"participant_id":pid,"audio":audio,"reference_manifest":reference})
     if not messagebox.askyesno("Freeze dataset",f"Approve these {len(rows)} participant/audio/reference pairs? Confirm that all identifiers and pairings are correct.",parent=parent):
         return None
+    if prepare_experiment is not None:
+        try:
+            return prepare_experiment(rows)
+        except Exception as exc:
+            messagebox.showerror('Experiment preparation',str(exc),parent=parent)
+            return None
     path=filedialog.asksaveasfilename(parent=parent,title="Save new approved dataset manifest",defaultextension=".json",filetypes=[("JSON","*.json")],initialfile="approved_dataset.json")
     if not path:
         return None

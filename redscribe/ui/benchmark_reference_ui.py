@@ -4,18 +4,22 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, scrolledtext, ttk
 
 from benchmark_ground_truth import extract_docx, remove_speaker_labels
-from benchmark_reference import approve_reference
+from benchmark_reference import approve_reference, verify_reference
 
 
 class GroundTruthReview:
-    def __init__(self, parent, paths, on_approved=None):
+    def __init__(self, parent, paths, on_approved=None, output_dir=None, output_provider=None):
         self.parent = parent
         self.paths = tuple(paths)
         self.on_approved = on_approved
+        self.output_dir = output_dir
+        self.output_provider = output_provider
         if not self.paths:
             raise ValueError("Select a DOCX file before opening review")
         self.window = tk.Toplevel(parent)
         self.window.title("Ground Truth — Review & Freeze")
+        self.window.transient(parent)
+        self.window.grab_set()
         screen_w = self.window.winfo_screenwidth()
         screen_h = self.window.winfo_screenheight()
         self.window.geometry(f"{min(1000, int(screen_w * .85))}x{min(820, int(screen_h * .80))}")
@@ -84,11 +88,18 @@ class GroundTruthReview:
             ("speaker_labels_reviewed", "I reviewed speaker labels, headings and non-spoken metadata."),
             ("non_speech_reviewed", "I reviewed fillers, overlaps, interruptions and non-speech notes."),
         )
+        self.check_widgets = []
         for key, label in checks:
-            ttk.Checkbutton(frame, variable=self.verification[key], text=label).pack(anchor="w")
-        ttk.Checkbutton(frame, variable=self.acknowledged,
-                        text="I have reviewed this complete reference and approve this scoring text.").pack(
-            anchor="w", pady=(0, 7))
+            flag = self.verification[key]
+            check = tk.Checkbutton(frame, variable=flag, text=label, anchor="w", bg="white",
+                                   selectcolor="white", activebackground="white")
+            check.pack(fill="x")
+            self.check_widgets.append((check, flag))
+        check = tk.Checkbutton(frame, variable=self.acknowledged,
+            text="I have reviewed and approve the complete reference for scoring.",
+            anchor="w", bg="white", selectcolor="white", activebackground="white")
+        check.pack(fill="x", pady=(0, 7))
+        self.check_widgets.append((check, self.acknowledged))
         ttk.Label(frame, textvariable=self.status, wraplength=770).pack(anchor="w")
         ttk.Separator(actions, orient="horizontal").pack(fill="x", pady=(0, 9))
         toolbar = ttk.Frame(actions)
@@ -96,7 +107,14 @@ class GroundTruthReview:
         reload_button = ttk.Button(toolbar, text="Reload DOCX", command=self.reload_confirm)
         remove_button = ttk.Button(toolbar, text="Remove speaker labels", command=self.remove_labels)
         close_button = ttk.Button(toolbar, text="Close", command=self.window.destroy)
-        approve_button = ttk.Button(toolbar, text="Approve & Freeze locally", command=self.approve)
+        approve_button = tk.Button(toolbar, text="Approve & freeze reference", command=self.approve,
+                                   state="disabled", bg="#eeeeee", disabledforeground="#999999", padx=10, pady=6)
+        self.approve_button = approve_button
+        for _, flag in self.check_widgets:
+            flag.trace_add("write", self.refresh_approval)
+        self.refresh_approval()
+        self.text.bind("<<Modified>>", self.reference_edited)
+        self.text.edit_modified(False)
         buttons = (reload_button, remove_button, close_button, approve_button)
         compact = None
 
@@ -124,6 +142,22 @@ class GroundTruthReview:
         toolbar.bind("<Configure>", fit_toolbar)
         fit_toolbar()
 
+
+    def refresh_approval(self, *_):
+        for widget, flag in self.check_widgets:
+            widget.configure(fg="#247a46" if flag.get() else "#202332")
+        ready = self.current_draft is not None and all(flag.get() for _, flag in self.check_widgets)
+        self.approve_button.configure(state="normal" if ready else "disabled",
+                                      bg="#247a46" if ready else "#eeeeee", fg="white" if ready else "#999999")
+
+    def reference_edited(self, _event=None):
+        if not self.text.edit_modified():
+            return
+        self.text.edit_modified(False)
+        self.acknowledged.set(False)
+        for flag in self.verification.values():
+            flag.set(False)
+        self.refresh_approval()
 
     def remove_labels(self):
         current = self.text.get("1.0", "end-1c")
@@ -168,6 +202,8 @@ class GroundTruthReview:
             if issues else "No flagged advanced DOCX features; still verify all spoken content."
         )
         self.status.set(f"{len(self.current_draft.blocks)} text blocks extracted; not approved")
+        self.text.edit_modified(False)
+        self.refresh_approval()
 
     def approve(self):
         if self.current_draft is None:
@@ -192,28 +228,31 @@ class GroundTruthReview:
                 "Save a PRIVATE, immutable-by-convention reference text and its SHA-256 manifest? "
                 "This does not run any ASR model.", parent=self.window):
             return
-        folder = filedialog.askdirectory(parent=self.window, title="Choose PRIVATE output folder for approved references")
-        if not folder:
-            return
         try:
+            folder = self.output_dir
+            if folder is None:
+                folder = (self.output_provider() if self.output_provider is not None
+                          else filedialog.askdirectory(parent=self.window, title="Choose PRIVATE output folder for approved references"))
+            if not folder:
+                return
             manifest_path, text_path, info = approve_reference(
                 self.current_draft.source_path, text, folder, reviewer_acknowledged=True,
                 expected_source_sha256=self.current_draft.source_sha256,
                 verification=verification, label_removal_history=self.label_removal_history)
+            verify_reference(manifest_path)
+            if self.on_approved:
+                self.on_approved(self.current_draft.source_path, str(manifest_path))
         except Exception as exc:
             messagebox.showerror("Approval failed", str(exc), parent=self.window)
             return
-        self.status.set("Approved and frozen: " + Path(manifest_path).name)
-        self.acknowledged.set(False)
-        for flag in self.verification.values():
-            flag.set(False)
-        if self.on_approved:
-            self.on_approved(self.current_draft.source_path, str(manifest_path))
-        messagebox.showinfo("Reference saved",
-                            f"Scoring text: {text_path}\nManifest: {manifest_path}\n"
-                            "Keep these files private. Changing the text requires a NEW approval.",
-                            parent=self.window)
+        self.status.set("Ground truth approved and frozen")
+        if len(self.paths) == 1:
+            self.window.destroy()
+        else:
+            self.acknowledged.set(False)
+            for flag in self.verification.values():
+                flag.set(False)
 
 
-def open_ground_truth_review(parent, paths, on_approved=None):
-    return GroundTruthReview(parent, paths, on_approved=on_approved)
+def open_ground_truth_review(parent, paths, on_approved=None, output_dir=None, output_provider=None):
+    return GroundTruthReview(parent, paths, on_approved=on_approved, output_dir=output_dir, output_provider=output_provider)

@@ -70,7 +70,7 @@ def cpu_thread_budget() -> int:
 DIARIZATION_MODEL = DEFAULT_DIARIZATION_MODEL
 
 APP_VERSION = "2.0.0"
-APP_TITLE = f"RedScribe v{APP_VERSION} – Research Speech Transcription System"
+APP_TITLE = "RedScribe – Research Speech Transcription and Benchmarking System"
 TRANSCRIPTION_LANGUAGES = {"Auto detect": None, "Bahasa Melayu": "ms", "English": "en"}
 
 
@@ -1064,15 +1064,19 @@ class RedScribeApp:
                              width=5, fill=c["accent"], capstyle="round")
         brand = tk.Frame(header, bg="white")
         brand.pack(side="left")
-        tk.Label(brand, text=f"RedScribe  v{APP_VERSION}", font=(self.ui_font, 21, "bold"),
+        tk.Label(brand, text="RedScribe", font=(self.ui_font, 21, "bold"),
                  bg="white", fg=c["accent"]).pack(anchor="w")
-        tk.Label(brand, text="Research Speech Transcription System", bg="white", fg=c["muted"]).pack(anchor="w")
+        tk.Label(brand, text="Research Speech Transcription and Benchmarking System", bg="white", fg=c["muted"]).pack(anchor="w")
         ttk.Button(header, text="Settings", style="RedScribe.TButton",
                    command=self.open_token_settings).pack(side="right")
-        ttk.Button(header, text="Benchmarking Mode", style="RedScribe.TButton",
-                   command=self.open_benchmark_preview).pack(side="right", padx=(0, 8))
-        tk.Label(header, text="Audio processed locally", bg="#EDF8EE", fg="#24623B",
-                 padx=10, pady=7).pack(side="right", padx=14)
+        self.mode_button = ttk.Button(header, text="Benchmark", style="RedScribe.TButton",
+                   command=self.open_benchmark_preview)
+        self.mode_button.pack(side="right", padx=(0, 8))
+        self.active_mode = "transcription"
+        self.benchmark_window = None
+        self.mode_indicator = tk.Label(header, text="Transcription Mode", bg="#EDF8EE", fg="#24623B",
+                                       padx=10, pady=7)
+        self.mode_indicator.pack(side="right", padx=14)
 
         workspace = tk.Frame(self.root, bg=c["background"])
         workspace.grid(row=1, column=0, sticky="nsew", padx=16, pady=16)
@@ -1082,14 +1086,17 @@ class RedScribeApp:
         sidebar.grid(row=0, column=0, sticky="ns", padx=(0, 16))
         sidebar.rowconfigure(0, weight=1)
         # Scroll only the settings column: actions and transcript stay visible.
-        self.sidebar_canvas = tk.Canvas(sidebar, width=300, bg=c["background"], highlightthickness=0)
+        self.sidebar_canvas = tk.Canvas(sidebar, width=350, bg=c["background"], highlightthickness=0)
         self.sidebar_canvas.grid(row=0, column=0, sticky="ns")
         scroll = ttk.Scrollbar(sidebar, orient="vertical", command=self.sidebar_canvas.yview)
         scroll.grid(row=0, column=1, sticky="ns")
         self.sidebar_canvas.configure(yscrollcommand=scroll.set)
-        self.sidebar_content = tk.Frame(self.sidebar_canvas, bg=c["background"])
-        sidebar_window = self.sidebar_canvas.create_window((0, 0), window=self.sidebar_content, anchor="nw")
-        self.sidebar_content.bind("<Configure>", lambda _event: self.sidebar_canvas.configure(
+        self.sidebar_host = tk.Frame(self.sidebar_canvas, bg=c["background"])
+        self.sidebar_content = tk.Frame(self.sidebar_host, bg=c["background"])
+        self.sidebar_content.pack(fill="x")
+        self.benchmark_sidebar = tk.Frame(self.sidebar_host, bg=c["background"])
+        sidebar_window = self.sidebar_canvas.create_window((0, 0), window=self.sidebar_host, anchor="nw")
+        self.sidebar_host.bind("<Configure>", lambda _event: self.sidebar_canvas.configure(
             scrollregion=self.sidebar_canvas.bbox("all")))
         self.sidebar_canvas.bind("<Configure>", lambda event: self.sidebar_canvas.itemconfigure(
             sidebar_window, width=event.width))
@@ -1165,8 +1172,10 @@ class RedScribeApp:
         transcript.columnconfigure(0, weight=1)
         transcript_header = tk.Frame(transcript, bg="white", padx=18, pady=14)
         transcript_header.grid(row=0, column=0, sticky="ew")
-        tk.Label(transcript_header, text="Live transcript", bg="white", fg=c["text"], font=(self.ui_font, 19, "bold")).pack(anchor="w")
-        tk.Label(transcript_header, textvariable=self.file_summary, bg="white", fg=c["muted"], anchor="w").pack(fill="x", pady=(3, 0))
+        self.live_title = tk.Label(transcript_header, text="Live transcript", bg="white", fg=c["text"], font=(self.ui_font, 19, "bold"))
+        self.live_title.pack(anchor="w")
+        self.live_subtitle = tk.Label(transcript_header, textvariable=self.file_summary, bg="white", fg=c["muted"], anchor="w")
+        self.live_subtitle.pack(fill="x", pady=(3, 0))
         self.diarization_activity = tk.StringVar(value="")
         self.diarization_timer = None
         self.diarization_started = None
@@ -1202,6 +1211,8 @@ class RedScribeApp:
         self.progress.grid(row=1, column=0, sticky="ew", padx=(0, 18))
         controls = tk.Frame(bottom, bg="white")
         controls.grid(row=1, column=1, sticky="e")
+        self.transcription_controls = controls
+        self.benchmark_controls = tk.Frame(bottom, bg="white")
         self.open_btn = ttk.Button(controls, text="Open output folder", command=self.open_output_folder, style="RedScribe.TButton")
         self.open_btn.pack(side="left", padx=(0, 8))
         self.stop_btn = ttk.Button(controls, text="Stop", command=self.stop, state="disabled", style="Stop.RedScribe.TButton")
@@ -1210,16 +1221,178 @@ class RedScribeApp:
         self.start_btn.pack(side="left")
         footer = tk.Frame(bottom, bg="white")
         footer.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(10, 0))
-        support = tk.Label(footer, text="RedScribe | CRDV2026W02110 | Authors & support", bg="white", fg=c["muted"],
+        tk.Label(footer, text="RedScribe©", bg="white", fg=c["accent"], font=(self.ui_font, 9, "bold")).pack(side="left")
+        tk.Label(footer, text=" | Faculty of Pharmacy, UiTM |", bg="white", fg=c["muted"], font=(self.ui_font, 9)).pack(side="left")
+        support = tk.Label(footer, text="Authors & support", bg="white", fg=c["muted"],
                            font=(self.ui_font, 9), cursor="hand2")
         support.pack(side="left")
         support.bind("<Button-1>", self.show_support)
         tk.Label(footer, text="Automated draft - verify against the recording", bg="white", fg=c["muted"], font=(self.ui_font, 9)).pack(side="right")
 
     def open_benchmark_preview(self):
-        """Open an isolated benchmark UI without changing transcription state."""
-        from benchmark_ui import open_benchmark_window
-        open_benchmark_window(self.root)
+        """Switch the existing workspace; never launch a second main window."""
+        from redscribe.ui.operation_guard import operation_active
+        if operation_active() or self.run_phase != "idle" or (
+            self.benchmark_window is not None and self.benchmark_window.active_run):
+            messagebox.showwarning("Operation active", "Stop and finish the current operation before switching mode.", parent=self.root)
+            return
+        if self.active_mode == "transcription":
+            if self.benchmark_window is None:
+                from benchmark_ui import open_benchmark_window
+                self.benchmark_window = open_benchmark_window(self.root, on_live=self.benchmark_live_event,
+                    sidebar=self.benchmark_sidebar, controls=self.benchmark_controls)
+                self.benchmark_window.pilot_status.trace_add("write", self.update_benchmark_status)
+            self.transcription_view = (self.live_box.dump("1.0", "end-1c", text=True, tag=True),
+                                       self.status.get(), self.progress_var.get())
+            self.sidebar_content.pack_forget()
+            self.transcription_controls.grid_remove()
+            self.benchmark_sidebar.pack(fill="x")
+            self.benchmark_controls.grid(row=1, column=1, sticky="e")
+            self.active_mode = "benchmark"
+            self.mode_indicator.configure(text="Benchmark Mode")
+            self.mode_button.configure(text="Transcription")
+            self.live_title.configure(text="Live Benchmark Monitor")
+            self.live_subtitle.configure(textvariable=self.benchmark_window.audio_summary)
+            self.restore_workspace_view(getattr(self, "benchmark_view", None),
+                "Select one audio and DOCX, review ground truth and configuration, then start benchmark.")
+        else:
+            self.benchmark_view = (self.live_box.dump("1.0", "end-1c", text=True, tag=True),
+                                   self.status.get(), self.progress_var.get())
+            self.benchmark_sidebar.pack_forget()
+            self.benchmark_controls.grid_remove()
+            self.sidebar_content.pack(fill="x")
+            self.transcription_controls.grid()
+            self.active_mode = "transcription"
+            self.mode_indicator.configure(text="Transcription Mode")
+            self.mode_button.configure(text="Benchmark")
+            self.live_title.configure(text="Live transcript")
+            self.live_subtitle.configure(textvariable=self.file_summary)
+            self.restore_workspace_view(self.transcription_view, "")
+        self.sidebar_canvas.yview_moveto(0)
+
+    def update_benchmark_status(self, *_):
+        if self.active_mode == "benchmark":
+            self.status.set(self.benchmark_window.pilot_status.get())
+
+    def restore_workspace_view(self, saved, placeholder):
+        self.live_box.configure(state="normal")
+        self.live_box.delete("1.0", "end")
+        if saved is None:
+            self.live_box.insert("end", placeholder, ("info",))
+            self.status.set("Ready")
+            self.progress_var.set(0)
+        else:
+            entries, status, progress = saved
+            tags = set()
+            for kind, value, index in entries:
+                if kind == "tagon":
+                    tags.add(value)
+                elif kind == "tagoff":
+                    tags.discard(value)
+                elif kind == "text":
+                    self.live_box.insert("end", value, tuple(tags))
+            self.status.set(status)
+            self.progress_var.set(progress)
+        self.live_box.see("end")
+        self.live_box.configure(state="disabled")
+
+    def benchmark_live_event(self, kind, model, participant, data):
+        """Main-thread-only, numeric/status benchmark display; never copies raw transcripts."""
+        from datetime import datetime
+        from model_options import ASR_MODEL_LABELS
+        label = ASR_MODEL_LABELS.get(model, model or "Benchmark")
+        if kind == "begin":
+            self.live_title.configure(text="Live Benchmark Monitor")
+            self.live_box.configure(state="normal")
+            self.live_box.delete("1.0", "end")
+            self.live_box.configure(state="disabled")
+            self.benchmark_states = {m: "pending" for m in data["models"]}
+            self.benchmark_results = {}
+            self.benchmark_log = []
+            self.benchmark_outcome = None
+            self.mode_button.configure(state="disabled")
+            self.start_btn.configure(state="disabled")
+            self.progress_var.set(0)
+            self.status.set("Benchmark running")
+            self.benchmark_log.append("Full-length benchmark | " + str(len(data["models"])) + " models")
+        elif kind == "finished":
+            self.mode_button.configure(state="normal")
+            self.start_btn.configure(state="normal")
+            return
+        else:
+            if not hasattr(self, "benchmark_states"):
+                return
+            stamp = datetime.now().strftime("%H:%M:%S")
+            line = None
+            if kind == "status":
+                if model in self.benchmark_states and data in ("pending", "loading", "running", "completed", "failed", "not_run", "cancelled"):
+                    self.benchmark_states[model] = data
+                    if data in ("failed", "not_run", "cancelled"):
+                        self.benchmark_results.pop(model, None)
+                line = f"{label}: {data}"
+            elif kind == "reference":
+                line = (f"Ground truth verified | audio {data['audio_seconds']:.2f} s | "
+                        f"{data['reference_words']:,} words | {data['reference_characters']:,} characters")
+            elif kind == "result":
+                if data.get("status") == "completed":
+                    self.benchmark_results[model] = data
+                    def percent(k):
+                        v = data.get(k)
+                        return "N/A" if v is None else f"{100*v:.2f}%"
+                    def number(k, suffix=""):
+                        v = data.get(k)
+                        return "N/A" if v is None else f"{v:,.2f}{suffix}"
+                    def counts(prefix, ref):
+                        n = data.get(ref)
+                        d = data.get(prefix + "_deletions")
+                        i = data.get(prefix + "_insertions")
+                        return "N/A" if None in (n,d,i) else f"{n-d+i:,}"
+                    resources = data.get("resources") or {}
+                    def resource(k, suffix):
+                        v = resources.get(k)
+                        return "N/A" if v is None else f"{v:,.2f}{suffix}"
+                    line = (f"{label} — checkpoint saved\n"
+                            f"  WER {percent('wer')} | CER {percent('cer')}\n"
+                            f"  Reference words {data.get('reference_words')} | ASR words {counts('word','reference_words')}\n"
+                            f"  Reference characters {data.get('reference_characters')} | ASR characters {counts('char','reference_characters')}\n"
+                            f"  Word S/D/I: {data.get('word_substitutions')}/{data.get('word_deletions')}/{data.get('word_insertions')}\n"
+                            f"  Character S/D/I: {data.get('char_substitutions')}/{data.get('char_deletions')}/{data.get('char_insertions')}\n"
+                            f"  Loading {number('session_loading_seconds',' s')} | Inference {number('inference_seconds',' s')} | RTF {number('rtf')}\n"
+                            f"  Device {data.get('device')} | Precision {data.get('precision')}\n"
+                            f"  Peak VRAM {resource('gpu_memory_used_mb_peak',' MB')} | Peak RAM {resource('ram_used_mb_peak',' MB')}")
+                else:
+                    line = f"{label}: {data.get('status')} ({data.get('stage') or 'unknown stage'})"
+            elif kind == "published":
+                for m, statuses in data["statuses"].items():
+                    if m in self.benchmark_states:
+                        self.benchmark_states[m] = statuses[0] if statuses else ("not_run" if data["stopped"] else "not_run")
+                done = sum(v == "completed" for v in self.benchmark_states.values())
+                total = len(self.benchmark_states)
+                self.benchmark_outcome = "Stopped" if data["stopped"] else ("Completed" if done == total else "Finished with incomplete results")
+                line = (f"{self.benchmark_outcome}: {done}/{total} models completed\n"
+                        "Scientific PDF, Excel and supporting material published; publication integrity verified.\n"
+                        "Sensitive data remains private. Folder segregation is not encryption.")
+            elif kind == "error":
+                self.benchmark_outcome = "Benchmark failed"
+                line = "Benchmark failed: " + str(data)
+            if line:
+                self.benchmark_log.append(f"[{stamp}] {line}")
+        states = self.benchmark_states
+        total = len(states)
+        completed = sum(v == "completed" for v in states.values())
+        resolved = sum(v in ("completed","failed","not_run","cancelled") for v in states.values())
+        percent = 100 * resolved / total if total else 0
+        self.progress_var.set(percent)
+        self.status.set(self.benchmark_outcome or f"Benchmark: {completed}/{total} completed | {resolved}/{total} resolved ({percent:.1f}%)")
+        self.live_box.configure(state="normal")
+        self.live_box.delete("1.0", "end")
+        self.live_box.insert("end", f"MODEL STATUS — {completed}/{total} completed\n", ("info",))
+        for m, state in states.items():
+            tag = "warn" if state in ("failed","cancelled","not_run") else "info"
+            self.live_box.insert("end", f"{ASR_MODEL_LABELS.get(m,m)} — {state.upper()}\n", (tag,))
+        self.live_box.insert("end", "\nLIVE ACTIVITY\n" + "\n\n".join(self.benchmark_log) + "\n", ("txt",))
+        self.live_box.see("end")
+        self.live_box.configure(state="disabled")
 
     def toggle_study_details(self):
         self.study_details_open = not self.study_details_open
@@ -1232,7 +1405,7 @@ class RedScribeApp:
     def scroll_sidebar(self, event):
         if not str(event.widget).startswith(str(self.sidebar_canvas)):
             return
-        if self.sidebar_content.winfo_height() <= self.sidebar_canvas.winfo_height():
+        if self.sidebar_host.winfo_height() <= self.sidebar_canvas.winfo_height():
             return
         if getattr(event, "num", None) in (4, 5):
             units = -1 if event.num == 4 else 1
@@ -1376,15 +1549,22 @@ class RedScribeApp:
         messagebox.showinfo(
             "About RedScribe",
             f"RedScribe v{APP_VERSION}\n"
-            "Research Speech Transcription System\n\n"
+            "Research Speech Transcription and Benchmarking System\n\n"
             "Authors:\n"
             "Mad Sapri bin Tumiran\n"
             "Mohd Shahezwan bin Abd Wahab\n"
             "Janattul Ain binti Jamal\n"
             "Nursyuhadah binti Othman\n\n"
+            "Institutional affiliation:\n"
+            "Faculty of Pharmacy, Universiti Teknologi MARA (UiTM)\n"
+            "Level 11, FF1 Building, UiTM Selangor, Puncak Alam Campus\n"
+            "42300 Bandar Puncak Alam, Selangor, Malaysia\n\n"
             "Malaysia copyright notification: CRDV2026W02110\n\n"
             "Support:\n"
-            "saprimad@moh.gov.my"
+            "saprimad@moh.gov.my\n\n"
+            "https://github.com/saprimad/redscribe\n"
+            "https://doi.org/10.5281/zenodo.22941754\n"
+            "https://pharmacy.uitm.edu.my/", parent=self.root
         )
 
     def open_token_settings(self):
@@ -1674,6 +1854,7 @@ class RedScribeApp:
         with self.run_lock:
             self.run_phase = "idle"
         self.start_btn.config(state="normal")
+        self.mode_button.configure(state="normal")
         self.stop_btn.config(state="disabled")
         if cancelled:
             self.progress_var.set(0.0)
@@ -1699,6 +1880,13 @@ class RedScribeApp:
         self.root.destroy()
 
     def start(self):
+        if self.active_mode != "transcription":
+            return
+        from redscribe.ui.operation_guard import operation_active
+        if operation_active():
+            messagebox.showwarning("Operation active", "Wait for the active operation to finish.")
+            return
+        self.live_title.configure(text="Live transcript")
         inputs = {
             "audio_path": self.audio_path.get().strip(),
             "project": self.project.get().strip(),
@@ -1749,6 +1937,7 @@ class RedScribeApp:
         self.progress_var.set(0.0)
         self.status.set("Checking model requirements before starting...")
         self.start_btn.config(state="disabled")
+        self.mode_button.configure(state="disabled")
         self.stop_btn.config(state="normal")
 
         from redscribe.ui.operation_guard import start_exclusive

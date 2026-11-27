@@ -85,7 +85,7 @@ def generate_pdf(directory, *, data=None, metadata=None):
     ids={r.get("participant_id") for r in rows}
     import re
     safe_ids=sorted(str(i) for i in ids if isinstance(i,str) and re.fullmatch(r"(?:P|R)[0-9]{1,6}",i))
-    scope=("Individual recording — "+(safe_ids[0] if len(safe_ids)==1 else "restricted ID")) if len(ids)==1 else f"Multi-recording corpus — {len(ids)} recordings"
+    scope=("Recording ID: "+(safe_ids[0] if len(safe_ids)==1 else "restricted ID")) if len(ids)==1 else f"Multi-recording corpus — {len(ids)} recordings"
     common.sort(key=lambda r: (_number(r.get("corpus_wer")) is None, _number(r.get("corpus_wer")) or Decimal(0)))
     order={r["model_key"]:i for i,r in enumerate(common)}
     attempted.sort(key=lambda r:order.get(r["model_key"],len(order)))
@@ -121,12 +121,12 @@ def generate_pdf(directory, *, data=None, metadata=None):
                 nonlocal page
                 page+=1
                 fig=Figure(figsize=(8.27,11.69),facecolor="white")
-                fig.text(.075,.965,"RedScribe",fontsize=17,color=RED,weight="bold")
-                fig.text(.925,.967,"SCIENTIFIC BENCHMARK  /  V4.1",ha="right",fontsize=8,color=GREY)
+                fig.text(.075,.965,"RedScribe©",fontsize=17,color=RED,weight="bold")
+                fig.text(.925,.967,"SCIENTIFIC BENCHMARK REPORT",ha="right",fontsize=8,color=GREY)
                 fig.add_artist(Line2D([.075,.925],[.947,.947],transform=fig.transFigure,color=NAVY,lw=1))
                 fig.text(.075,.92,kicker.upper(),fontsize=9,color=GREY,weight="bold")
                 fig.text(.075,.886,title,fontsize=20,color=NAVY,weight="bold")
-                fig.text(.075,.035,"RedScribe  |  Derived local research report",fontsize=8,color=GREY)
+                fig.text(.075,.035,"Faculty of Pharmacy, Universiti Teknologi MARA (UiTM)",fontsize=8,color=GREY)
                 fig.text(.925,.035,f"{page:02d} / 08",ha="right",fontsize=9,color=GREY)
                 fig.text(.925,.929,scope,ha="right",fontsize=8,color=GREY)
                 return fig
