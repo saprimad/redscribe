@@ -1165,7 +1165,8 @@ class RedScribeApp:
         transcript.columnconfigure(0, weight=1)
         transcript_header = tk.Frame(transcript, bg="white", padx=18, pady=14)
         transcript_header.grid(row=0, column=0, sticky="ew")
-        tk.Label(transcript_header, text="Live transcript", bg="white", fg=c["text"], font=(self.ui_font, 19, "bold")).pack(anchor="w")
+        self.live_title = tk.Label(transcript_header, text="Live transcript", bg="white", fg=c["text"], font=(self.ui_font, 19, "bold"))
+        self.live_title.pack(anchor="w")
         tk.Label(transcript_header, textvariable=self.file_summary, bg="white", fg=c["muted"], anchor="w").pack(fill="x", pady=(3, 0))
         self.diarization_activity = tk.StringVar(value="")
         self.diarization_timer = None
@@ -1219,7 +1220,103 @@ class RedScribeApp:
     def open_benchmark_preview(self):
         """Open an isolated benchmark UI without changing transcription state."""
         from benchmark_ui import open_benchmark_window
-        open_benchmark_window(self.root)
+        self.benchmark_window = open_benchmark_window(self.root, on_live=self.benchmark_live_event)
+
+    def benchmark_live_event(self, kind, model, participant, data):
+        """Main-thread-only, numeric/status benchmark display; never copies raw transcripts."""
+        from datetime import datetime
+        from model_options import ASR_MODEL_LABELS
+        label = ASR_MODEL_LABELS.get(model, model or "Benchmark")
+        if kind == "begin":
+            self.live_title.configure(text="Live Benchmark Monitor")
+            self.live_box.configure(state="normal")
+            self.live_box.delete("1.0", "end")
+            self.live_box.configure(state="disabled")
+            self.benchmark_states = {m: "pending" for m in data["models"]}
+            self.benchmark_results = {}
+            self.benchmark_log = []
+            self.benchmark_outcome = None
+            self.start_btn.configure(state="disabled")
+            self.progress_var.set(0)
+            self.status.set("Benchmark running")
+            self.benchmark_log.append("Full-length benchmark | " + str(len(data["models"])) + " models")
+        elif kind == "finished":
+            self.start_btn.configure(state="normal")
+            return
+        else:
+            if not hasattr(self, "benchmark_states"):
+                return
+            stamp = datetime.now().strftime("%H:%M:%S")
+            line = None
+            if kind == "status":
+                if model in self.benchmark_states and data in ("pending", "loading", "running", "completed", "failed", "not_run", "cancelled"):
+                    self.benchmark_states[model] = data
+                    if data in ("failed", "not_run", "cancelled"):
+                        self.benchmark_results.pop(model, None)
+                line = f"{label}: {data}"
+            elif kind == "reference":
+                line = (f"Ground truth verified | audio {data['audio_seconds']:.2f} s | "
+                        f"{data['reference_words']:,} words | {data['reference_characters']:,} characters")
+            elif kind == "result":
+                if data.get("status") == "completed":
+                    self.benchmark_results[model] = data
+                    def percent(k):
+                        v = data.get(k)
+                        return "N/A" if v is None else f"{100*v:.2f}%"
+                    def number(k, suffix=""):
+                        v = data.get(k)
+                        return "N/A" if v is None else f"{v:,.2f}{suffix}"
+                    def counts(prefix, ref):
+                        n = data.get(ref)
+                        d = data.get(prefix + "_deletions")
+                        i = data.get(prefix + "_insertions")
+                        return "N/A" if None in (n,d,i) else f"{n-d+i:,}"
+                    resources = data.get("resources") or {}
+                    def resource(k, suffix):
+                        v = resources.get(k)
+                        return "N/A" if v is None else f"{v:,.2f}{suffix}"
+                    line = (f"{label} — checkpoint saved\n"
+                            f"  WER {percent('wer')} | CER {percent('cer')}\n"
+                            f"  Reference words {data.get('reference_words')} | ASR words {counts('word','reference_words')}\n"
+                            f"  Reference characters {data.get('reference_characters')} | ASR characters {counts('char','reference_characters')}\n"
+                            f"  Word S/D/I: {data.get('word_substitutions')}/{data.get('word_deletions')}/{data.get('word_insertions')}\n"
+                            f"  Character S/D/I: {data.get('char_substitutions')}/{data.get('char_deletions')}/{data.get('char_insertions')}\n"
+                            f"  Loading {number('session_loading_seconds',' s')} | Inference {number('inference_seconds',' s')} | RTF {number('rtf')}\n"
+                            f"  Device {data.get('device')} | Precision {data.get('precision')}\n"
+                            f"  Peak VRAM {resource('gpu_memory_used_mb_peak',' MB')} | Peak RAM {resource('ram_used_mb_peak',' MB')}")
+                else:
+                    line = f"{label}: {data.get('status')} ({data.get('stage') or 'unknown stage'})"
+            elif kind == "published":
+                for m, statuses in data["statuses"].items():
+                    if m in self.benchmark_states:
+                        self.benchmark_states[m] = statuses[0] if statuses else ("not_run" if data["stopped"] else "not_run")
+                done = sum(v == "completed" for v in self.benchmark_states.values())
+                total = len(self.benchmark_states)
+                self.benchmark_outcome = "Stopped" if data["stopped"] else ("Completed" if done == total else "Finished with incomplete results")
+                line = (f"{self.benchmark_outcome}: {done}/{total} models completed\n"
+                        "Scientific PDF, Excel and supporting material published; publication integrity verified.\n"
+                        "Sensitive data remains private. Folder segregation is not encryption.")
+            elif kind == "error":
+                self.benchmark_outcome = "Benchmark failed"
+                line = "Benchmark failed: " + str(data)
+            if line:
+                self.benchmark_log.append(f"[{stamp}] {line}")
+        states = self.benchmark_states
+        total = len(states)
+        completed = sum(v == "completed" for v in states.values())
+        resolved = sum(v in ("completed","failed","not_run","cancelled") for v in states.values())
+        percent = 100 * resolved / total if total else 0
+        self.progress_var.set(percent)
+        self.status.set(self.benchmark_outcome or f"Benchmark: {completed}/{total} completed | {resolved}/{total} resolved ({percent:.1f}%)")
+        self.live_box.configure(state="normal")
+        self.live_box.delete("1.0", "end")
+        self.live_box.insert("end", f"MODEL STATUS — {completed}/{total} completed\n", ("info",))
+        for m, state in states.items():
+            tag = "warn" if state in ("failed","cancelled","not_run") else "info"
+            self.live_box.insert("end", f"{ASR_MODEL_LABELS.get(m,m)} — {state.upper()}\n", (tag,))
+        self.live_box.insert("end", "\nLIVE ACTIVITY\n" + "\n\n".join(self.benchmark_log) + "\n", ("txt",))
+        self.live_box.see("end")
+        self.live_box.configure(state="disabled")
 
     def toggle_study_details(self):
         self.study_details_open = not self.study_details_open
@@ -1699,6 +1796,11 @@ class RedScribeApp:
         self.root.destroy()
 
     def start(self):
+        from redscribe.ui.operation_guard import operation_active
+        if operation_active():
+            messagebox.showwarning("Operation active", "Wait for the active operation to finish.")
+            return
+        self.live_title.configure(text="Live transcript")
         inputs = {
             "audio_path": self.audio_path.get().strip(),
             "project": self.project.get().strip(),
