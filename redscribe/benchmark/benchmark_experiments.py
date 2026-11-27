@@ -37,7 +37,7 @@ def reference_cache(master):
     path.mkdir(exist_ok=True)
     return path
 
-def new_experiment(master, rows, models, language, monitor, *, researcher_acknowledged=False):
+def new_experiment(master, rows, models, language, monitor, *, researcher_acknowledged=False, configuration_confirmation=None):
     if not researcher_acknowledged:
         raise ValueError("Explicit pairing approval required")
     models = ordered_selection(models)
@@ -70,6 +70,8 @@ def new_experiment(master, rows, models, language, monitor, *, researcher_acknow
     manifest = private / "approved_dataset.json"
     approve_dataset(copied, manifest, researcher_acknowledged=True, expected_count=len(rows))
     config = {"models": list(models), "language": language, "monitor": bool(monitor)}
+    if configuration_confirmation is not None:
+        config["configuration_confirmation"] = configuration_confirmation
     with (private / "experiment.json").open("x", encoding="utf-8") as stream:
         json.dump(config, stream, indent=2)
     return root, manifest
