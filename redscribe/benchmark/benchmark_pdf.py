@@ -126,7 +126,7 @@ def generate_pdf(directory, *, data=None, metadata=None):
                 fig.add_artist(Line2D([.075,.925],[.947,.947],transform=fig.transFigure,color=NAVY,lw=1))
                 fig.text(.075,.92,kicker.upper(),fontsize=9,color=GREY,weight="bold")
                 fig.text(.075,.886,title,fontsize=20,color=NAVY,weight="bold")
-                fig.text(.075,.035,"RedScribe  |  Derived local research report",fontsize=8,color=GREY)
+                fig.text(.075,.035,"RedScribe  |  Faculty of Pharmacy, UiTM",fontsize=8,color=GREY)
                 fig.text(.925,.035,f"{page:02d} / 08",ha="right",fontsize=9,color=GREY)
                 fig.text(.925,.929,scope,ha="right",fontsize=8,color=GREY)
                 return fig
