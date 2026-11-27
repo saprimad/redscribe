@@ -1,0 +1,44 @@
+name: Software and scientific documentation validation
+on:
+  pull_request:
+    branches: [main, redscribe-benchmark-timeline]
+  push:
+    branches: [main, redscribe-benchmark-timeline]
+  workflow_dispatch:
+permissions:
+  contents: read
+env:
+  PYTHONUTF8: "1"
+  MPLBACKEND: Agg
+jobs:
+  regression:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python -m pip install python-docx -r requirements-benchmark.txt
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y xvfb xauth
+      - name: Linux desktop and full regression
+        if: runner.os == 'Linux'
+        run: |
+          xvfb-run -a python scripts/validate_regression.py --pattern test_desktop_layout.py
+          xvfb-run -a python scripts/validate_regression.py
+      - name: Windows desktop and full regression
+        if: runner.os == 'Windows'
+        run: python scripts/validate_regression.py
+  scientific-documentation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python scripts/validate_scientific_docs.py

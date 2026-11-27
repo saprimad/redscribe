@@ -10,7 +10,7 @@ import tempfile
 import threading
 from types import SimpleNamespace
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 try:
     import tkinter as tk
@@ -26,7 +26,7 @@ from download_progress import progress_text
 from diarization_options import DIARIZATION_MODELS, DEFAULT_DIARIZATION_CHOICE, describe_diarization
 
 
-@unittest.skipUnless(tk is not None and os.environ.get("DISPLAY"), "A Tk display is required")
+@unittest.skipUnless(tk is not None, "Tkinter is required")
 class DesktopLayoutTests(unittest.TestCase):
     def setUp(self):
         try:
@@ -99,6 +99,19 @@ class DesktopLayoutTests(unittest.TestCase):
         self.root.update()
         self.assertEqual(self.app.project.get(), "Example study")
 
+    def test_mode_switch_restores_transcription_view(self):
+        self.app.log_info("Previous transcription")
+        self.app.mode_button.invoke()
+        self.root.update()
+        self.assertEqual(self.app.active_mode, "benchmark")
+        self.assertTrue(self.app.benchmark_controls.winfo_ismapped())
+        self.assertFalse(self.app.transcription_controls.winfo_ismapped())
+        self.app.mode_button.invoke()
+        self.root.update()
+        self.assertEqual(self.app.active_mode, "transcription")
+        self.assertTrue(self.app.transcription_controls.winfo_ismapped())
+        self.assertIn("Previous transcription", self.app.live_box.get("1.0", "end"))
+
     def test_small_window_keeps_transcript_and_actions_visible(self):
         self.root.geometry("900x600")
         self.root.update()
@@ -161,8 +174,11 @@ class DesktopLayoutTests(unittest.TestCase):
             self.app.audio_path.set(audio.name)
             self.app.project.set("Example project")
             self.app.speaker_count.set("2")
-            self.app.start()
-        inputs = self.ns["threading"].Thread.call_args.kwargs["args"][0]
+            with patch("redscribe.ui.operation_guard.start_exclusive") as launch:
+                self.app.start()
+            launch.assert_called_once()
+            target, (inputs,) = launch.call_args.args
+            self.assertEqual(target, self.app.run_whisper)
         self.assertEqual(inputs["hf_token"], "example-test-only")
         self.assertEqual(inputs["speaker_count"], "2")
         self.assertEqual(inputs["project"], "Example project")

@@ -37,3 +37,7 @@ No full checkout, complete tree enumeration, execution of repository tests or lo
 ## Follow-up on the checked-out development branch
 
 The earlier audit boundaries above describe the original review. The follow-up used the complete tree at d2ab724, reopened both public sample files, verified byte digests, and executed benchmark and full regression discovery. D01–D04 are addressed in current navigation and diagrams. D08 and D09 remain restricted-evidence and governance gates. For D10 see the citation-by-citation register. D16 concerns generated chart assets; PDF inclusion and export generation have distinct conditions. See the [integrated review](RELEASE_READINESS.md), [numerical verification](STATISTICS.md), [citation register](REFERENCES.md) and [current figures](figures/README.md). Historical validation documents remain dated evidence.
+
+## PR #29 corrective audit
+
+The original fixture audit predates guarded worker launch. A real Tk handoff check now intercepts the production launch boundary and inspects its target and arguments. A separate round-trip check exercises both workspace modes. The model setup guide now points candidate testing to an immutable checkout. See [current regression evidence](RELEASE_READINESS.md).

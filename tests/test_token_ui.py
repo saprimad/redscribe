@@ -39,6 +39,9 @@ class TokenUITests(unittest.TestCase):
                 value.reset_mock(return_value=True, side_effect=True)
         self.app = namespace["RedScribeApp"].__new__(namespace["RedScribeApp"])
         self.app.ui_font = "Segoe UI"
+        self.app.active_mode = "transcription"
+        self.app.mode_button = Mock()
+        self.app.live_title = Mock()
         self.app.diarization_choice = Value(DEFAULT_DIARIZATION_CHOICE)
         self.app.hf_token = Value("hf_example_only")
         self.app.token_status = Value()
@@ -157,12 +160,16 @@ class TokenUITests(unittest.TestCase):
                     setattr(self.app, name, Value(value))
                 for name in ("live_box", "progress_var", "status", "start_btn", "stop_btn", "stop_event"):
                     setattr(self.app, name, Mock())
+                self.app.mode_button.reset_mock()
+                self.app.live_title.reset_mock()
                 self.app.run_lock = threading.Lock()
                 self.app.run_phase = "idle"
                 namespace["os"].path.isfile.return_value = True
                 with patch("redscribe.ui.operation_guard.start_exclusive", return_value=Mock()) as launch:
                     self.app.start()
                     launch.assert_called_once()
+                    self.app.mode_button.configure.assert_called_once_with(state="disabled")
+                    self.app.live_title.configure.assert_called_once_with(text="Live transcript")
                     target, args = launch.call_args.args
                     self.assertEqual(target, self.app.run_whisper)
                     inputs = args[0]

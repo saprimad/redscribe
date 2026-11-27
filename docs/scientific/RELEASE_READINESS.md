@@ -1,6 +1,21 @@
 # Consolidated scientific review and readiness assessment
 
-## Decision at the feature freeze
+## Current corrective validation
+
+The full Linux suite on an isolated checkout of 5da7f53 ran 228 tests with zero failures, errors or skips. All nine real Tk cases ran, including the added switch from transcription to benchmarking and back. The test launcher fails on an empty discovery or any skip. The ten completion tests and eleven token UI tests also passed independently. Additional targeted modules passed for operation exclusion (1), session lifecycle (2), reference handling (10), fast scoring (3), resume (1), publication (1), ground-truth integrity (3), export integrity (1) and matrix checkpoint persistence (1). These are subsets of discovery. Cancellation, model cleanup and completion are covered by the same suite. The 175-cell stress fixture uses injected sessions and synthetic inputs.
+
+An exploratory run during a changing checkout rejected a resume identity. The benchmark records Git revision and worktree state in the checkpoint identity. The clean detached rerun passed with the guard intact. All six published synthetic WER/CER examples retained the expected word and character edit distances. Rechecking the two archived sample hashes ties this review to the numerical record already on file. The workflow checks paths, numbered claims and citations, model labels, vector sources, captions and sample digests. Bibliographic interpretation and empirical validity still depend on the documented evidence.
+
+| Decision | Current disposition |
+|---|---|
+| A. Documentation | Suitable for supervisory review. The previous numerical, licensing and citation qualifications continue to apply. |
+| B. Software | QA-01, QA-02 and the automated display portion of QA-03 pass on Linux and Windows. The target machine must complete the [Windows GPU acceptance procedure](../validation/WINDOWS_GPU_ACCEPTANCE.md). Withhold main integration and release until physical acceptance is recorded. |
+| C. Empirical research | The authorised custodian must resolve G1–G5, including permission, effective model identities, coverage and repeatability, before the official experiment. The 25 recordings are unnecessary for fixture closure. |
+| D. Publication | Evidence supports describing the P1 pilot. Comparative publication requires the authorised full study, completed analysis and independent review. |
+
+On candidate 5da7f53 the [cross-platform full regression and documentation jobs](https://github.com/saprimad/redscribe/actions/runs/46078097846) passed. Windows and Ubuntu each executed 228 tests with zero failures, errors and skips, including nine Tk tests. Ubuntu also executed the isolated nine-test GUI job step. The [benchmark regression](https://github.com/saprimad/redscribe/actions/runs/46078098039) passed 107 tests per OS. The [clean dependency workflow](https://github.com/saprimad/redscribe/actions/runs/46078097796) exercises the declared base and benchmark libraries with CPU PyTorch. Optional adapter CUDA imports and native inference require the workstation.
+
+## Historical decision at the documentation freeze (02a7f83)
 
 | Decision | Satisfied criteria and evidence | Blocking evidence and next action | Conclusion |
 |---|---|---|---|
@@ -9,7 +24,7 @@
 | Empirical research | Reference preparation, model selection, paired comparisons and the timing boundary are documented. | Researcher must resolve [gates G1–G5](INTEGRITY.md), including authorisation, actual audio coverage and same-version repeatability, and approve the prospective analysis. | Hold the formal 25-recording comparison. |
 | Publication | Public sample arithmetic is reproducible. A single recording illustrates feasibility. | The complete eligible cohort, frozen analysis, private provenance, rights review and independent expert scrutiny remain outstanding. | Evidence supports a pilot description only. A comparative performance claim across interviews is premature. |
 
-## Regression and documentation QA
+## Historical regression and documentation QA (02a7f83)
 
 Local platform was Linux, Python 3.12.14. A disposable environment supplied the repository-pinned RapidFuzz 3.14.3 and JiWER 4.0.0. An initial broad run without them produced dependency errors and was superseded. The second run of the workflow's benchmark discovery command passed **107 tests**. Full discovery ran **227 tests**, reported **14 errors** and skipped **8** Tk display tests. Errors include subtest outcomes. These are local observations. The synthetic workflow uses Python 3.11 and filters documentation-only pushes. No fresh Windows or CUDA result is asserted.
 
