@@ -1069,7 +1069,7 @@ class RedScribeApp:
         tk.Label(brand, text="Research Speech Transcription System", bg="white", fg=c["muted"]).pack(anchor="w")
         ttk.Button(header, text="Settings", style="RedScribe.TButton",
                    command=self.open_token_settings).pack(side="right")
-        ttk.Button(header, text="Benchmarking Mode", style="RedScribe.TButton",
+        ttk.Button(header, text="Benchmark", style="RedScribe.TButton",
                    command=self.open_benchmark_preview).pack(side="right", padx=(0, 8))
         tk.Label(header, text="Audio processed locally", bg="#EDF8EE", fg="#24623B",
                  padx=10, pady=7).pack(side="right", padx=14)
