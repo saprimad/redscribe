@@ -2,6 +2,7 @@
 
 This index organises the experimental benchmark documentation without duplicating or relocating canonical records.
 
+- [User Guide and Demonstration](user-guide/README.md)
 - [Research](research/README.md)
 - [Linguistics](linguistics/README.md)
 - [Architecture](architecture/README.md)
