@@ -51,6 +51,7 @@ class CompletionTests(unittest.TestCase):
         self.app.base_output_dir = self.temp.name
         for attr in ('start_btn', 'stop_btn', 'status', 'progress_var', 'begin_model_activity',
                      'update_diarization_activity', 'end_diarization_activity', 'log_info',
+                     'mode_button',
                      'log_warning', 'log_live_segment'):
             setattr(self.app, attr, Mock())
         self.inputs = dict(audio_path='clip.wav', project='test', researcher='test', label='clip',
@@ -72,11 +73,13 @@ class CompletionTests(unittest.TestCase):
         def popup(*args):
             self.assertEqual(self.app.run_phase, 'idle')
             self.app.start_btn.config.assert_called_once_with(state='normal')
+            self.app.mode_button.configure.assert_called_once_with(state='normal')
             self.events.append('popup')
         self.ns['messagebox'].showinfo.side_effect = popup
         self.app.run_whisper(self.inputs)
         self.assertEqual(self.app.run_phase, 'finalising')
         self.app.start_btn.config.assert_not_called()
+        self.app.mode_button.configure.assert_not_called()
         self.flush()
         self.assertEqual(self.events, ['cleanup', 'popup'])
         self.ns['save_xlsx_with_early_report'].assert_called_once()
