@@ -165,7 +165,11 @@ class BenchmarkWindow:
         if not hasattr(self, "start_button"):
             return
         self.start_button.configure(state="disabled", bg="#eeeeee", fg="#777777")
-        self.review_button.configure(state="disabled" if self.active_run else "normal")
+        ready = (len(self.audio_files) == 1 and len(self.reference_files) == 1
+                 and self.reference_files[0] in self.approved_references
+                 and any(v.get() for v in self.selected.values()))
+        self.review_button.configure(state="normal" if ready and not self.active_run else "disabled",
+                                     bg="#247a46" if ready and not self.active_run else "#eeeeee")
         if not self.active_run:
             self.pilot_status.set("Configuration review required")
 
@@ -234,6 +238,8 @@ class BenchmarkWindow:
             messagebox.showerror("Output folder", str(exc), parent=self.window)
 
     def master_folder(self, change=False):
+        if change and self.active_run:
+            return None
         from redscribe.benchmark.benchmark_experiments import saved_master, save_master
         master = saved_master()
         if master and not change:
@@ -471,6 +477,8 @@ class BenchmarkWindow:
             self.stop_pilot_button.configure(state="disabled")
 
     def open_reference_review(self):
+        if getattr(self, "active_run", None):
+            return
         if not self.reference_files:
             messagebox.showwarning("No DOCX selected", "Choose ground-truth DOCX file(s) first.",
                                    parent=self.window)
@@ -524,6 +532,8 @@ class BenchmarkWindow:
         self.reference_summary.set("No ground truth selected")
 
     def pick_audio(self):
+        if self.active_run:
+            return
         if self.mode.get() == "single":
             value = filedialog.askopenfilename(parent=self.window, title="Select audio",
                                                filetypes=AUDIO_TYPES)
@@ -541,6 +551,8 @@ class BenchmarkWindow:
         self.invalidate_review()
 
     def pick_references(self):
+        if self.active_run:
+            return
         if self.mode.get() == "single":
             value = filedialog.askopenfilename(parent=self.window, title="Select DOCX reference",
                                                filetypes=WORD_TYPES)
@@ -601,10 +613,11 @@ class BenchmarkWindow:
         return f"{len(files)} selected files"
 
     def review(self):
-        from tkinter import simpledialog
         if self.active_run:
             return
         self.invalidate_review()
+        if not self.master_folder():
+            return
         try:
             config = self.configuration()
         except Exception as exc:
@@ -648,7 +661,7 @@ class BenchmarkWindow:
                 self.confirmed_configuration = dict(configuration=config, participant_id=pid,
                     confirmed_utc=datetime.now(timezone.utc).isoformat(),
                     checks=dict(zip(("audio_reference_match", "settings_correct", "interpretation_acknowledged"), [True]*3)))
-                self.start_button.configure(state="normal", bg="#8f1037", fg="white")
+                self.start_button.configure(state="normal", bg="#8f1037", fg="white", activebackground="#74102d", activeforeground="white")
                 self.pilot_status.set("Configuration confirmed — Ready to benchmark")
                 dialog.destroy()
             except Exception as exc:
