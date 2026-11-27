@@ -83,58 +83,75 @@ class BenchmarkWindow:
             item = canvas.create_window((0, 0), window=inner, anchor="nw")
             inner.bind("<Configure>", lambda _e: canvas.configure(scrollregion=canvas.bbox("all")))
             canvas.bind("<Configure>", lambda e: canvas.itemconfigure(item, width=e.width))
-        wrap = 260 if self.embedded else 660
+        wrap = 300 if self.embedded else 660
+        self.setup_widgets = []
+        self.model_checks = {}
+        self.output_summary = tk.StringVar(master=self.window)
+        overview = ttk.LabelFrame(inner, text="Scientific Benchmarking", padding=12)
+        overview.pack(fill="x", pady=(0, 10))
+        ttk.Label(overview, text="Evaluation of automatic speech recognition (ASR) performance against researcher-approved reference transcripts.", wraplength=wrap, justify="left").pack(fill="x", pady=(0, 8))
+        for heading, detail in (("Evaluation metrics", "Word Error Rate (WER)\nCharacter Error Rate (CER)"), ("Scoring engine", "RapidFuzz — Levenshtein edit distance"), ("Evaluation protocol", "Raw verbatim scoring")):
+            ttk.Label(overview, text=heading, foreground="#667085").pack(anchor="w")
+            ttk.Label(overview, text=detail, wraplength=wrap, justify="left").pack(fill="x", pady=(0, 6))
         self.setup_panel = outer
-        files = ttk.LabelFrame(inner, text="1. Dataset files", padding=12)
-        files.pack(fill="x", pady=(0, 10))
-        ttk.Button(files, text="Select audio", command=self.pick_audio).pack(anchor="w")
-        ttk.Label(files, textvariable=self.audio_summary, wraplength=wrap).pack(anchor="w", pady=(4, 10))
-        ttk.Button(files, text="Select ground truth DOCX", command=self.pick_references).pack(anchor="w")
-        ttk.Label(files, textvariable=self.reference_summary, wraplength=wrap).pack(anchor="w", pady=(4, 3))
-        ttk.Button(files, text="Review / Approve / Freeze DOCX",
-                   command=self.open_reference_review).pack(anchor="w", pady=(7, 0))
-        ttk.Label(files, text="References are approved individually; selection alone is not approval.",
-                  wraplength=wrap).pack(anchor="w", pady=(3, 0))
-        self.pairing_button = ttk.Button(files, text="Verify batch audio / DOCX pairing",
-                   command=self.open_batch_pairing)
-        ttk.Label(files, text="DOCX speaker labels and file matching must be verified before scoring.",
-                  foreground="#805b33", wraplength=wrap).pack(anchor="w", pady=(6, 0))
+        def action(parent, text, command):
+            button = tk.Button(parent, text=text, command=command, bg="white", fg="#202332",
+                               disabledforeground="#999999", padx=10, pady=7, relief="groove", bd=1)
+            button.pack(fill="x", pady=3)
+            self.setup_widgets.append((button, "normal"))
+            return button
 
-        models = ttk.LabelFrame(inner, text="2. ASR model selection", padding=12)
+        files = ttk.LabelFrame(inner, text="01. Dataset", padding=12)
+        files.pack(fill="x", pady=(0, 10))
+        self.audio_button = action(files, "Select audio recording", self.pick_audio)
+        self.audio_label = ttk.Label(files, textvariable=self.audio_summary, wraplength=wrap)
+        self.audio_label.pack(fill="x", pady=(0, 6))
+        self.reference_button = action(files, "Select reference transcript", self.pick_references)
+        self.reference_label = ttk.Label(files, textvariable=self.reference_summary, wraplength=wrap)
+        self.reference_label.pack(fill="x", pady=(0, 6))
+        self.ground_button = action(files, "Review ground truth", self.open_reference_review)
+        self.ground_status = ttk.Label(files, wraplength=wrap)
+        self.ground_status.pack(fill="x")
+        self.pairing_button = ttk.Button(files, text="Verify batch audio / DOCX pairing", command=self.open_batch_pairing)
+
+        models = ttk.LabelFrame(inner, text="02. ASR models", padding=12)
         models.pack(fill="x", pady=(0, 10))
-        buttons = ttk.Frame(models)
-        buttons.pack(fill="x", pady=(0, 5))
-        for title, keys in (("Default 7", CORE_MODELS),
-                            ("Select All", ALL_MODELS), ("Clear All", ())):
-            ttk.Button(buttons, text=title, command=lambda keys=keys: self.set_models(keys)).pack(
-                side="top" if self.embedded else "left", fill="x" if self.embedded else "none", pady=2, padx=(0, 4))
+        for title, keys in (("Default 7", CORE_MODELS), ("Select all", ALL_MODELS), ("Clear all", ())):
+            action(models, title, lambda keys=keys: self.set_models(keys))
         ttk.Label(models, textvariable=self.model_summary).pack(anchor="w", pady=(4, 8))
-        ttk.Label(models, text="Core study models (selected by default)").pack(anchor="w")
+        ttk.Label(models, text="Default models").pack(anchor="w")
         for key in CORE_MODELS:
             self.add_model_checkbox(models, key)
         ttk.Separator(models).pack(fill="x", pady=9)
-        ttk.Label(models, text="Optional legacy comparison").pack(anchor="w")
+        ttk.Label(models, text="Legacy models").pack(anchor="w")
         for key in ALL_MODELS[len(CORE_MODELS):]:
             self.add_model_checkbox(models, key)
 
-        options = ttk.LabelFrame(inner, text="3. Benchmark settings", padding=12)
+        options = ttk.LabelFrame(inner, text="03. Benchmark settings", padding=12)
         options.pack(fill="x", pady=(0, 10))
-        ttk.Label(options, text="Full audio duration; no three-minute trial limit.",
-                  wraplength=wrap).pack(anchor="w")
-        ttk.Label(options, text="Language").pack(anchor="w", pady=(8, 1))
-        ttk.Combobox(options, textvariable=self.language, state="readonly",
-                     values=["Bahasa Melayu", "English", "Auto detect"]).pack(anchor="w")
-        ttk.Checkbutton(options, text="GPU / CPU / RAM monitoring", variable=self.gpu_monitor).pack(anchor="w", pady=5)
-        ttk.Label(options, text="Selected models may require CUDA and download weights.", wraplength=wrap).pack(anchor="w")
-        ttk.Button(options, text="Choose output folder", command=lambda: self.master_folder(change=True)).pack(anchor="w", pady=4)
+        ttk.Label(options, text="Language").pack(anchor="w")
+        language = ttk.Combobox(options, textvariable=self.language, state="readonly",
+                                values=["Bahasa Melayu", "English", "Auto detect"])
+        language.pack(fill="x")
+        self.setup_widgets.append((language, "readonly"))
+        self.monitor_check = tk.Checkbutton(options, text="Resource monitoring", variable=self.gpu_monitor,
+                                           anchor="w", bg="white", activebackground="white", selectcolor="white")
+        self.monitor_check.pack(fill="x", pady=5)
+        self.setup_widgets.append((self.monitor_check, "normal"))
+        location = ttk.LabelFrame(inner, text="04. Output location", padding=12)
+        location.pack(fill="x", pady=(0, 10))
+        ttk.Label(location, textvariable=self.output_summary, wraplength=wrap).pack(fill="x")
+        self.folder_button = action(location, "Choose output folder", lambda: self.master_folder(change=True))
         footer = self.controls if self.embedded else ttk.Frame(outer)
         if not self.embedded:
             footer.pack(fill="x", pady=(12, 0))
         self.review_button = tk.Button(footer, text="Review configuration", bg="#247a46", fg="white",
                                       command=self.review, disabledforeground="#999999")
-        self.review_button.pack(side="left")
+        self.review_button.configure(padx=10, pady=7)
+        self.review_button.pack(side="left", padx=4)
         self.start_button = tk.Button(footer, text="Start benchmark", command=self.open_full_matrix,
                                      bg="#eeeeee", disabledforeground="#999999", state="disabled")
+        self.start_button.configure(padx=10, pady=7)
         self.start_button.pack(side="right", padx=4)
         self.stop_button = ttk.Button(footer, text="Stop benchmark", command=self.stop_benchmark, state="disabled")
         self.stop_button.pack(side="right", padx=4)
@@ -180,8 +197,38 @@ class BenchmarkWindow:
                  and any(v.get() for v in self.selected.values()))
         self.review_button.configure(state="normal" if ready and not self.active_run else "disabled",
                                      bg="#247a46" if ready and not self.active_run else "#eeeeee")
+        self.review_button.configure(text="Review configuration")
+        if hasattr(self, "setup_widgets"):
+            self.refresh_setup()
         if not self.active_run:
             self.pilot_status.set("Configuration review required")
+
+    def refresh_setup(self):
+        from redscribe.benchmark.benchmark_experiments import saved_master
+        locked = bool(self.active_run)
+        for widget, normal in self.setup_widgets:
+            widget.configure(state="disabled" if locked else normal)
+        def status_button(widget, selected, available=True):
+            widget.configure(state="normal" if available and not locked else "disabled",
+                             bg="#247a46" if selected and not locked else "#eeeeee" if not available or locked else "white",
+                             fg="white" if selected and not locked else "#202332")
+        audio = bool(self.audio_files)
+        reference = bool(self.reference_files)
+        frozen = reference and all(p in self.approved_references for p in self.reference_files)
+        status_button(self.audio_button, audio)
+        status_button(self.reference_button, reference)
+        status_button(self.ground_button, audio and reference, audio and reference)
+        self.audio_label.configure(foreground="#247a46" if audio else "#667085")
+        self.reference_label.configure(foreground="#247a46" if reference else "#667085")
+        self.ground_status.configure(text="Ground truth approved and frozen" if frozen else "Awaiting verification",
+                                     foreground="#247a46" if frozen else "#667085")
+        for key, widget in self.model_checks.items():
+            widget.configure(fg="#247a46" if self.selected[key].get() else "#667085")
+        self.monitor_check.configure(fg="#247a46" if self.gpu_monitor.get() else "#667085")
+        master = saved_master()
+        self.output_summary.set(str(master) if master else "No master output folder configured")
+        self.folder_button.configure(text="Change output folder" if master else "Choose output folder")
+        self.refresh_models()
 
     def open_full_matrix(self):
         from .operation_guard import operation_active
@@ -205,6 +252,8 @@ class BenchmarkWindow:
             return
         self.last_output = output
         self.active_run = True
+        if hasattr(self, "setup_widgets"):
+            self.refresh_setup()
         self.start_button.configure(state="disabled", bg="#eeeeee", fg="#777777")
         self.review_button.configure(state="disabled")
         self.stop_button.configure(state="normal")
@@ -525,10 +574,16 @@ class BenchmarkWindow:
                                    f" | {len(self.approved_references)} locally approved")
 
     def add_model_checkbox(self, parent, key):
-        ttk.Checkbutton(parent, text=ASR_MODEL_LABELS[key], variable=self.selected[key],
-                        command=self.refresh_models).pack(anchor="w", pady=2)
+        widget = tk.Checkbutton(parent, text=ASR_MODEL_LABELS[key], variable=self.selected[key],
+                                anchor="w", justify="left", wraplength=278 if self.embedded else 600,
+                                bg="white", activebackground="white", selectcolor="white")
+        widget.pack(fill="x", pady=2)
+        self.model_checks[key] = widget
+        self.setup_widgets.append((widget, "normal"))
 
     def set_models(self, keys):
+        if self.active_run:
+            return
         selected = set(keys)
         for key, variable in self.selected.items():
             variable.set(key in selected)
@@ -566,6 +621,9 @@ class BenchmarkWindow:
                 return
             self.audio_files = tuple(value)
         self.batch_pairs = ()
+        self.approved_references = {}
+        if self.reference_files:
+            self.reference_summary.set(self.describe_files(self.reference_files))
         self.audio_summary.set(self.describe_files(self.audio_files))
         self.invalidate_review()
 
@@ -649,7 +707,7 @@ class BenchmarkWindow:
         frame = ttk.Frame(dialog, padding=16)
         frame.pack(fill="both", expand=True)
         participant = tk.StringVar(master=dialog, value=Path(config["audio"]).stem)
-        ttk.Label(frame, text="Participant pseudonym").pack(anchor="w")
+        ttk.Label(frame, text="Recording ID").pack(anchor="w")
         ttk.Entry(frame, textvariable=participant).pack(fill="x")
         details = [
             "Audio: " + Path(config["audio"]).name,
@@ -657,19 +715,25 @@ class BenchmarkWindow:
             "Reference: approved and SHA-256 verified",
             "Models: " + ", ".join(ASR_MODEL_LABELS[m] for m in config["models"]),
             "Language: " + self.language.get(),
-            "Full-length audio | CUDA FP16 | WER/CER",
+            "Evaluation method: Raw WER and CER using RapidFuzz Levenshtein alignment.",
+            "Requested device / precision: CUDA / FP16",
             "Resource monitoring: " + ("Enabled" if config["monitor"] else "Disabled"),
-            "Private output: " + config["master"],
+            "Master output folder: " + config["master"],
+            "An experiment subfolder will be created automatically.",
         ]
         ttk.Label(frame, text="\n".join(details), wraplength=640, justify="left").pack(anchor="w", pady=10)
         labels = (
             "I confirm that the selected audio corresponds to the approved ground truth.",
-            "I confirm that the selected ASR models and benchmark settings are correct.",
-            "I acknowledge that the benchmark results require scientific interpretation and verification.",
+            "I confirm the selected ASR models, benchmark settings and output location.",
+            "I acknowledge the limitations of automatic speech recognition and the need for independent verification of benchmark results.",
         )
         flags = [tk.BooleanVar(master=dialog, value=False) for _ in labels]
+        widgets = []
         def update(*_):
-            confirm.configure(state="normal" if all(v.get() for v in flags) and participant.get().strip() else "disabled")
+            for widget, flag in zip(widgets, flags):
+                widget.configure(fg="#247a46" if flag.get() else "#202332")
+            ready = all(v.get() for v in flags) and bool(participant.get().strip())
+            confirm.configure(state="normal" if ready else "disabled", bg="#247a46" if ready else "#eeeeee", fg="white" if ready else "#999999")
         def approve():
             try:
                 if not all(v.get() for v in flags) or config != self.configuration():
@@ -681,15 +745,21 @@ class BenchmarkWindow:
                     confirmed_utc=datetime.now(timezone.utc).isoformat(),
                     checks=dict(zip(("audio_reference_match", "settings_correct", "interpretation_acknowledged"), [True]*3)))
                 self.start_button.configure(state="normal", bg="#8f1037", fg="white", activebackground="#74102d", activeforeground="white")
+                self.review_button.configure(text="Review configuration ✓", bg="#247a46")
                 self.pilot_status.set("Configuration confirmed — Ready to benchmark")
                 dialog.destroy()
             except Exception as exc:
                 messagebox.showerror("Configuration review", str(exc), parent=dialog)
         for label, flag in zip(labels, flags):
-            ttk.Checkbutton(frame, text=label, variable=flag, command=update).pack(anchor="w", pady=3)
-        confirm = ttk.Button(frame, text="Confirm configuration", command=approve, state="disabled")
+            widget = tk.Checkbutton(frame, text=label, variable=flag, command=update, anchor="w",
+                                    wraplength=620, justify="left", bg="white", activebackground="white", selectcolor="white")
+            widget.pack(fill="x", pady=3)
+            widgets.append(widget)
+        confirm = tk.Button(frame, text="Confirm configuration", command=approve, state="disabled",
+                            bg="#eeeeee", disabledforeground="#999999", padx=10, pady=7)
         confirm.pack(anchor="e", pady=8)
         participant.trace_add("write", update)
+        update()
 
 
 def open_benchmark_window(parent, on_live=None, **kwargs):
