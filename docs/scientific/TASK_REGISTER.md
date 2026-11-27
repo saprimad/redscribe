@@ -1,30 +1,32 @@
-# Task register
+# Persistent task register
 
-Acceptance criteria and dependencies are specified by topic in the [master specification](MASTER_EXECUTION_SPECIFICATION.md). Initial evidence baseline is d2ab724. Existing documents await review.
+The [specification](MASTER_EXECUTION_SPECIFICATION.md) defines acceptance criteria by subject. The table records delivery of the documentation. Open scientific, runtime and rights checks have their own decisions and verification procedures in [readiness](RELEASE_READINESS.md) and [integrity](INTEGRITY.md). Use git log --follow on each evidence path to identify the applicable remote commit.
 
-1. Scientific Documentation Master Index. — UNDER REVIEW
-2. Documentation Audit and Gap Analysis. — UNDER REVIEW
-3. Part I — Scientific Transcription System. — UNDER REVIEW
-4. Part II — Scientific Benchmarking System. — UNDER REVIEW
-5. Comprehensive ASR Model Inventory. — UNDER REVIEW
-6. Verified Scientific Architecture and Workflow Figures. — UNDER REVIEW
-7. Benchmark Methodology. — UNDER REVIEW
-8. Ground Truth Protocol integration. — UNDER REVIEW
-9. Accuracy Metrics and Mathematical Verification. — UNDER REVIEW
-10. Computational Efficiency Documentation. — UNDER REVIEW
-11. Reproducibility and Experimental Provenance Documentation. — UNDER REVIEW
-12. Statistical Analysis Protocol. — UNDER REVIEW
-13. Numerical Revalidation Record. — UNDER REVIEW
-14. Scientific Claim-to-Evidence Matrix. — UNDER REVIEW
-15. Citation Verification Register. — UNDER REVIEW
-16. Scientific Documentation Review and Correction Register. — UNDER REVIEW
-17. Outstanding Scientific Validation Register. — UNDER REVIEW
-18. Research Confidentiality and Integrity Assessment. — UNDER REVIEW
-19. Updated Root README. — UNDER REVIEW
-20. Updated Documentation Navigation. — UNDER REVIEW
-21. Final Documentation Quality Assurance Report. — UNDER REVIEW
-22. Release Readiness Assessment. — UNDER REVIEW
-23. Persistent Execution State. — UNDER REVIEW
-24. Persistent Task Register. — UNDER REVIEW
-25. Persistent Execution Handover. — UNDER REVIEW
-26. Master Execution Specification. — UNDER REVIEW
+| Deliverable | State | Evidence |
+|---|---|---|
+| 1. Scientific Documentation Master Index. | VERIFIED | [Record](README.md) |
+| 2. Documentation Audit and Gap Analysis. | VERIFIED | [Record](AUDIT_AND_GAP_ANALYSIS.md) |
+| 3. Part I — Scientific Transcription System. | VERIFIED | [Record](part-I-transcription/README.md) |
+| 4. Part II — Scientific Benchmarking System. | VERIFIED | [Record](part-II-benchmarking/README.md) |
+| 5. Comprehensive ASR Model Inventory. | VERIFIED | [Record](MODELS.md) |
+| 6. Verified Scientific Architecture and Workflow Figures. | VERIFIED | [Record](figures/README.md) |
+| 7. Benchmark Methodology. | VERIFIED | [Record](BENCHMARK_METHODOLOGY.md) |
+| 8. Ground Truth Protocol integration. | VERIFIED | [Record](../benchmark/GROUND_TRUTH_PROTOCOL.md) |
+| 9. Accuracy Metrics and Mathematical Verification. | VERIFIED | [Record](STATISTICS.md) |
+| 10. Computational Efficiency Documentation. | VERIFIED | [Record](BENCHMARK_METHODOLOGY.md) |
+| 11. Reproducibility and Experimental Provenance Documentation. | VERIFIED | [Record](INTEGRITY.md) |
+| 12. Statistical Analysis Protocol. | VERIFIED | [Record](STATISTICS.md) |
+| 13. Numerical Revalidation Record. | VERIFIED | [Record](STATISTICS.md) |
+| 14. Scientific Claim-to-Evidence Matrix. | VERIFIED | [Record](CLAIMS.md) |
+| 15. Citation Verification Register. | VERIFIED | [Record](REFERENCES.md) |
+| 16. Scientific Documentation Review and Correction Register. | VERIFIED | [Record](RELEASE_READINESS.md) |
+| 17. Outstanding Scientific Validation Register. | VERIFIED | [Record](INTEGRITY.md) |
+| 18. Research Confidentiality and Integrity Assessment. | VERIFIED | [Record](INTEGRITY.md) |
+| 19. Updated Root README. | VERIFIED | [Record](../../README.md) |
+| 20. Updated Documentation Navigation. | VERIFIED | [Record](../README.md) |
+| 21. Final Documentation Quality Assurance Report. | VERIFIED | [Record](RELEASE_READINESS.md) |
+| 22. Release Readiness Assessment. | VERIFIED | [Record](RELEASE_READINESS.md) |
+| 23. Persistent Execution State. | VERIFIED | [Record](EXECUTION_STATE.md) |
+| 24. Persistent Task Register. | VERIFIED | [Record](TASK_REGISTER.md) |
+| 25. Persistent Execution Handover. | VERIFIED | [Record](EXECUTION_HANDOVER.md) |
+| 26. Master Execution Specification. | VERIFIED | [Record](MASTER_EXECUTION_SPECIFICATION.md) |

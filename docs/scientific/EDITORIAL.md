@@ -15,3 +15,5 @@
 The repository check resolves relative inline Markdown links and image targets from the referring file, percent-decodes path components and checks local Markdown heading fragments. It excludes fenced code examples, URL schemes, remote URLs and HTML attributes. The final QA record should record the outcome after all simultaneous edits have landed. Earlier scientific documents named planned destinations before those files existed.
 
 [Illustrated guide](../user-guide/README.md) · [Sample file checksums](../user-guide/sample-outputs/README.md) · [Consolidated historical record](../validation/CONSOLIDATED_DEVELOPMENT_RECORD_2026-11-28.md)
+
+Final integrated scan covered 80 Markdown files and 341 local link occurrences, with zero missing targets and zero heading warnings under the scan's Markdown-link rules. The source tree and sample checks above describe local observations. External link availability and human accessibility assessment remain separate.

@@ -33,3 +33,7 @@
 ## Audit boundaries
 
 No full checkout, complete tree enumeration, execution of repository tests or local GPU access was established in this pass. Public source files and existing records support the targeted findings, not a release certificate. Model card licence/revision verification, full code-path inspection, original private evidence and independent human review remain gates. No claim of IEEE/JOSS compliance.
+
+## Follow-up on the checked-out development branch
+
+The earlier audit boundaries above describe the original review. The follow-up used the complete tree at d2ab724, reopened both public sample files, verified byte digests, and executed benchmark and full regression discovery. D01–D04 are addressed in current navigation and diagrams. D08 and D09 remain restricted-evidence and governance gates. For D10 see the citation-by-citation register. D16 concerns generated chart assets; PDF inclusion and export generation have distinct conditions. See the [integrated review](RELEASE_READINESS.md), [numerical verification](STATISTICS.md), [citation register](REFERENCES.md) and [current figures](figures/README.md). Historical validation documents remain dated evidence.
