@@ -1074,8 +1074,9 @@ class RedScribeApp:
         self.mode_button.pack(side="right", padx=(0, 8))
         self.active_mode = "transcription"
         self.benchmark_window = None
-        tk.Label(header, text="Audio processed locally", bg="#EDF8EE", fg="#24623B",
-                 padx=10, pady=7).pack(side="right", padx=14)
+        self.mode_indicator = tk.Label(header, text="Transcription Mode", bg="#EDF8EE", fg="#24623B",
+                                       padx=10, pady=7)
+        self.mode_indicator.pack(side="right", padx=14)
 
         workspace = tk.Frame(self.root, bg=c["background"])
         workspace.grid(row=1, column=0, sticky="nsew", padx=16, pady=16)
@@ -1248,6 +1249,7 @@ class RedScribeApp:
             self.benchmark_sidebar.pack(fill="x")
             self.benchmark_controls.grid(row=1, column=1, sticky="e")
             self.active_mode = "benchmark"
+            self.mode_indicator.configure(text="Benchmark Mode")
             self.mode_button.configure(text="Transcription")
             self.live_title.configure(text="Live Benchmark Monitor")
             self.live_subtitle.configure(textvariable=self.benchmark_window.audio_summary)
@@ -1261,6 +1263,7 @@ class RedScribeApp:
             self.sidebar_content.pack(fill="x")
             self.transcription_controls.grid()
             self.active_mode = "transcription"
+            self.mode_indicator.configure(text="Transcription Mode")
             self.mode_button.configure(text="Benchmark")
             self.live_title.configure(text="Live transcript")
             self.live_subtitle.configure(textvariable=self.file_summary)
