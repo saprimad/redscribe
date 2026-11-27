@@ -23,8 +23,9 @@ WORD_TYPES = [("Microsoft Word", "*.docx"), ("All files", "*.*")]
 class BenchmarkWindow:
     """A Toplevel window that never takes over the existing application flow."""
 
-    def __init__(self, parent):
+    def __init__(self, parent, on_live=None):
         self.parent = parent
+        self.on_live = on_live
         self.window = tk.Toplevel(parent)
         self.window.title("RedScribe — Benchmarking Mode")
         self.window.geometry("820x740")
@@ -202,11 +203,16 @@ class BenchmarkWindow:
         try:
             handle = open_matrix_window(self.window, current["models"], current["language"],
                 current["monitor"], manifest=str(manifest), output=str(output),
-                confirmed=True, on_finished=self.finish_benchmark)
+                confirmed=True, on_finished=self.finish_benchmark,
+                on_live=self.on_live)
             if handle is None:
                 self.finish_benchmark()
             elif self.active_run:
                 self.active_run = handle
+                if self.on_live is not None:
+                    self.on_live('begin', None, None, dict(models=current['models'], participant=approval['participant_id']))
+                    self.window.transient('')
+                    self.parent.lift()
         except Exception as exc:
             self.finish_benchmark()
             messagebox.showerror("Benchmark", str(exc), parent=self.window)
@@ -219,6 +225,8 @@ class BenchmarkWindow:
 
     def finish_benchmark(self):
         self.active_run = None
+        if getattr(self, 'on_live', None) is not None:
+            self.on_live('finished', None, None, None)
         self.stop_button.configure(state="disabled")
         self.invalidate_review()
         self.pilot_status.set("Run ended — inspect results; review before another run")
@@ -673,6 +681,6 @@ class BenchmarkWindow:
         participant.trace_add("write", update)
 
 
-def open_benchmark_window(parent):
+def open_benchmark_window(parent, on_live=None):
     """Open an isolated, non-modal experimental benchmark window."""
-    return BenchmarkWindow(parent)
+    return BenchmarkWindow(parent, on_live=on_live)
