@@ -49,25 +49,47 @@ Do not delete text merely because it matches a speaker name, annotation keyword 
 
 For conversational Malay and Kelantan dialect, preserve verified regional vocabulary, pronunciation-based orthographic forms, lexical repetitions and fillers. Use a consistent transcription convention across recordings; resolve doubtful spellings by consulting the audio and a competent language reviewer where feasible. This protocol does not authorise grammatical correction, translation, paraphrasing, summarisation or conversion to fluent intended speech. The distinction between verbatim and intended-speech evaluation is consequential for disfluency-rich recordings [4].
 
-### 3.2 Illustrative example (synthetic)
+### 3.2 Illustrative example — Kelantan Malay dialect (synthetic)
+
+The following invented conversation illustrates inclusive verbatim reference preparation for Kelantan Malay speech. Dialect vocabulary, regional orthography, fillers, repetitions and code-switching remain part of the reference. Only speaker identifiers and verified non-spoken annotations are removed.
 
 **Original qualitative transcript**
 
 ```text
-Interviewer: Haa, demo tahu gapo?
-P1: Hm, tahu, tahu. (Nods)
-Penemu duga: Okey, terima kasih.
+Interviewer: Haa, demo nok gi mano tu?
+P1: Hm, ambo nok gi kedai. Nok beli gapo-gapo sikit. (Points towards the shop)
+Penemu duga: Demo gi sokmo ko?
+P1: Haah, sokmo, sokmo. Tapi hari ni tok sempat, busy sikit. [Nods]
 ```
 
-**Speech-only scoring reference**
+**Cleaned verbatim scoring reference**
 
 ```text
-Haa, demo tahu gapo?
-Hm, tahu, tahu.
-Okey, terima kasih.
+Haa, demo nok gi mano tu?
+Hm, ambo nok gi kedai. Nok beli gapo-gapo sikit.
+Demo gi sokmo ko?
+Haah, sokmo, sokmo. Tapi hari ni tok sempat, busy sikit.
 ```
 
-The example is invented for documentation; it does not reproduce participant data.
+**Dialect preservation examples**
+
+| Kelantan dialect form (illustrative) | Approximate standard Malay equivalent (explanation only) | Scoring reference |
+| --- | --- | --- |
+| demo | awak | demo |
+| ambo | saya | ambo |
+| nok | nak / hendak | nok |
+| gi | pergi | gi |
+| mano | mana | mano |
+| gapo | apa | gapo |
+| sokmo | selalu | sokmo |
+| tok | tak / tidak | tok |
+| ko | ke (question particle) | ko |
+
+These equivalents are provided solely for reader comprehension; they must not be inserted into the scoring reference. Regional spelling varies, and the examples do not prescribe a universal Kelantan Malay orthography. Verify each form against the actual recording and the study's documented transcription convention.
+
+**Incorrect preparation:** Rewriting `demo nok gi mano tu?` as `awak hendak pergi ke mana?` changes the lexical and orthographic reference and is inconsistent with this verbatim evaluation protocol. Likewise, replacing `sokmo, sokmo` with a single word, dropping `Hm`, or translating `busy` into Malay removes or alters spoken content.
+
+All examples in this section are synthetic and contain no participant data.
 
 ### 3.3 Unresolved speech and overlapping speech
 
