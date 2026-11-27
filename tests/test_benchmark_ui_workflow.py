@@ -93,3 +93,58 @@ class BenchmarkUIWorkflowTests(unittest.TestCase):
         window.stop_benchmark()
         window.active_run.assert_called_once()
         window.stop_button.configure.assert_called_once_with(state="disabled")
+
+
+    def test_verified_single_reference_closes_only_after_registration(self):
+        review = GroundTruthReview.__new__(GroundTruthReview)
+        review.window = Mock()
+        review.paths = ("example.docx",)
+        review.current_draft = Mock()
+        review.acknowledged = Mock()
+        review.acknowledged.get.return_value = True
+        review.verification = {k: Mock() for k in ("audio_verified", "coverage_verified",
+            "speaker_labels_reviewed", "non_speech_reviewed")}
+        for flag in review.verification.values():
+            flag.get.return_value = True
+        review.text = Mock()
+        review.text.get.return_value = "hmm kawe"
+        review.output_dir = "private"
+        review.output_provider = None
+        review.label_removal_history = []
+        review.status = Mock()
+        sequence = Mock()
+        review.on_approved = sequence.register
+        review.window.destroy = sequence.close
+        with patch("redscribe.ui.benchmark_reference_ui.messagebox.askyesno", return_value=True), patch(
+            "redscribe.ui.benchmark_reference_ui.approve_reference",
+            return_value=("reference.json", "reference.txt", {})
+        ), patch("redscribe.ui.benchmark_reference_ui.verify_reference", side_effect=sequence.verify):
+            review.approve()
+        self.assertEqual([call[0] for call in sequence.mock_calls], ["verify", "register", "close"])
+
+    def test_failed_reference_verification_keeps_review_open(self):
+        review = GroundTruthReview.__new__(GroundTruthReview)
+        review.window = Mock()
+        review.paths = ("example.docx",)
+        review.current_draft = Mock()
+        review.acknowledged = Mock()
+        review.acknowledged.get.return_value = True
+        review.verification = {k: Mock() for k in ("audio_verified", "coverage_verified",
+            "speaker_labels_reviewed", "non_speech_reviewed")}
+        for flag in review.verification.values():
+            flag.get.return_value = True
+        review.text = Mock()
+        review.text.get.return_value = "hmm kawe"
+        review.output_dir = "private"
+        review.label_removal_history = []
+        review.on_approved = Mock()
+        with patch("redscribe.ui.benchmark_reference_ui.messagebox.askyesno", return_value=True), patch(
+            "redscribe.ui.benchmark_reference_ui.approve_reference",
+            return_value=("reference.json", "reference.txt", {})
+        ), patch("redscribe.ui.benchmark_reference_ui.verify_reference", side_effect=ValueError("hash mismatch")), patch(
+            "redscribe.ui.benchmark_reference_ui.messagebox.showerror"
+        ) as error:
+            review.approve()
+            error.assert_called_once()
+        review.on_approved.assert_not_called()
+        review.window.destroy.assert_not_called()
