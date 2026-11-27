@@ -4,6 +4,7 @@ Runs isolated single/batch trials on worker threads. Results stay local;
 ordinary transcription settings and workflow are not altered.
 """
 import os
+from pathlib import Path
 import queue
 import threading
 import tkinter as tk
@@ -22,7 +23,7 @@ class BenchmarkWindow:
     def __init__(self, parent):
         self.parent = parent
         self.window = tk.Toplevel(parent)
-        self.window.title("RedScribe — Benchmarking Mode (Experimental)")
+        self.window.title("RedScribe — Benchmarking Mode")
         self.window.geometry("820x740")
         self.window.minsize(620, 510)
         self.window.transient(parent)
@@ -42,7 +43,7 @@ class BenchmarkWindow:
         self.worker_events = queue.Queue()
         self.window.protocol("WM_DELETE_WINDOW", self.request_close)
         self.language = tk.StringVar(master=self.window, value="Bahasa Melayu")
-        self.pilot_status = tk.StringVar(master=self.window, value="Pilot not started")
+        self.pilot_status = tk.StringVar(master=self.window, value="Ready to configure benchmark")
         self.audio_summary = tk.StringVar(master=self.window, value="No audio selected")
         self.reference_summary = tk.StringVar(master=self.window, value="No ground truth selected")
         self.model_summary = tk.StringVar(master=self.window)
@@ -53,7 +54,7 @@ class BenchmarkWindow:
         outer = ttk.Frame(self.window, padding=16)
         outer.pack(fill="both", expand=True)
         ttk.Label(outer, text="Benchmarking Mode", font=("TkDefaultFont", 17, "bold")).pack(anchor="w")
-        ttk.Label(outer, text="Single / batch experimental benchmarking; not publication validated.").pack(
+        ttk.Label(outer, text="Full-length single / batch ASR evaluation; scientific validation pending.").pack(
             anchor="w", pady=(3, 12))
         body = ttk.Frame(outer)
         body.pack(fill="both", expand=True)
@@ -81,11 +82,10 @@ class BenchmarkWindow:
         ttk.Label(files, textvariable=self.reference_summary, wraplength=660).pack(anchor="w", pady=(4, 3))
         ttk.Button(files, text="Review / Approve / Freeze DOCX",
                    command=self.open_reference_review).pack(anchor="w", pady=(7, 0))
-        ttk.Button(files, text="Load approved reference (JSON)", command=self.load_approved_reference).pack(anchor="w", pady=(6, 0))
         ttk.Label(files, text="References are approved individually; selection alone is not approval.",
                   wraplength=660).pack(anchor="w", pady=(3, 0))
-        ttk.Button(files, text="Verify batch audio / DOCX pairing",
-                   command=self.open_batch_pairing).pack(anchor="w", pady=(6, 0))
+        self.pairing_button = ttk.Button(files, text="Verify batch audio / DOCX pairing",
+                   command=self.open_batch_pairing)
         ttk.Label(files, text="DOCX speaker labels and file matching must be verified before scoring.",
                   foreground="#805b33", wraplength=660).pack(anchor="w", pady=(6, 0))
 
@@ -106,49 +106,32 @@ class BenchmarkWindow:
         for key in ALL_MODELS[len(CORE_MODELS):]:
             self.add_model_checkbox(models, key)
 
-        options = ttk.LabelFrame(inner, text="4. Benchmark trial options", padding=12)
+        options = ttk.LabelFrame(inner, text="4. Benchmark settings", padding=12)
         options.pack(fill="x", pady=(0, 10))
-        ttk.Label(options, text="Single or paired batch: max 3 minutes per recording (trial limit).",
+        ttk.Label(options, text="Full audio duration; no three-minute trial limit.",
                   wraplength=650).pack(anchor="w")
         ttk.Label(options, text="Language").pack(anchor="w", pady=(8, 1))
         ttk.Combobox(options, textvariable=self.language, state="readonly",
                      values=["Bahasa Melayu", "English", "Auto detect"]).pack(anchor="w")
         ttk.Checkbutton(options, text="GPU / CPU / RAM monitoring", variable=self.gpu_monitor).pack(anchor="w", pady=5)
-        ttk.Checkbutton(options, text="Silero VAD (speech / non-speech estimates)", variable=self.silero_vad).pack(anchor="w")
-        ttk.Checkbutton(options, text="pyannote Community-1 OSD (overlap estimate)", variable=self.pyannote_osd).pack(anchor="w")
-        ttk.Label(options, text="HF token (OSD only; optional if already logged in)").pack(anchor="w", pady=(6, 0))
-        ttk.Entry(options, textvariable=self.hf_token, show="*", width=40).pack(anchor="w")
-        ttk.Label(options, text="This pilot scores raw WER/CER only; optional ASR models may need CUDA.",
-                  wraplength=650).pack(anchor="w", pady=(8, 0))
-
-        safety = ttk.LabelFrame(inner, text="5. Before starting", padding=12)
+        ttk.Label(options, text="Selected models may require CUDA and download weights.", wraplength=650).pack(anchor="w")
+        safety = ttk.LabelFrame(inner, text="5. Experiment management", padding=12)
         safety.pack(fill="x", pady=(0, 10))
-        ttk.Label(safety, wraplength=660,
-                  text="Warning: a pilot run WILL load/download selected ASR models and consume "
-                       "GPU/CPU/RAM, disk and power. It processes models sequentially "
-                       "and saves intermediate results. This is an unvalidated pilot, not a "
-                       "publication-ready benchmark. Do not run alongside ordinary transcription."
-                       ).pack(anchor="w")
-        ttk.Label(safety, wraplength=660,
-                  text="Still pending: normalised scoring, NIST validation, resume, full error analysis and Excel.").pack(
-            anchor="w", pady=(8, 0))
-
-        footer = ttk.Frame(outer)
-        footer.pack(fill="x", pady=(12, 0))
-        ttk.Button(safety, text="New Experiment — Full-length Benchmark", command=self.open_full_matrix).pack(anchor="w", pady=8)
+        ttk.Label(safety, wraplength=660, text="Choose a private master folder once. References, manifests and experiment folders are managed automatically. Review scientific limitations before using results.").pack(anchor="w")
         ttk.Button(safety, text="Resume Experiment", command=self.resume_experiment).pack(anchor="w", pady=4)
         ttk.Button(safety, text="Regenerate Reports", command=self.regenerate_experiment).pack(anchor="w", pady=4)
         ttk.Button(safety, text="Change Master Output Folder", command=lambda: self.master_folder(change=True)).pack(anchor="w", pady=4)
-        ttk.Button(safety, text="Advanced: Load Approved Dataset (JSON)", command=self.load_approved_dataset).pack(anchor="w", pady=(0, 8))
+        advanced = ttk.LabelFrame(safety, text="Advanced — legacy imports", padding=6)
+        advanced.pack(fill="x", pady=4)
+        ttk.Button(advanced, text="Load approved reference (JSON)", command=self.load_approved_reference).pack(anchor="w")
+        ttk.Button(advanced, text="Load approved dataset (JSON)", command=self.load_approved_dataset).pack(anchor="w")
+        footer = ttk.Frame(outer)
+        footer.pack(fill="x", pady=(12, 0))
         ttk.Button(footer, text="Close", command=self.request_close).pack(side="right")
-        self.stop_pilot_button = ttk.Button(footer, text="Stop pilot",
-                                             command=self.stop_pilot, state="disabled")
-        self.stop_pilot_button.pack(side="right", padx=(0, 10))
-        self.start_pilot_button = ttk.Button(footer, text="Start benchmark trial",
-                                              command=self.start_pilot)
-        self.start_pilot_button.pack(side="right", padx=(0, 10))
-        ttk.Button(footer, text="Review configuration",
-                   command=self.review).pack(side="left")
+        ttk.Button(footer, text="Benchmark", command=self.open_full_matrix).pack(side="right", padx=(0, 10))
+        # Legacy pilot callbacks remain available for regression tests, not primary UI.
+        self.start_pilot_button = ttk.Button(footer, command=self.start_pilot)
+        self.stop_pilot_button = ttk.Button(footer, command=self.stop_pilot, state="disabled")
         ttk.Label(outer, textvariable=self.pilot_status, wraplength=720).pack(
             anchor="w", pady=(7, 0))
 
@@ -430,20 +413,22 @@ class BenchmarkWindow:
             messagebox.showwarning("No DOCX selected", "Choose ground-truth DOCX file(s) first.",
                                    parent=self.window)
             return
-        from benchmark_reference_ui import open_ground_truth_review
-        master = self.master_folder()
-        if not master:
-            return
-        from redscribe.benchmark.benchmark_experiments import reference_cache
         try:
-            cache = reference_cache(master)
+            from .benchmark_reference_ui import open_ground_truth_review
+            from redscribe.benchmark.benchmark_experiments import reference_cache
+            def storage():
+                master = self.master_folder()
+                return str(reference_cache(master)) if master else None
+            open_ground_truth_review(self.window, self.reference_files, self.mark_reference_approved,
+                                     output_provider=storage)
         except Exception as exc:
-            messagebox.showerror("Reference storage", str(exc), parent=self.window)
-            return
-        open_ground_truth_review(self.window, self.reference_files, self.mark_reference_approved, output_dir=str(cache))
+            messagebox.showerror("Ground truth review", f"{type(exc).__name__}: {exc}", parent=self.window)
 
     def mark_reference_approved(self, source_path, manifest_path):
-        self.approved_references[source_path] = manifest_path
+        key = str(Path(source_path).resolve())
+        if key not in self.reference_files:
+            raise ValueError("Approved DOCX is no longer selected")
+        self.approved_references[key] = manifest_path
         self.batch_pairs = ()
         self.reference_summary.set(self.describe_files(self.reference_files) +
                                    f" | {len(self.approved_references)} locally approved")
@@ -463,6 +448,10 @@ class BenchmarkWindow:
         self.model_summary.set(f"{count} of {len(ALL_MODELS)} models selected")
 
     def reset_files(self):
+        if self.mode.get() == "batch":
+            self.pairing_button.pack(anchor="w", pady=(6, 0))
+        else:
+            self.pairing_button.pack_forget()
         self.audio_files = ()
         self.reference_files = ()
         self.approved_references = {}
@@ -492,13 +481,13 @@ class BenchmarkWindow:
                                                filetypes=WORD_TYPES)
             if not value:
                 return
-            self.reference_files = (value,)
+            self.reference_files = (str(Path(value).resolve()),)
         else:
             value = filedialog.askopenfilenames(parent=self.window, title="Select DOCX references",
                                                 filetypes=WORD_TYPES)
             if not value:
                 return
-            self.reference_files = tuple(value)
+            self.reference_files = tuple(str(Path(p).resolve()) for p in value)
         self.approved_references = {}
         self.batch_pairs = ()
         self.reference_summary.set(self.describe_files(self.reference_files))
