@@ -1,5 +1,7 @@
 # Validation
 
+**Latest milestone:** [Consolidated development and validation record — 28 November 2026](CONSOLIDATED_DEVELOPMENT_RECORD_2026-11-28.md). Includes the full seven-model P1 runtime, numerical and integrity audit, PR #27/#28 integration, and outstanding release gates.
+
 Canonical documents remain in their existing locations to preserve citations, relative links and history.
 
 - [Critical code audit](../benchmark/CRITICAL_CODE_AUDIT_2026-11-18.md)
