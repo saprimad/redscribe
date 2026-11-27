@@ -7,7 +7,7 @@ import tkinter as tk
 from tkinter import ttk,messagebox,filedialog
 from pathlib import Path
 
-def open_matrix_window(parent,models,language,monitor=True,manifest=None,output=None, *, confirmed=False, on_finished=None):
+def open_matrix_window(parent,models,language,monitor=True,manifest=None,output=None, *, confirmed=False, on_finished=None, on_live=None):
     from redscribe.benchmark.benchmark_dataset import verify_dataset
     from redscribe.benchmark.benchmark_structured_output import run_structured_batch, validate_output_root
     from redscribe.benchmark.benchmark_resources import ResourceMonitor
@@ -26,6 +26,8 @@ def open_matrix_window(parent,models,language,monitor=True,manifest=None,output=
     ids=[p["participant_id"] for p in dataset["pairs"]]
     if not confirmed and not messagebox.askyesno("Full-length benchmark",f"Run {len(models)} models on {len(ids)} recordings? Existing compatible checkpoints will be resumed. CUDA FP16 required.",parent=parent):
         return
+    if on_live is not None:
+        return run_live_benchmark(parent, models, language, monitor, manifest, output, on_live, on_finished)
     win=tk.Toplevel(parent)
     win.title("RedScribe — Full-length Benchmark")
     win.geometry("1000x650")
@@ -120,3 +122,52 @@ def open_matrix_window(parent,models,language,monitor=True,manifest=None,output=
                 on_finished()
     win.after(150,drain)
     return request_stop
+
+
+def run_live_benchmark(parent, models, language, monitor, manifest, output, on_live, on_finished):
+    """Run full-length benchmark without a second matrix window; UI callbacks run on Tk thread."""
+    from .operation_guard import start_exclusive
+    from redscribe.benchmark.benchmark_structured_output import run_structured_batch
+    from redscribe.benchmark.benchmark_resources import ResourceMonitor
+    events = queue.Queue()
+    cancel = threading.Event()
+
+    def worker():
+        try:
+            result = run_structured_batch(manifest, models, output, language=language,
+                stopped=cancel.is_set, monitor_factory=ResourceMonitor if monitor else None,
+                progress=lambda m,p,s: events.put(("status",m,p,s)),
+                live_event=lambda kind,m,p,data: events.put((kind,m,p,data)))
+            statuses = {m: [r.get("status") for r in result["results"].get(m, {}).values()]
+                        for m in models}
+            events.put(("published",None,None,{"statuses":statuses,"stopped":cancel.is_set()}))
+        except Exception as exc:
+            traceback.print_exc()
+            events.put(("error",None,None,type(exc).__name__ + ": " + str(exc)))
+
+    thread = start_exclusive(worker)
+    if thread is None:
+        messagebox.showwarning("Operation active","Wait for the current ASR operation to finish.",parent=parent)
+        return None
+
+    def drain():
+        while True:
+            try:
+                event = events.get_nowait()
+            except queue.Empty:
+                break
+            try:
+                on_live(*event)
+            except Exception:
+                traceback.print_exc()
+        if thread.is_alive() or not events.empty():
+            parent.after(150, drain)
+        elif on_finished is not None:
+            on_finished()
+
+    def stop():
+        cancel.set()
+        on_live("status",None,None,"Stop requested — waiting for current operation to yield")
+
+    parent.after(150, drain)
+    return stop
