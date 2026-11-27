@@ -1,6 +1,6 @@
 # Ground-truth reference preparation and review protocol (experimental)
 
-**Updated:** 18 November 2026. Applies only to `redscribe-benchmark-timeline`. This is **not** an IEEE-mandated universal standard, a certified NIST-conformant pipeline, or a completed scientific validation. The implementation follows principles described in authoritative scoring documentation and published speech-recognition evaluation studies.
+**Updated:** 28 November 2026. Applies to the experimental benchmarking workflow, including `feature/benchmark-experiment-manager` (PR #28). This is **not** an IEEE-mandated universal standard, a certified NIST-conformant pipeline, or a completed scientific validation. The implementation follows principles described in authoritative scoring documentation and published speech-recognition evaluation studies.
 
 ## Rationale and research references
 
@@ -21,9 +21,43 @@ These sources motivate quality control and reproducibility; **they do not prescr
 6. At scoring time, re-check both scoring-text and original DOCX hashes. Legacy manifests without original-source location must be re-approved.
 7. Manual pairing remains required for each audio-reference pair; the SHA-256 evidence does **not** prove that the reference actually corresponds to the selected audio. The researcher's signed-off review and later alignment verification remain necessary.
 
+## Mandatory pre-benchmark reference preparation (verbatim speech only)
+
+The original qualitative interview transcript and the ASR scoring reference serve different purposes. Qualitative transcripts may contain speaker identifiers, observational notes, gestures, editorial explanations and other annotations useful for research interpretation. These are not necessarily words spoken in the recording. WER and CER evaluate transcription of speech, not the reproduction of qualitative annotations or recognition of non-verbal behaviour.
+
+Prepare a separate local DOCX scoring copy **before** running any model. Preserve the original qualitative transcript unchanged. Apply the same written preparation rules to every recording and every model, without using model predictions to decide which reference words to retain.
+
+| Material | Required action |
+| --- | --- |
+| Speaker identifiers (e.g. `Interviewer:`, `Penemu duga:`, `P1:`, including formatting variants) | Remove labels only; retain all actual spoken words from the interviewer, participant and any other audible speakers within the evaluated audio span. |
+| Non-verbal observations (e.g. `[nods]`, `(points to the door)`, gestures, facial expressions) | Remove the editorial annotation from the scoring copy, even when it describes an audible event. Non-verbal event detection is outside this word/character scoring task. |
+| Unspoken editorial glosses, translations, explanatory text, timestamps, headings, page numbers | Remove only verified non-spoken metadata; retain any words that were actually spoken. Do not delete all parenthesised text blindly. |
+| Laughter, coughing, silence and other non-speech sounds | Remove descriptive tags such as `[laughs]` or `[coughs]`. Retain genuine spoken interjections and lexical fillers; adjudicate ambiguous written forms such as "haha" against the audio under a consistent policy. |
+| Unintelligible or missing speech markers (e.g. `**`, `[inaudible]`) | These markers are not reference words. Re-listen first and transcribe recoverable speech; never invent missing words. If unresolved, document the occurrence privately and disclose the incomplete coverage. Removing a marker does not exclude the corresponding audio from scoring. |
+| Dialect, code-switching, fillers, repeated words, false starts and interruptions | Preserve audible verbal content in original order; do not translate, standardise dialect, paraphrase, summarise or remove repetitions. |
+| Overlapping speech | Retain recoverable speech from all speakers and verify ordering against the audio. Document ambiguity; conversation-level WER/CER is not a speaker-attribution metric. |
+| Layout and whitespace | Review extraction for artificial line breaks, tabs and extra spaces. Adopt a fixed documented formatting convention before experiments; raw CER is sensitive to these characters. Do not silently change the metric or introduce one-sided lexical normalisation. |
+
+### Researcher checklist before Approve & Freeze
+
+- [ ] Confirm the audio and DOCX represent the same recording and entire evaluated time span.
+- [ ] Compare the scoring copy against the original transcript and listen to the audio to resolve doubtful annotations, words and omissions.
+- [ ] Remove speaker labels and non-spoken annotations while retaining all audible speech in scope.
+- [ ] Review any uncertain or overlapping speech; record unresolved regions, preparation decisions and reviewer/date in a private audit log.
+- [ ] Inspect the extracted scoring text, especially whitespace, punctuation, casing and residual annotation markers.
+- [ ] Approve and freeze one reference for use by all models evaluating that recording. Retain the source and frozen hashes with the experiment.
+
+### Effect on reported metrics and comparability
+
+Reference preparation can change the reference word and character denominators and the optimal substitution, deletion and insertion alignment. WER and CER may increase, decrease or remain unchanged; improvement is not guaranteed. The existing RapidFuzz implementation computes WER on whitespace-delimited tokens and CER on raw Unicode code points (including punctuation, spaces and line breaks). Removing non-spoken metadata is reference preparation, not a new scoring algorithm.
+
+Any optional scoring normalisation (such as case folding, punctuation stripping or general text normalisation) remains a separate methodological decision and must be prespecified and applied consistently to both reference and hypothesis. Verify that hypotheses contain speech text rather than exported labels or annotations; do not selectively correct model errors. The current raw scorer does not support time-region masking or exclusion of unintelligible audio; do not claim that removing an annotation excludes a region from evaluation. If unresolved audio materially compromises the reference, defer that recording or explicitly design and validate an identical audio/reference exclusion procedure for all models before scoring.
+
+If a frozen reference changes, create a new approved reference and a new experiment; rerun all compared models under the same settings and report the new reference hash. Do not mix results based on different reference versions in the main comparison. Earlier runs may be retained as preliminary validation, not pooled as equivalent observations. Keep all real audio, participant transcripts, annotation logs and private manifests outside GitHub. This checklist is a research preparation requirement, not an automatic annotation-removal feature or a claim of independent validation.
+
 ## Explicit non-goals and outstanding constraints
 
-- **Do not auto-strip speaker labels, abbreviations, fillers, dialect, punctuation or non-speech events.** Any transformation must be agreed before scoring, recorded and applied consistently to both hypothesis and reference.
+- **Do not automatically strip labels or annotations in the scorer.** Manually remove verified non-spoken metadata during reference preparation as described above. Preserve audible words; any optional scoring normalisation must be agreed before scoring, recorded and applied consistently to both hypothesis and reference.
 - A raw character-error rate counts Unicode code points **including spaces, punctuation and line breaks**. Consequently, Word paragraph boundaries can affect CER; *raw scoring is exploratory*. A prespecified matching scoring policy is needed before comparison.
 - Conversation-level WER does not measure speaker attribution. Timestamped and manually adjudicated speaker ground truth is needed to claim DER/JER or diarisation accuracy.
 - Complex DOCX constructs (nested/merged tables, revisions, fields, footnotes, comments, images and drawn text boxes) still require visual comparison with the original DOCX.
