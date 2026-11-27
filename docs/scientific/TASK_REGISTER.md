@@ -30,3 +30,7 @@ The [specification](MASTER_EXECUTION_SPECIFICATION.md) defines acceptance criter
 | 24. Persistent Task Register. | VERIFIED | [Record](TASK_REGISTER.md) |
 | 25. Persistent Execution Handover. | VERIFIED | [Record](EXECUTION_HANDOVER.md) |
 | 26. Master Execution Specification. | VERIFIED | [Record](MASTER_EXECUTION_SPECIFICATION.md) |
+
+## Corrective follow-up to the 26 scientific deliverables
+
+QA-01 and QA-02 are verified by targeted and whole-suite tests. QA-03 automated GUI coverage now includes nine executed Tk tests. Physical CUDA acceptance is OPEN. See [current evidence](RELEASE_READINESS.md) and the [workstation procedure](../validation/WINDOWS_GPU_ACCEPTANCE.md).

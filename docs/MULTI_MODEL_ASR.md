@@ -29,13 +29,7 @@ Here, Legacy means outside the seven-model study shortlist, not an upstream depr
 
 ## Installation and local trial
 
-Use the existing RedScribe virtual environment with working CUDA PyTorch. Use the current main branch (preserve any uncommitted local work):
-
-```powershell
-git fetch origin
-git switch main
-git pull --ff-only
-```
+Use the existing RedScribe virtual environment with working CUDA PyTorch. For v2.1.0 candidate testing, use the exact revision and separate checkout in the [Windows GPU acceptance procedure](validation/WINDOWS_GPU_ACCEPTANCE.md).
 
 Install the existing app dependencies if this is a new environment:
 
