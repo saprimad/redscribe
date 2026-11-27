@@ -23,14 +23,18 @@ WORD_TYPES = [("Microsoft Word", "*.docx"), ("All files", "*.*")]
 class BenchmarkWindow:
     """A Toplevel window that never takes over the existing application flow."""
 
-    def __init__(self, parent, on_live=None):
+    def __init__(self, parent, on_live=None, *, sidebar=None, controls=None):
         self.parent = parent
         self.on_live = on_live
-        self.window = tk.Toplevel(parent)
-        self.window.title("RedScribe — Benchmarking Mode")
-        self.window.geometry("820x740")
-        self.window.minsize(620, 510)
-        self.window.transient(parent)
+        self.embedded = sidebar is not None and controls is not None
+        self.sidebar = sidebar
+        self.controls = controls
+        self.window = parent if self.embedded else tk.Toplevel(parent)
+        if not self.embedded:
+            self.window.title("RedScribe — Benchmarking Mode")
+            self.window.geometry("820x740")
+            self.window.minsize(620, 510)
+            self.window.transient(parent)
         self.mode = tk.StringVar(master=self.window, value="single")
         self.selected = {key: tk.BooleanVar(master=self.window, value=key in CORE_MODELS)
                          for key in ALL_MODELS}
@@ -45,7 +49,8 @@ class BenchmarkWindow:
         self.pilot_thread = None
         self.pilot_cancel = threading.Event()
         self.worker_events = queue.Queue()
-        self.window.protocol("WM_DELETE_WINDOW", self.request_close)
+        if not self.embedded:
+            self.window.protocol("WM_DELETE_WINDOW", self.request_close)
         self.language = tk.StringVar(master=self.window, value="Bahasa Melayu")
         self.pilot_status = tk.StringVar(master=self.window, value="Ready to configure benchmark")
         self.audio_summary = tk.StringVar(master=self.window, value="No audio selected")
@@ -61,36 +66,39 @@ class BenchmarkWindow:
         self.invalidate_review()
 
     def build(self):
-        outer = ttk.Frame(self.window, padding=16)
+        outer = ttk.Frame(self.sidebar if self.embedded else self.window, padding=4 if self.embedded else 16)
         outer.pack(fill="both", expand=True)
-        ttk.Label(outer, text="Benchmarking Mode", font=("TkDefaultFont", 17, "bold")).pack(anchor="w")
-        ttk.Label(outer, text="Full-length ASR evaluation — one recording per experiment.").pack(
-            anchor="w", pady=(3, 12))
-        body = ttk.Frame(outer)
-        body.pack(fill="both", expand=True)
-        canvas = tk.Canvas(body, highlightthickness=0)
-        scrollbar = ttk.Scrollbar(body, orient="vertical", command=canvas.yview)
-        canvas.configure(yscrollcommand=scrollbar.set)
-        scrollbar.pack(side="right", fill="y")
-        canvas.pack(side="left", fill="both", expand=True)
-        inner = ttk.Frame(canvas, padding=(4, 0, 14, 6))
-        item = canvas.create_window((0, 0), window=inner, anchor="nw")
-        inner.bind("<Configure>", lambda _e: canvas.configure(scrollregion=canvas.bbox("all")))
-        canvas.bind("<Configure>", lambda e: canvas.itemconfigure(item, width=e.width))
+        if self.embedded:
+            inner = outer
+        else:
+            ttk.Label(outer, text="Benchmarking Mode", font=("TkDefaultFont", 17, "bold")).pack(anchor="w")
+            body = ttk.Frame(outer)
+            body.pack(fill="both", expand=True)
+            canvas = tk.Canvas(body, highlightthickness=0)
+            scrollbar = ttk.Scrollbar(body, orient="vertical", command=canvas.yview)
+            canvas.configure(yscrollcommand=scrollbar.set)
+            scrollbar.pack(side="right", fill="y")
+            canvas.pack(side="left", fill="both", expand=True)
+            inner = ttk.Frame(canvas, padding=(4, 0, 14, 6))
+            item = canvas.create_window((0, 0), window=inner, anchor="nw")
+            inner.bind("<Configure>", lambda _e: canvas.configure(scrollregion=canvas.bbox("all")))
+            canvas.bind("<Configure>", lambda e: canvas.itemconfigure(item, width=e.width))
+        wrap = 260 if self.embedded else 660
+        self.setup_panel = outer
         files = ttk.LabelFrame(inner, text="1. Dataset files", padding=12)
         files.pack(fill="x", pady=(0, 10))
         ttk.Button(files, text="Select audio", command=self.pick_audio).pack(anchor="w")
-        ttk.Label(files, textvariable=self.audio_summary, wraplength=660).pack(anchor="w", pady=(4, 10))
+        ttk.Label(files, textvariable=self.audio_summary, wraplength=wrap).pack(anchor="w", pady=(4, 10))
         ttk.Button(files, text="Select ground truth DOCX", command=self.pick_references).pack(anchor="w")
-        ttk.Label(files, textvariable=self.reference_summary, wraplength=660).pack(anchor="w", pady=(4, 3))
+        ttk.Label(files, textvariable=self.reference_summary, wraplength=wrap).pack(anchor="w", pady=(4, 3))
         ttk.Button(files, text="Review / Approve / Freeze DOCX",
                    command=self.open_reference_review).pack(anchor="w", pady=(7, 0))
         ttk.Label(files, text="References are approved individually; selection alone is not approval.",
-                  wraplength=660).pack(anchor="w", pady=(3, 0))
+                  wraplength=wrap).pack(anchor="w", pady=(3, 0))
         self.pairing_button = ttk.Button(files, text="Verify batch audio / DOCX pairing",
                    command=self.open_batch_pairing)
         ttk.Label(files, text="DOCX speaker labels and file matching must be verified before scoring.",
-                  foreground="#805b33", wraplength=660).pack(anchor="w", pady=(6, 0))
+                  foreground="#805b33", wraplength=wrap).pack(anchor="w", pady=(6, 0))
 
         models = ttk.LabelFrame(inner, text="2. ASR model selection", padding=12)
         models.pack(fill="x", pady=(0, 10))
@@ -99,7 +107,7 @@ class BenchmarkWindow:
         for title, keys in (("Default 7", CORE_MODELS),
                             ("Select All", ALL_MODELS), ("Clear All", ())):
             ttk.Button(buttons, text=title, command=lambda keys=keys: self.set_models(keys)).pack(
-                side="left", padx=(0, 8))
+                side="top" if self.embedded else "left", fill="x" if self.embedded else "none", pady=2, padx=(0, 4))
         ttk.Label(models, textvariable=self.model_summary).pack(anchor="w", pady=(4, 8))
         ttk.Label(models, text="Core study models (selected by default)").pack(anchor="w")
         for key in CORE_MODELS:
@@ -112,15 +120,16 @@ class BenchmarkWindow:
         options = ttk.LabelFrame(inner, text="3. Benchmark settings", padding=12)
         options.pack(fill="x", pady=(0, 10))
         ttk.Label(options, text="Full audio duration; no three-minute trial limit.",
-                  wraplength=650).pack(anchor="w")
+                  wraplength=wrap).pack(anchor="w")
         ttk.Label(options, text="Language").pack(anchor="w", pady=(8, 1))
         ttk.Combobox(options, textvariable=self.language, state="readonly",
                      values=["Bahasa Melayu", "English", "Auto detect"]).pack(anchor="w")
         ttk.Checkbutton(options, text="GPU / CPU / RAM monitoring", variable=self.gpu_monitor).pack(anchor="w", pady=5)
-        ttk.Label(options, text="Selected models may require CUDA and download weights.", wraplength=650).pack(anchor="w")
+        ttk.Label(options, text="Selected models may require CUDA and download weights.", wraplength=wrap).pack(anchor="w")
         ttk.Button(options, text="Choose output folder", command=lambda: self.master_folder(change=True)).pack(anchor="w", pady=4)
-        footer = ttk.Frame(outer)
-        footer.pack(fill="x", pady=(12, 0))
+        footer = self.controls if self.embedded else ttk.Frame(outer)
+        if not self.embedded:
+            footer.pack(fill="x", pady=(12, 0))
         self.review_button = tk.Button(footer, text="Review configuration", bg="#247a46", fg="white",
                                       command=self.review, disabledforeground="#999999")
         self.review_button.pack(side="left")
@@ -133,8 +142,8 @@ class BenchmarkWindow:
         # Legacy pilot callbacks remain available for regression tests, not primary UI.
         self.start_pilot_button = ttk.Button(footer, command=self.start_pilot)
         self.stop_pilot_button = ttk.Button(footer, command=self.stop_pilot, state="disabled")
-        ttk.Label(outer, textvariable=self.pilot_status, wraplength=720).pack(
-            anchor="w", pady=(7, 0))
+        if not self.embedded:
+            ttk.Label(outer, textvariable=self.pilot_status, wraplength=720).pack(anchor="w", pady=(7, 0))
 
     def configuration(self):
         from redscribe.benchmark.benchmark_experiments import saved_master
@@ -211,8 +220,9 @@ class BenchmarkWindow:
                 self.active_run = handle
                 if self.on_live is not None:
                     self.on_live('begin', None, None, dict(models=current['models'], participant=approval['participant_id']))
-                    self.window.transient('')
-                    self.parent.lift()
+                    if not self.embedded:
+                        self.window.transient('')
+                        self.parent.lift()
         except Exception as exc:
             self.finish_benchmark()
             messagebox.showerror("Benchmark", str(exc), parent=self.window)
@@ -468,7 +478,8 @@ class BenchmarkWindow:
                 parent=self.window,
             )
             return
-        self.window.destroy()
+        if not self.embedded:
+            self.window.destroy()
 
     def stop_pilot(self):
         self.pilot_cancel.set()
@@ -681,6 +692,6 @@ class BenchmarkWindow:
         participant.trace_add("write", update)
 
 
-def open_benchmark_window(parent, on_live=None):
+def open_benchmark_window(parent, on_live=None, **kwargs):
     """Open an isolated, non-modal experimental benchmark window."""
-    return BenchmarkWindow(parent, on_live=on_live)
+    return BenchmarkWindow(parent, on_live=on_live, **kwargs)
