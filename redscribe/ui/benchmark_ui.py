@@ -87,12 +87,20 @@ class BenchmarkWindow:
         self.setup_widgets = []
         self.model_checks = {}
         self.output_summary = tk.StringVar(master=self.window)
-        overview = ttk.LabelFrame(inner, text="Scientific Benchmarking", padding=12)
+        style = ttk.Style(self.window)
+        style.configure("Benchmark.TLabelframe", background="white", bordercolor="#E4DDE2")
+        style.configure("Benchmark.TLabelframe.Label", foreground="#8E1235", background="white", font=("TkDefaultFont", 11, "bold"))
+        overview = ttk.LabelFrame(inner, text="Scientific Benchmarking", padding=12, style="Benchmark.TLabelframe")
         overview.pack(fill="x", pady=(0, 10))
-        ttk.Label(overview, text="Evaluation of automatic speech recognition (ASR) performance against researcher-approved reference transcripts.", wraplength=wrap, justify="left").pack(fill="x", pady=(0, 8))
+        ttk.Label(overview, text="Evaluate automatic speech recognition (ASR) performance against researcher-approved reference transcripts.", wraplength=wrap, justify="left", anchor="w").pack(fill="x", pady=(0, 10))
+        ttk.Separator(overview).pack(fill="x", pady=(0, 8))
         for heading, detail in (("Evaluation metrics", "Word Error Rate (WER)\nCharacter Error Rate (CER)"), ("Scoring engine", "RapidFuzz — Levenshtein edit distance"), ("Evaluation protocol", "Raw verbatim scoring")):
             ttk.Label(overview, text=heading, foreground="#667085").pack(anchor="w")
-            ttk.Label(overview, text=detail, wraplength=wrap, justify="left").pack(fill="x", pady=(0, 6))
+            if heading == "Scoring engine":
+                ttk.Label(overview, text="RapidFuzz", foreground="#8E1235", font=("TkDefaultFont", 11, "bold")).pack(anchor="w")
+                ttk.Label(overview, text="Levenshtein edit distance", foreground="#8E1235", wraplength=wrap, justify="left", anchor="w").pack(fill="x", pady=(0, 8))
+            else:
+                ttk.Label(overview, text=detail, wraplength=wrap, justify="left", anchor="w").pack(fill="x", pady=(0, 8))
         self.setup_panel = outer
         def action(parent, text, command):
             button = tk.Button(parent, text=text, command=command, bg="white", fg="#202332",
@@ -101,7 +109,7 @@ class BenchmarkWindow:
             self.setup_widgets.append((button, "normal"))
             return button
 
-        files = ttk.LabelFrame(inner, text="01. Dataset", padding=12)
+        files = ttk.LabelFrame(inner, text="01. Dataset", padding=12, style="Benchmark.TLabelframe")
         files.pack(fill="x", pady=(0, 10))
         self.audio_button = action(files, "Select audio recording", self.pick_audio)
         self.audio_label = ttk.Label(files, textvariable=self.audio_summary, wraplength=wrap)
@@ -114,7 +122,7 @@ class BenchmarkWindow:
         self.ground_status.pack(fill="x")
         self.pairing_button = ttk.Button(files, text="Verify batch audio / DOCX pairing", command=self.open_batch_pairing)
 
-        models = ttk.LabelFrame(inner, text="02. ASR models", padding=12)
+        models = ttk.LabelFrame(inner, text="02. ASR models", padding=12, style="Benchmark.TLabelframe")
         models.pack(fill="x", pady=(0, 10))
         for title, keys in (("Default 7", CORE_MODELS), ("Select all", ALL_MODELS), ("Clear all", ())):
             action(models, title, lambda keys=keys: self.set_models(keys))
@@ -127,7 +135,7 @@ class BenchmarkWindow:
         for key in ALL_MODELS[len(CORE_MODELS):]:
             self.add_model_checkbox(models, key)
 
-        options = ttk.LabelFrame(inner, text="03. Benchmark settings", padding=12)
+        options = ttk.LabelFrame(inner, text="03. Benchmark settings", padding=12, style="Benchmark.TLabelframe")
         options.pack(fill="x", pady=(0, 10))
         ttk.Label(options, text="Language").pack(anchor="w")
         language = ttk.Combobox(options, textvariable=self.language, state="readonly",
@@ -138,9 +146,12 @@ class BenchmarkWindow:
                                            anchor="w", bg="white", activebackground="white", selectcolor="white")
         self.monitor_check.pack(fill="x", pady=5)
         self.setup_widgets.append((self.monitor_check, "normal"))
-        location = ttk.LabelFrame(inner, text="04. Output location", padding=12)
+        location = ttk.LabelFrame(inner, text="04. Output location", padding=12, style="Benchmark.TLabelframe")
         location.pack(fill="x", pady=(0, 10))
-        ttk.Label(location, textvariable=self.output_summary, wraplength=wrap).pack(fill="x")
+        ttk.Label(location, text="Master output folder", foreground="#667085").pack(anchor="w")
+        self.output_label = ttk.Label(location, textvariable=self.output_summary, wraplength=wrap, justify="left", anchor="w")
+        self.output_label.pack(fill="x", pady=(2, 5))
+        ttk.Label(location, text="Experiment folders are created automatically here.", foreground="#667085", wraplength=wrap, justify="left", anchor="w").pack(fill="x", pady=(0, 5))
         self.folder_button = action(location, "Choose output folder", lambda: self.master_folder(change=True))
         footer = self.controls if self.embedded else ttk.Frame(outer)
         if not self.embedded:
@@ -226,6 +237,7 @@ class BenchmarkWindow:
         self.monitor_check.configure(fg="#247a46" if self.gpu_monitor.get() else "#667085")
         master = saved_master()
         self.output_summary.set(str(master) if master else "No master output folder configured")
+        self.output_label.configure(foreground="#247a46" if master else "#667085")
         self.folder_button.configure(text="Change output folder" if master else "Choose output folder")
         self.refresh_models()
 
@@ -310,16 +322,19 @@ class BenchmarkWindow:
         master = saved_master()
         if master and not change:
             return master
-        folder = filedialog.askdirectory(parent=self.window, title="Choose PRIVATE master benchmark folder", initialdir=str(master) if master else None)
+        # A first-time folder selection can originate from the modal ground-truth review.
+        # Parent the native dialog to the current modal window when present.
+        parent = self.window.grab_current() or self.window
+        folder = filedialog.askdirectory(parent=parent, title="Select master output folder (private research storage)", initialdir=str(master) if master else None, mustexist=True)
         if not folder:
             return None
         try:
             master = save_master(folder)
             self.invalidate_review()
-            self.pilot_status.set("Master output folder: " + str(master))
+            self.pilot_status.set("Output location set — review configuration to confirm")
             return master
         except Exception as exc:
-            messagebox.showerror("Master folder", str(exc), parent=self.window)
+            messagebox.showerror("Master folder", str(exc), parent=parent)
             return None
 
     def choose_experiment(self):
