@@ -18,6 +18,8 @@ class GroundTruthReview:
             raise ValueError("Select a DOCX file before opening review")
         self.window = tk.Toplevel(parent)
         self.window.title("Ground Truth — Review & Freeze")
+        self.window.transient(parent)
+        self.window.grab_set()
         screen_w = self.window.winfo_screenwidth()
         screen_h = self.window.winfo_screenheight()
         self.window.geometry(f"{min(1000, int(screen_w * .85))}x{min(820, int(screen_h * .80))}")
