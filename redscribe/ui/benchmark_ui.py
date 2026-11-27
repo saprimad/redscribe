@@ -196,8 +196,7 @@ class BenchmarkWindow:
                  and self.reference_files[0] in self.approved_references
                  and any(v.get() for v in self.selected.values()))
         self.review_button.configure(state="normal" if ready and not self.active_run else "disabled",
-                                     bg="#247a46" if ready and not self.active_run else "#eeeeee")
-        self.review_button.configure(text="Review configuration")
+                                     bg="#247a46" if ready and not self.active_run else "#eeeeee", text="Review configuration")
         if hasattr(self, "setup_widgets"):
             self.refresh_setup()
         if not self.active_run:
@@ -255,7 +254,7 @@ class BenchmarkWindow:
         if hasattr(self, "setup_widgets"):
             self.refresh_setup()
         self.start_button.configure(state="disabled", bg="#eeeeee", fg="#777777")
-        self.review_button.configure(state="disabled")
+        self.review_button.configure(state="disabled", bg="#eeeeee")
         self.stop_button.configure(state="normal")
         self.pilot_status.set("Benchmark running")
         try:
