@@ -491,6 +491,42 @@ class BenchmarkWindow:
         self.approved_references = {}
         self.batch_pairs = ()
         self.reference_summary.set(self.describe_files(self.reference_files))
+        self.restore_approved_references()
+
+    def restore_approved_references(self):
+        """Restore only unambiguous, verified frozen references after DOCX selection."""
+        from redscribe.benchmark.benchmark_experiments import saved_master
+        from redscribe.benchmark.benchmark_reference import verify_reference, sha256_file
+        master = saved_master()
+        if not master:
+            return
+        cache = master / "_PRIVATE Frozen References"
+        if not cache.is_dir():
+            return
+        candidates = {}
+        for manifest in cache.glob("*.json"):
+            try:
+                info = verify_reference(manifest)
+                checks = info.get("verification", {})
+                if info.get("approval") != "researcher_confirmed" or not all(
+                    checks.get(k) is True for k in ("audio_verified", "coverage_verified",
+                        "speaker_labels_reviewed", "non_speech_reviewed")
+                ):
+                    continue
+                candidates.setdefault(str(Path(info["source_path"]).resolve()), []).append(
+                    (manifest, info["source_sha256"]))
+            except (OSError, ValueError, KeyError, TypeError):
+                continue
+        for source in self.reference_files:
+            try:
+                digest = sha256_file(source)
+                matches = [p for p, h in candidates.get(source, []) if h == digest]
+                if len(matches) == 1:
+                    self.approved_references[source] = str(matches[0])
+            except OSError:
+                continue
+        self.reference_summary.set(self.describe_files(self.reference_files) +
+                                   f" | {len(self.approved_references)} locally approved")
 
     @staticmethod
     def describe_files(files):
