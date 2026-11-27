@@ -8,11 +8,12 @@ from benchmark_reference import approve_reference
 
 
 class GroundTruthReview:
-    def __init__(self, parent, paths, on_approved=None, output_dir=None):
+    def __init__(self, parent, paths, on_approved=None, output_dir=None, output_provider=None):
         self.parent = parent
         self.paths = tuple(paths)
         self.on_approved = on_approved
         self.output_dir = output_dir
+        self.output_provider = output_provider
         if not self.paths:
             raise ValueError("Select a DOCX file before opening review")
         self.window = tk.Toplevel(parent)
@@ -193,10 +194,13 @@ class GroundTruthReview:
                 "Save a PRIVATE, immutable-by-convention reference text and its SHA-256 manifest? "
                 "This does not run any ASR model.", parent=self.window):
             return
-        folder = self.output_dir or filedialog.askdirectory(parent=self.window, title="Choose PRIVATE output folder for approved references")
-        if not folder:
-            return
         try:
+            folder = self.output_dir
+            if folder is None:
+                folder = (self.output_provider() if self.output_provider is not None
+                          else filedialog.askdirectory(parent=self.window, title="Choose PRIVATE output folder for approved references"))
+            if not folder:
+                return
             manifest_path, text_path, info = approve_reference(
                 self.current_draft.source_path, text, folder, reviewer_acknowledged=True,
                 expected_source_sha256=self.current_draft.source_sha256,
@@ -216,5 +220,5 @@ class GroundTruthReview:
                             parent=self.window)
 
 
-def open_ground_truth_review(parent, paths, on_approved=None, output_dir=None):
-    return GroundTruthReview(parent, paths, on_approved=on_approved, output_dir=output_dir)
+def open_ground_truth_review(parent, paths, on_approved=None, output_dir=None, output_provider=None):
+    return GroundTruthReview(parent, paths, on_approved=on_approved, output_dir=output_dir, output_provider=output_provider)
