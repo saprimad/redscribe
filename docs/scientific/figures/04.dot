@@ -1,0 +1,16 @@
+digraph G {
+graph [rankdir=TB, bgcolor="white", pad="0.15", nodesep="0.20", ranksep="0.26"];
+node [shape=box,style="rounded,filled",color="#284755",fillcolor="#EDF5F5",fontname="DejaVu Sans",fontsize=11,margin="0.12,0.07"];
+edge [color="#365767",fontcolor="#243B49",fontname="DejaVu Sans",fontsize=10,arrowsize=0.65];
+n0 [label="Source DOCX"];
+n1 [label="Extract editable text"];
+n2 [label="Audio review by researcher",style="rounded,dashed",fillcolor="white"];
+n3 [label="Approve scoring copy"];
+n4 [label="Scoring text and manifest"];
+n5 [label="Verify audio–reference pair"];
+n0 -> n1;
+n1 -> n2;
+n2 -> n3;
+n3 -> n4;
+n4 -> n5;
+}

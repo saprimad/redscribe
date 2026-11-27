@@ -1,0 +1,20 @@
+digraph G {
+graph [rankdir=TB, bgcolor="white", pad="0.15", nodesep="0.20", ranksep="0.26"];
+node [shape=box,style="rounded,filled",color="#284755",fillcolor="#EDF5F5",fontname="DejaVu Sans",fontsize=11,margin="0.12,0.07"];
+edge [color="#365767",fontcolor="#243B49",fontname="DejaVu Sans",fontsize=10,arrowsize=0.65];
+n0 [label="Load selected model"];
+n1 [label="Request diarisation?",shape=diamond,fillcolor="#FFF2D6"];
+n2 [label="Obtain speaker turns"];
+n3 [label="Transcribe recording"];
+n4 [label="Estimate sentence times"];
+n5 [label="Assign available speakers"];
+n6 [label="Write XLSX and DOCX"];
+n0 -> n1;
+n1 -> n2 [label="enabled"];
+n1 -> n3 [label="disabled"];
+n2 -> n3 [label="turns or empty"];
+n3 -> n4;
+n4 -> n5;
+n2 -> n5;
+n5 -> n6;
+}

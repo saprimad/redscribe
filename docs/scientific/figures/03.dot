@@ -1,0 +1,18 @@
+digraph G {
+graph [rankdir=TB, bgcolor="white", pad="0.15", nodesep="0.20", ranksep="0.26"];
+node [shape=box,style="rounded,filled",color="#284755",fillcolor="#EDF5F5",fontname="DejaVu Sans",fontsize=11,margin="0.12,0.07"];
+edge [color="#365767",fontcolor="#243B49",fontname="DejaVu Sans",fontsize=10,arrowsize=0.65];
+n0 [label="Approved pairs and model list"];
+n1 [label="Verify dataset and durations"];
+n2 [label="Open compatible checkpoint"];
+n3 [label="Run pending model sessions"];
+n4 [label="Recheck completed cells"];
+n5 [label="Export private matrix reports"];
+n6 [label="Prepare structured outputs"];
+n0 -> n1;
+n1 -> n2;
+n2 -> n3;
+n3 -> n4;
+n4 -> n5;
+n5 -> n6;
+}

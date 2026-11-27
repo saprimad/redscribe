@@ -1,0 +1,20 @@
+digraph G {
+graph [rankdir=TB, bgcolor="white", pad="0.15", nodesep="0.20", ranksep="0.26"];
+node [shape=box,style="rounded,filled",color="#284755",fillcolor="#EDF5F5",fontname="DejaVu Sans",fontsize=11,margin="0.12,0.07"];
+edge [color="#365767",fontcolor="#243B49",fontname="DejaVu Sans",fontsize=10,arrowsize=0.65];
+n0 [label="Approved UTF-8 text"];
+n1 [label="Persisted prediction"];
+n2 [label="Whitespace tokens"];
+n3 [label="Unicode code points"];
+n4 [label="Word edit counts"];
+n5 [label="Character edit counts"];
+n6 [label="Recording and cohort summaries"];
+n0 -> n2;
+n1 -> n2;
+n0 -> n3;
+n1 -> n3;
+n2 -> n4;
+n3 -> n5;
+n4 -> n6;
+n5 -> n6;
+}
