@@ -23,7 +23,8 @@ def decode_full_duration(path):
 
 def _run_model_major_batch(dataset_path, models, output, *, language="ms",
                           session_factory=None, stopped=lambda:False, duration_check=None,
-                          warmup_audio=None, monitor_factory=None, progress=lambda *args: None):
+                          warmup_audio=None, monitor_factory=None, progress=lambda *args: None,
+                          live_event=None):
     progress('Startup',None,'Verifying approved dataset and reference integrity')
     dataset = verify_dataset(dataset_path)
     models = list(models)
@@ -69,6 +70,15 @@ def _run_model_major_batch(dataset_path, models, output, *, language="ms",
         ref = verify_reference(refpath)
         return (refpath.parent/ref["scoring_text_file"]).read_bytes().decode("utf-8")
 
+    def emit(kind, model, pid, data):
+        if live_event is not None:
+            live_event(kind, model, pid, data)
+
+    for pid in pairs:
+        ref = reference(pid)
+        emit('reference', None, pid, dict(audio_seconds=durations[pid],
+             reference_words=len(ref.split()), reference_characters=len(ref)))
+
     def scores(ref,pred):
         w,c = raw_wer(ref,pred),raw_cer(ref,pred)
         return {"wer":w.rate,"cer":c.rate,
@@ -112,6 +122,11 @@ def _run_model_major_batch(dataset_path, models, output, *, language="ms",
                        audio_seconds=durations[pid],rtf=row["inference_seconds"]/durations[pid],**scores(reference(pid),pred))
         matrix.record(model,pid,row)
         progress(model,pid,row['status'])
+        emit('result', model, pid, {k: row.get(k) for k in (
+            'status','stage','wer','cer','reference_words','reference_characters',
+            'word_substitutions','word_deletions','word_insertions','char_substitutions',
+            'char_deletions','char_insertions','audio_seconds','inference_seconds','rtf',
+            'session_loading_seconds','device','precision','resources')})
 
     def verified(model,pid,row):
         try:
@@ -157,6 +172,11 @@ def _run_model_major_batch(dataset_path, models, output, *, language="ms",
             if matrix.verified(m,p,verified):
                 verified_cells.add((m,p))
                 progress(m,p,'completed')
+                emit('result', m, p, {k: matrix.state['results'][m][p].get(k) for k in (
+                    'status','wer','cer','reference_words','reference_characters',
+                    'word_substitutions','word_deletions','word_insertions','char_substitutions',
+                    'char_deletions','char_insertions','audio_seconds','inference_seconds','rtf',
+                    'session_loading_seconds','device','precision','resources')})
             else:
                 progress(m,p,'pending')
     def close_session(session):
@@ -174,6 +194,8 @@ def _run_model_major_batch(dataset_path, models, output, *, language="ms",
                         worker_log=session.log_path.name))
         if error:
             progress(model, None, "cleanup_failed; verified predictions retained")
+        else:
+            progress(model, None, "Model resources released")
     run_model_major(models,pairs,open_model=open_session,infer=infer,
         close_model=close_session,checkpoint=save,stopped=stopped,
         is_verified=lambda m,p:(m,p) in verified_cells and matrix.verified(m,p,verified),
