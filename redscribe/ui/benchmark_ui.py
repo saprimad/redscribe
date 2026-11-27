@@ -4,6 +4,9 @@ Runs isolated single/batch trials on worker threads. Results stay local;
 ordinary transcription settings and workflow are not altered.
 """
 import os
+import subprocess
+import sys
+from datetime import datetime, timezone
 from pathlib import Path
 import queue
 import threading
@@ -47,14 +50,20 @@ class BenchmarkWindow:
         self.audio_summary = tk.StringVar(master=self.window, value="No audio selected")
         self.reference_summary = tk.StringVar(master=self.window, value="No ground truth selected")
         self.model_summary = tk.StringVar(master=self.window)
+        self.confirmed_configuration = None
+        self.active_run = None
+        self.last_output = None
         self.build()
         self.refresh_models()
+        for variable in (self.language, self.gpu_monitor, *self.selected.values()):
+            variable.trace_add('write', lambda *_: self.invalidate_review())
+        self.invalidate_review()
 
     def build(self):
         outer = ttk.Frame(self.window, padding=16)
         outer.pack(fill="both", expand=True)
         ttk.Label(outer, text="Benchmarking Mode", font=("TkDefaultFont", 17, "bold")).pack(anchor="w")
-        ttk.Label(outer, text="Full-length single / batch ASR evaluation; scientific validation pending.").pack(
+        ttk.Label(outer, text="Full-length ASR evaluation — one recording per experiment.").pack(
             anchor="w", pady=(3, 12))
         body = ttk.Frame(outer)
         body.pack(fill="both", expand=True)
@@ -67,14 +76,7 @@ class BenchmarkWindow:
         item = canvas.create_window((0, 0), window=inner, anchor="nw")
         inner.bind("<Configure>", lambda _e: canvas.configure(scrollregion=canvas.bbox("all")))
         canvas.bind("<Configure>", lambda e: canvas.itemconfigure(item, width=e.width))
-        mode_frame = ttk.LabelFrame(inner, text="1. Processing mode", padding=12)
-        mode_frame.pack(fill="x", pady=(0, 10))
-        for value, title in (("single", "Single audio + DOCX"),
-                             ("batch", "Batch audio + DOCX")):
-            ttk.Radiobutton(mode_frame, text=title, value=value, variable=self.mode,
-                            command=self.reset_files).pack(anchor="w", pady=2)
-
-        files = ttk.LabelFrame(inner, text="2. Dataset files", padding=12)
+        files = ttk.LabelFrame(inner, text="1. Dataset files", padding=12)
         files.pack(fill="x", pady=(0, 10))
         ttk.Button(files, text="Select audio", command=self.pick_audio).pack(anchor="w")
         ttk.Label(files, textvariable=self.audio_summary, wraplength=660).pack(anchor="w", pady=(4, 10))
@@ -89,7 +91,7 @@ class BenchmarkWindow:
         ttk.Label(files, text="DOCX speaker labels and file matching must be verified before scoring.",
                   foreground="#805b33", wraplength=660).pack(anchor="w", pady=(6, 0))
 
-        models = ttk.LabelFrame(inner, text="3. ASR model selection", padding=12)
+        models = ttk.LabelFrame(inner, text="2. ASR model selection", padding=12)
         models.pack(fill="x", pady=(0, 10))
         buttons = ttk.Frame(models)
         buttons.pack(fill="x", pady=(0, 5))
@@ -106,7 +108,7 @@ class BenchmarkWindow:
         for key in ALL_MODELS[len(CORE_MODELS):]:
             self.add_model_checkbox(models, key)
 
-        options = ttk.LabelFrame(inner, text="4. Benchmark settings", padding=12)
+        options = ttk.LabelFrame(inner, text="3. Benchmark settings", padding=12)
         options.pack(fill="x", pady=(0, 10))
         ttk.Label(options, text="Full audio duration; no three-minute trial limit.",
                   wraplength=650).pack(anchor="w")
@@ -115,62 +117,121 @@ class BenchmarkWindow:
                      values=["Bahasa Melayu", "English", "Auto detect"]).pack(anchor="w")
         ttk.Checkbutton(options, text="GPU / CPU / RAM monitoring", variable=self.gpu_monitor).pack(anchor="w", pady=5)
         ttk.Label(options, text="Selected models may require CUDA and download weights.", wraplength=650).pack(anchor="w")
-        safety = ttk.LabelFrame(inner, text="5. Experiment management", padding=12)
-        safety.pack(fill="x", pady=(0, 10))
-        ttk.Label(safety, wraplength=660, text="Choose a private master folder once. References, manifests and experiment folders are managed automatically. Review scientific limitations before using results.").pack(anchor="w")
-        ttk.Button(safety, text="Resume Experiment", command=self.resume_experiment).pack(anchor="w", pady=4)
-        ttk.Button(safety, text="Regenerate Reports", command=self.regenerate_experiment).pack(anchor="w", pady=4)
-        ttk.Button(safety, text="Change Master Output Folder", command=lambda: self.master_folder(change=True)).pack(anchor="w", pady=4)
-        advanced = ttk.LabelFrame(safety, text="Advanced — legacy imports", padding=6)
-        advanced.pack(fill="x", pady=4)
-        ttk.Button(advanced, text="Load approved reference (JSON)", command=self.load_approved_reference).pack(anchor="w")
-        ttk.Button(advanced, text="Load approved dataset (JSON)", command=self.load_approved_dataset).pack(anchor="w")
+        ttk.Button(options, text="Choose output folder", command=lambda: self.master_folder(change=True)).pack(anchor="w", pady=4)
         footer = ttk.Frame(outer)
         footer.pack(fill="x", pady=(12, 0))
-        ttk.Button(footer, text="Close", command=self.request_close).pack(side="right")
-        ttk.Button(footer, text="Benchmark", command=self.open_full_matrix).pack(side="right", padx=(0, 10))
+        self.review_button = tk.Button(footer, text="Review configuration", bg="#247a46", fg="white",
+                                      command=self.review, disabledforeground="#999999")
+        self.review_button.pack(side="left")
+        self.start_button = tk.Button(footer, text="Start benchmark", command=self.open_full_matrix,
+                                     bg="#eeeeee", disabledforeground="#999999", state="disabled")
+        self.start_button.pack(side="right", padx=4)
+        self.stop_button = ttk.Button(footer, text="Stop benchmark", command=self.stop_benchmark, state="disabled")
+        self.stop_button.pack(side="right", padx=4)
+        ttk.Button(footer, text="Open output folder", command=self.open_output_folder).pack(side="right", padx=4)
         # Legacy pilot callbacks remain available for regression tests, not primary UI.
         self.start_pilot_button = ttk.Button(footer, command=self.start_pilot)
         self.stop_pilot_button = ttk.Button(footer, command=self.stop_pilot, state="disabled")
         ttk.Label(outer, textvariable=self.pilot_status, wraplength=720).pack(
             anchor="w", pady=(7, 0))
 
+    def configuration(self):
+        from redscribe.benchmark.benchmark_experiments import saved_master
+        from redscribe.benchmark.benchmark_reference import verify_reference, sha256_file
+        if len(self.audio_files) != 1 or len(self.reference_files) != 1:
+            raise ValueError("Select one audio and one DOCX.")
+        audio, source = self.audio_files[0], self.reference_files[0]
+        manifest = self.approved_references.get(source)
+        if not manifest:
+            raise ValueError("Review and freeze the ground truth first.")
+        info = verify_reference(manifest)
+        if Path(info["source_path"]).resolve() != Path(source).resolve():
+            raise ValueError("Approved reference does not match selected DOCX.")
+        if not all(info.get("verification", {}).get(k) is True for k in
+                   ("audio_verified", "coverage_verified", "speaker_labels_reviewed", "non_speech_reviewed")):
+            raise ValueError("Complete all ground truth verification checks.")
+        models = ordered_selection(k for k,v in self.selected.items() if v.get())
+        master = saved_master()
+        if not models or not master:
+            raise ValueError("Choose models and a private output folder.")
+        return dict(audio=audio, audio_sha256=sha256_file(audio), source=source,
+                    manifest=manifest, reference_sha256=info["approved_text_sha256"],
+                    manifest_sha256=sha256_file(manifest), models=list(models),
+                    language={"Bahasa Melayu":"ms","English":"en","Auto detect":None}[self.language.get()],
+                    monitor=bool(self.gpu_monitor.get()), master=str(master))
+
+    def invalidate_review(self):
+        self.confirmed_configuration = None
+        if not hasattr(self, "start_button"):
+            return
+        self.start_button.configure(state="disabled", bg="#eeeeee", fg="#777777")
+        self.review_button.configure(state="disabled" if self.active_run else "normal")
+        if not self.active_run:
+            self.pilot_status.set("Configuration review required")
+
     def open_full_matrix(self):
-        if self.pilot_thread is not None and self.pilot_thread.is_alive():
-            messagebox.showwarning("Running","Stop the pilot first.",parent=self.window)
-            return
-        models=ordered_selection(k for k,v in self.selected.items() if v.get())
-        if not models:
-            messagebox.showwarning("Models","Select at least one model.",parent=self.window)
-            return
+        from .operation_guard import operation_active
         from .benchmark_matrix_ui import open_matrix_window
-        lang={"Bahasa Melayu":"ms","English":"en","Auto detect":None}[self.language.get()]
-        from .benchmark_dataset_ui import approve_pairs_dialog
-        if self.mode.get() == "single":
-            if len(self.audio_files) != 1 or len(self.reference_files) != 1:
-                messagebox.showwarning("Inputs", "Select one audio and one DOCX first.", parent=self.window)
-                return
-            reference = self.approved_references.get(self.reference_files[0])
-            if not reference:
-                messagebox.showwarning("Approval", "Review / Approve / Freeze the DOCX, or load an approved reference.", parent=self.window)
-                return
-            pairs = ((self.audio_files[0], reference),)
-        else:
-            if not self.audio_files or len(self.batch_pairs) != len(self.audio_files):
-                messagebox.showwarning("Pairing", "Verify batch audio / DOCX pairing first.", parent=self.window)
-                return
-            pairs = self.batch_pairs
-        master = self.master_folder()
-        if not master:
-            return
         from redscribe.benchmark.benchmark_experiments import new_experiment
-        monitor = self.gpu_monitor.get()
-        prepared = approve_pairs_dialog(self.window, pairs, prepare_experiment=lambda rows:
-            new_experiment(master, rows, models, lang, monitor, researcher_acknowledged=True))
-        if not prepared:
+        if self.active_run or operation_active():
             return
-        output, manifest = prepared
-        open_matrix_window(self.window, models, lang, monitor, manifest=str(manifest), output=str(output))
+        try:
+            current = self.configuration()
+            approval = self.confirmed_configuration
+            if not approval or approval["configuration"] != current:
+                raise ValueError("Configuration changed or not confirmed. Review again.")
+            row = dict(participant_id=approval["participant_id"], audio=current["audio"],
+                       reference_manifest=current["manifest"])
+            output, manifest = new_experiment(current["master"], [row], current["models"],
+                current["language"], current["monitor"], researcher_acknowledged=True,
+                configuration_confirmation=approval)
+        except Exception as exc:
+            self.invalidate_review()
+            messagebox.showerror("Benchmark preflight", str(exc), parent=self.window)
+            return
+        self.last_output = output
+        self.active_run = True
+        self.start_button.configure(state="disabled", bg="#eeeeee", fg="#777777")
+        self.review_button.configure(state="disabled")
+        self.stop_button.configure(state="normal")
+        self.pilot_status.set("Benchmark running")
+        try:
+            handle = open_matrix_window(self.window, current["models"], current["language"],
+                current["monitor"], manifest=str(manifest), output=str(output),
+                confirmed=True, on_finished=self.finish_benchmark)
+            if handle is None:
+                self.finish_benchmark()
+            elif self.active_run:
+                self.active_run = handle
+        except Exception as exc:
+            self.finish_benchmark()
+            messagebox.showerror("Benchmark", str(exc), parent=self.window)
+
+    def stop_benchmark(self):
+        if callable(self.active_run):
+            self.active_run()
+            self.pilot_status.set("Stop requested; waiting for safe checkpoint")
+            self.stop_button.configure(state="disabled")
+
+    def finish_benchmark(self):
+        self.active_run = None
+        self.stop_button.configure(state="disabled")
+        self.invalidate_review()
+        self.pilot_status.set("Run ended — inspect results; review before another run")
+
+    def open_output_folder(self):
+        from redscribe.benchmark.benchmark_experiments import saved_master
+        path = self.last_output or saved_master()
+        if not path:
+            messagebox.showinfo("Output folder", "Choose an output folder first.", parent=self.window)
+            return
+        try:
+            if sys.platform == "win32":
+                os.startfile(str(path))
+            else:
+                subprocess.Popen(["open" if sys.platform == "darwin" else "xdg-open", str(path)])
+        except OSError as exc:
+            messagebox.showerror("Output folder", str(exc), parent=self.window)
 
     def master_folder(self, change=False):
         from redscribe.benchmark.benchmark_experiments import saved_master, save_master
@@ -182,6 +243,7 @@ class BenchmarkWindow:
             return None
         try:
             master = save_master(folder)
+            self.invalidate_review()
             self.pilot_status.set("Master output folder: " + str(master))
             return master
         except Exception as exc:
@@ -430,6 +492,8 @@ class BenchmarkWindow:
             raise ValueError("Approved DOCX is no longer selected")
         self.approved_references[key] = manifest_path
         self.batch_pairs = ()
+        if hasattr(self, "start_button"):
+            self.invalidate_review()
         self.reference_summary.set(self.describe_files(self.reference_files) +
                                    f" | {len(self.approved_references)} locally approved")
 
@@ -474,6 +538,7 @@ class BenchmarkWindow:
             self.audio_files = tuple(value)
         self.batch_pairs = ()
         self.audio_summary.set(self.describe_files(self.audio_files))
+        self.invalidate_review()
 
     def pick_references(self):
         if self.mode.get() == "single":
@@ -492,6 +557,7 @@ class BenchmarkWindow:
         self.batch_pairs = ()
         self.reference_summary.set(self.describe_files(self.reference_files))
         self.restore_approved_references()
+        self.invalidate_review()
 
     def restore_approved_references(self):
         """Restore only unambiguous, verified frozen references after DOCX selection."""
@@ -535,32 +601,63 @@ class BenchmarkWindow:
         return f"{len(files)} selected files"
 
     def review(self):
-        models = ordered_selection(k for k, v in self.selected.items() if v.get())
-        if not models:
-            messagebox.showwarning("No models selected", "Select at least one model.", parent=self.window)
+        from tkinter import simpledialog
+        if self.active_run:
             return
-        if not self.audio_files or not self.reference_files:
-            messagebox.showwarning("Missing dataset", "Choose audio and DOCX reference files.",
-                                   parent=self.window)
+        self.invalidate_review()
+        try:
+            config = self.configuration()
+        except Exception as exc:
+            messagebox.showwarning("Review configuration", str(exc), parent=self.window)
             return
-        if self.mode.get() == "single" and (len(self.audio_files) != 1 or len(self.reference_files) != 1):
-            messagebox.showwarning("Invalid single mode", "Single mode needs one audio and one DOCX.",
-                                   parent=self.window)
-            return
-        # This validates model/mode settings only: it MUST NOT imply DOCX parsing
-        # and audio/reference matching have already been checked.
-        config = BenchmarkConfig(mode=self.mode.get(), models=models)
-        messagebox.showinfo(
-            "Benchmark configuration preview",
-            f"Mode: {config.mode}\n"
-            f"Audio files: {len(self.audio_files)}\n"
-            f"DOCX files: {len(self.reference_files)}\n"
-            f"Selected models: {len(config.models)}\n\n"
-            f"Approved references (local): {len(self.approved_references)}/{len(self.reference_files)}\\n"
-            "Audio/reference file matching has NOT been validated.\\n"
-            "Review and verify all pairings before starting a real experimental run.",
-            parent=self.window,
+        dialog = tk.Toplevel(self.window)
+        dialog.title("Benchmark Configuration Review")
+        dialog.transient(self.window)
+        dialog.grab_set()
+        frame = ttk.Frame(dialog, padding=16)
+        frame.pack(fill="both", expand=True)
+        participant = tk.StringVar(master=dialog, value=Path(config["audio"]).stem)
+        ttk.Label(frame, text="Participant pseudonym").pack(anchor="w")
+        ttk.Entry(frame, textvariable=participant).pack(fill="x")
+        details = [
+            "Audio: " + Path(config["audio"]).name,
+            "Ground truth: " + Path(config["source"]).name,
+            "Reference: approved and SHA-256 verified",
+            "Models: " + ", ".join(ASR_MODEL_LABELS[m] for m in config["models"]),
+            "Language: " + self.language.get(),
+            "Full-length audio | CUDA FP16 | WER/CER",
+            "Resource monitoring: " + ("Enabled" if config["monitor"] else "Disabled"),
+            "Private output: " + config["master"],
+        ]
+        ttk.Label(frame, text="\n".join(details), wraplength=640, justify="left").pack(anchor="w", pady=10)
+        labels = (
+            "I confirm that the selected audio corresponds to the approved ground truth.",
+            "I confirm that the selected ASR models and benchmark settings are correct.",
+            "I acknowledge that the benchmark results require scientific interpretation and verification.",
         )
+        flags = [tk.BooleanVar(master=dialog, value=False) for _ in labels]
+        def update(*_):
+            confirm.configure(state="normal" if all(v.get() for v in flags) and participant.get().strip() else "disabled")
+        def approve():
+            try:
+                if not all(v.get() for v in flags) or config != self.configuration():
+                    raise ValueError("Configuration changed. Review again.")
+                pid = participant.get().strip()
+                if not pid:
+                    raise ValueError("Enter a participant pseudonym.")
+                self.confirmed_configuration = dict(configuration=config, participant_id=pid,
+                    confirmed_utc=datetime.now(timezone.utc).isoformat(),
+                    checks=dict(zip(("audio_reference_match", "settings_correct", "interpretation_acknowledged"), [True]*3)))
+                self.start_button.configure(state="normal", bg="#8f1037", fg="white")
+                self.pilot_status.set("Configuration confirmed — Ready to benchmark")
+                dialog.destroy()
+            except Exception as exc:
+                messagebox.showerror("Configuration review", str(exc), parent=dialog)
+        for label, flag in zip(labels, flags):
+            ttk.Checkbutton(frame, text=label, variable=flag, command=update).pack(anchor="w", pady=3)
+        confirm = ttk.Button(frame, text="Confirm configuration", command=approve, state="disabled")
+        confirm.pack(anchor="e", pady=8)
+        participant.trace_add("write", update)
 
 
 def open_benchmark_window(parent):
