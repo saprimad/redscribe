@@ -1395,7 +1395,7 @@ class RedScribeApp:
     def scroll_sidebar(self, event):
         if not str(event.widget).startswith(str(self.sidebar_canvas)):
             return
-        if self.sidebar_content.winfo_height() <= self.sidebar_canvas.winfo_height():
+        if self.sidebar_host.winfo_height() <= self.sidebar_canvas.winfo_height():
             return
         if getattr(event, "num", None) in (4, 5):
             units = -1 if event.num == 4 else 1
