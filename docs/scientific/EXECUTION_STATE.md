@@ -5,3 +5,7 @@ Scientific documentation and the six simulated reviews have been integrated on r
 PR #29 at 57930b0 repaired the completion and token fixtures. The next corrective checkpoint exercises the exclusive worker launcher, adds a Tk mode round trip and a skip-sensitive cross-platform full regression workflow. Nine desktop tests ran successfully on Linux Xvfb. CI and full-suite results are tracked separately.
 
 Checkpoint 5da7f53 produced 228 full regression passes on each of Windows and Ubuntu, including all nine desktop checks, with zero skips. The benchmark subset passed 107 on each. The following documentation checkpoint records CI links and the physical workstation procedure. The study and release decisions remain separate.
+
+## Documentation consolidation
+
+The integrated application baseline is 24cafc03effd13d88f61b2167216cf358d90ce18. PR #29 merged and the post-merge regression and documentation jobs succeeded. Preserve this revision as the software comparator for subsequent editorial changes. [Post-merge checks](https://github.com/saprimad/redscribe/actions/runs/46078817753)

@@ -34,3 +34,5 @@ The [specification](MASTER_EXECUTION_SPECIFICATION.md) defines acceptance criter
 ## Corrective follow-up to the 26 scientific deliverables
 
 QA-01 and QA-02 are verified by targeted and whole-suite tests. QA-03 automated GUI coverage now includes nine executed Tk tests. Physical CUDA acceptance is OPEN. See [current evidence](RELEASE_READINESS.md) and the [workstation procedure](../validation/WINDOWS_GPU_ACCEPTANCE.md).
+
+The consolidation pass covers audience-specific navigation, supervisory and manuscript references, requirement-level evidence, a draft deposit and a reusable native acceptance record. Preserve the original 26-item register above as the historical scientific documentation baseline.
