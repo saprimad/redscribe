@@ -17,3 +17,9 @@ The repository check resolves relative inline Markdown links and image targets f
 [Illustrated guide](../user-guide/README.md) · [Sample file checksums](../user-guide/sample-outputs/README.md) · [Consolidated historical record](../validation/CONSOLIDATED_DEVELOPMENT_RECORD_2026-11-28.md)
 
 Final integrated scan covered 80 Markdown files and 341 local link occurrences, with zero missing targets and zero heading warnings under the scan's Markdown-link rules. The source tree and sample checks above describe local observations. External link availability and human accessibility assessment remain separate.
+
+## Consolidation review against the merged software
+
+Eight editorial checks addressed the changed material. Methodological review retained the single-recording limit. Statistical review distinguished paired recordings from model observations. Technical review traced the new matrix to implementation and tests. Reproducibility review separated repeat execution from checkpoint reuse. Integrity review confined the acceptance template to blank fields and public evidence. Academic review separated draft deposit metadata from the archived citation. Usability review linked the briefing and technical records from the index. Release review replaced an inconclusive PR-only workflow lookup with the actual post-merge push evidence. These are documentation checks; independent scientific and physical acceptance remain outstanding.
+
+Local document validation passed across 87 Markdown files, 411 internal references, 11 scientific figures, 11 model labels, 19 reference IDs, 21 claim IDs and two public sample digests. The validator checks defined link and numbering patterns. Print legibility depends on final figure dimensions and requires a proof at the chosen venue's column width.

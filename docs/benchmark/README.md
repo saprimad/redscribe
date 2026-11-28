@@ -1,51 +1,14 @@
-# Benchmark protocols and historical workflows
+# Benchmark protocols
 
-For the current workflow, see [Part II](../scientific/part-II-benchmarking/README.md), the [illustrated guide](../user-guide/README.md) and the [consolidated validation record](../validation/CONSOLIDATED_DEVELOPMENT_RECORD_2026-11-28.md). The diagrams, pilot features and verification statements below describe earlier design and audit milestones.
+For the desktop workflow, start with the [illustrated user guide](../user-guide/README.md). For code paths, model scheduling and output interpretation, see [Part II](../scientific/part-II-benchmarking/README.md) and the [architecture figures](../scientific/figures/README.md).
 
-## Historical workflow diagrams
+| Protocol | Use |
+| --- | --- |
+| [Ground truth preparation and verification](GROUND_TRUTH_PROTOCOL.md) | Prepare, review and freeze the scoring copy before inference. |
+| [Accuracy and computational efficiency](../scientific/BENCHMARK_METHODOLOGY.md) | Interpret raw WER/CER, denominators, timing boundaries and resource observations. |
+| [Statistical analysis and numerical revalidation](../scientific/STATISTICS.md) | Distinguish the planned paired comparison from the single-recording demonstration. |
+| [Research integrity and provenance](../scientific/INTEGRITY.md) | Review evidence permissions, recording eligibility and reproducibility gates. |
 
-![RedScribe Benchmark Workflow — Academic v8](RedScribe_Benchmark_Workflow_Academic_v8.svg)
+## Earlier designs and audits
 
-The historical experimental workflow shows how audio recordings and researcher-verified DOCX references are prepared, paired, processed across selected ASR models, and evaluated using raw WER/CER with optional speech and resource analysis.
-
-### Academic v8
-- [Academic v8 — SVG figure](RedScribe_Benchmark_Workflow_Academic_v8.svg) — displays directly in GitHub and is suitable for scalable figures.
-- [Academic v8 — interactive HTML](RedScribe_Benchmark_Workflow_Academic_v8.html) — open locally for export to SVG/PNG.
-
-### Reviewed v7
-- [Reviewed v7 — SVG](RedScribe_Benchmark_Workflow_Reviewed_v7.svg)
-- [Reviewed v7 — HTML](RedScribe_Benchmark_Workflow_Reviewed_v7.html)
-
-**Research status:** Figure reflects code/design in the `redscribe-benchmark-timeline` experimental branch, not a completed or independently validated scientific benchmark. Normalisation, diarisation-ground-truth evaluation and other methodological HOLD items remain open. Do not commit recordings, approved transcript data, or personally identifiable material to this repository.
-
-## Code audit and publication readiness
-
-- [Critical static code audit — 18 November 2026](CRITICAL_CODE_AUDIT_2026-11-18.md): confirmed implementation fixes, unresolved scoring comparability risks, and priority Windows/GPU test plan.
-- **Do not describe the experimental benchmarking mode as IEEE-validated yet.** Run and record full synthetic tests and real-device pilot checks first; maintain the five existing methodological HOLD decisions.
-
-## Ground-truth preparation
-
-- [Ground-truth preparation and verification protocol](GROUND_TRUTH_PROTOCOL.md) — DOCX extraction warnings, manual audio/span checks, frozen-reference integrity and supporting NIST/Interspeech/LREC-COLING evidence.
-- UI approval now requires four manual confirmation checks and detects a DOCX change since the preview. No BM/Kelantan text normalisation policy was changed.
-
-## WER/CER code re-review
-
-- [Metric scoring and pipeline code review — 18 November 2026](CODE_REVIEW_METRICS_2026-11-18.md): independent short-sequence edit-distance oracle (14,641 pairs), open IEEE-readiness blockers and the next Windows validation plan.
-- The source-controlled `tests/test_benchmark_metric_validation.py` adds raw-scoring regression coverage; it is **not** a substitute for external `jiwer`/SCLITE and actual runtime tests.
-
-## Single / Batch runner audit
-
-- [Single / Batch Runner Audit — 18 November 2026](SINGLE_BATCH_RUNNER_AUDIT_2026-11-18.md): reliability fixes, CSV/JSON status semantics, cancellation, changed-audio safeguards and remaining IEEE validation requirements.
-- [Synthetic runner regression tests](../../tests/test_benchmark_runner_integrity.py) and [GitHub Actions benchmark test workflow](../../.github/workflows/benchmark-tests.yml). **CI results and RTX 5070 execution are not yet confirmed.**
-
-## Verbatim WER/CER reporting
-
-- [Reporting engine protocol](REPORTING_ENGINE_PROTOCOL.md) — inclusive verbatim scoring (fillers, repetitions, interviewer and all audible speakers), corpus/macro aggregation, strict common-completed cohort and data-quality safeguards.
-- `benchmark_reporting.py` now exports `model_summary.csv` and `error_breakdown.csv` for single and batch studies; `benchmark_pilot.py` additionally writes separate word/character S/D/I counts.
-- [Reporting unit tests](../../tests/test_benchmark_reporting.py) exercise synthetic corpus vs macro scoring, missing data, failed models and CSV output. **Runtime CI and actual Windows GPU execution have not been confirmed.**
-
-## IEEE-oriented Excel export (experimental)
-
-- `benchmark_excel.py` produces `benchmark_summary.xlsx` after single/batch completion with **Model Summary**, **Recording Results**, **Error Breakdown** and **Run Status** sheets. Scores are numeric fractional values formatted as percentages; incomplete or failed outcomes remain blank.
-- To regenerate from a stored run: `python benchmark_excel.py path/to/manifest.json` (or `batch_manifest.json`). No participant audio or transcripts are embedded in the workbook.
-- [XLSX structural tests](../../tests/test_benchmark_excel.py) check workbook contents and formula-injection safety; **CI success and opening in desktop Excel remain unverified**.
+The historical [reporting protocol](REPORTING_ENGINE_PROTOCOL.md), [package migration](ARCHITECTURE.md), [scoring review](CODE_REVIEW_METRICS_2026-11-18.md), [single and batch runner audit](SINGLE_BATCH_RUNNER_AUDIT_2026-11-18.md) and [static code audit](CRITICAL_CODE_AUDIT_2026-11-18.md) describe their named revisions. The earlier diagrams remain available in [SVG v8](RedScribe_Benchmark_Workflow_Academic_v8.svg), [editable HTML v8](RedScribe_Benchmark_Workflow_Academic_v8.html), [SVG v7](RedScribe_Benchmark_Workflow_Reviewed_v7.svg) and [editable HTML v7](RedScribe_Benchmark_Workflow_Reviewed_v7.html).

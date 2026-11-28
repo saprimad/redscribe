@@ -1,10 +1,7 @@
 # Architecture
 
-[Transcription architecture](../scientific/part-I-transcription/README.md) · [Structured benchmarking architecture](../scientific/part-II-benchmarking/README.md)
+- [Transcription system](../scientific/part-I-transcription/README.md) covers input, ASR adapters, diarisation, estimated timing and editable reports.
+- [Benchmarking system](../scientific/part-II-benchmarking/README.md) covers reference approval, scheduling, worker lifecycle, scoring, checkpointing and structured exports.
+- [Source-linked figures](../scientific/figures/README.md) identify the implementation behind each diagram.
 
-Canonical documents remain in their existing locations to preserve citations, relative links and history.
-
-- [Software architecture and migration](../benchmark/ARCHITECTURE.md)
-- [ASR model setup](../MULTI_MODEL_ASR.md)
-
-- [Benchmark architecture figure](BENCHMARK_ARCHITECTURE.md)
+The [package migration notes](../benchmark/ARCHITECTURE.md) and [earlier pilot and batch figure](BENCHMARK_ARCHITECTURE.md) document previous design stages.

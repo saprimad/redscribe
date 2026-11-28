@@ -1,16 +1,23 @@
-# RedScribe — User Guide and Demonstration
+# RedScribe user guide
 
-**Research Speech Transcription and Benchmarking System**
+Launch `python redscribe_gpu.py` from the active environment. Use **Transcription** to prepare a draft for human verification. Use **Benchmark** to assess the output against an approved reference. [Installation](../../README.md#installation) · [Model and hardware requirements](../MULTI_MODEL_ASR.md)
 
-**Documentation snapshot:** 28 November 2026 | Benchmarking workflow demonstrated on Windows | Runtime commit `df8d6a3`
+## Transcribe an interview
 
-RedScribe combines conventional transcription with a separate scientific benchmarking workspace. This guide documents the actual single-recording workflow used during the seven-model P1 validation run. It does not replace the [Ground Truth Preparation and Verification Protocol](../benchmark/GROUND_TRUTH_PROTOCOL.md) or the [Consolidated Development and Validation Record](../validation/CONSOLIDATED_DEVELOPMENT_RECORD_2026-11-28.md).
+1. Select a recording, choose the ASR model and set the transcription language. Enter any study metadata you want included in the reports.
+2. Open **Settings** to configure speaker diarisation. For diarisation, accept the selected model’s access conditions and supply a Hugging Face token. If you require only the words, disable diarisation. [Detailed settings and troubleshooting](desktop-settings.md)
+3. Start transcription. Monitor progress in the live transcript panel. If diarisation fails, inspect the status before interpreting any speaker labels.
+4. Open the Word and Excel outputs in `output/YYYY-MM/<model>/`. Word groups adjacent utterances for reading. Excel preserves individual utterances and verification columns. Check wording, timing and speaker attribution against the original audio before using the transcript for analysis.
 
-## Before starting
+## About the benchmark illustrations
+
+The six screenshots below document a single-recording Windows run at commit `df8d6a3`. Seven models were selected. The controls and counts shown refer to that run. [Reference preparation protocol](../benchmark/GROUND_TRUTH_PROTOCOL.md) · [Development and validation record](../validation/CONSOLIDATED_DEVELOPMENT_RECORD_2026-11-28.md)
+
+## Benchmark a recording
 
 Prepare a recording and a matching speech-only full verbatim DOCX. Install the required model dependencies, select Benchmark mode, and keep all source and private output files in authorised local storage. The visible workflow evaluates one recording at a time.
 
-## 1. Ground Truth Review
+### 1. Ground Truth Review
 
 Select the audio and matched DOCX. Review the separate scoring copy against the complete audio. Remove only verified non-spoken labels and annotations; preserve dialect, fillers and repetitions. Complete all four verification checks and the approval acknowledgement, then select **Approve & freeze reference**. The original document is unchanged. The screenshot has its transcript and local path deliberately obscured.
 
@@ -18,7 +25,7 @@ Select the audio and matched DOCX. Review the separate scoring copy against the 
 
 *Figure 1. Ground Truth Review — actual validation interface, with confidential fields obscured where necessary.*
 
-## 2. Configuration Review
+### 2. Configuration Review
 
 Select the models, language and resource monitoring. Review the recording ID, audio, approved reference, requested CUDA/FP16 settings and output location. Complete the three confirmation checks, then select **Confirm configuration**. The local folder path has been obscured.
 
@@ -26,7 +33,7 @@ Select the models, language and resource monitoring. Review the recording ID, au
 
 *Figure 2. Configuration Review — actual validation interface, with confidential fields obscured where necessary.*
 
-## 3. Benchmark initialisation
+### 3. Benchmark initialisation
 
 Select **Start benchmark**. RedScribe validates the output directory, locks the experiment, verifies the approved dataset, records runtime provenance and initialises the checkpoint. The live monitor shows pending/loading statuses.
 
@@ -34,7 +41,7 @@ Select **Start benchmark**. RedScribe validates the output directory, locks the 
 
 *Figure 3. Benchmark initialisation — actual validation interface, with confidential fields obscured where necessary.*
 
-## 4. Live benchmark monitoring
+### 4. Live benchmark monitoring
 
 Models run sequentially. The live monitor displays WER/CER, edit counts, reference and ASR lengths, inference and loading times, RTF, device, precision and sampled resource peaks. Configuration is locked while running. Stop is available. A completed worker does not itself prove complete audio coverage.
 
@@ -42,15 +49,15 @@ Models run sequentially. The live monitor displays WER/CER, edit counts, referen
 
 *Figure 4. Live benchmark monitoring — actual validation interface, with confidential fields obscured where necessary.*
 
-## 5. Completion and reporting
+### 5. Completion and reporting
 
-The completed run displays 7/7 models and publication status. RedScribe exports CSV data, Excel results, figures and a scientific report. Inspect the results before starting another run.
+In the illustrated run the monitor shows seven completed models. Check the status of each selected model and the export before closing the window. RedScribe exports CSV data, Excel results, figures and a scientific report. Inspect the results before starting another run.
 
 ![Figure 5. Completion and reporting](screenshots/05-benchmark-completed.png)
 
 *Figure 5. Completion and reporting — actual validation interface, with confidential fields obscured where necessary.*
 
-## 6. Structured output
+### 6. Structured output
 
 Select **Open output folder** to inspect the four principal outputs. The file-list screenshot is cropped and dates are obscured to avoid revealing workstation navigation or exact run timestamps.
 
@@ -58,7 +65,7 @@ Select **Open output folder** to inspect the four principal outputs. The file-li
 
 *Figure 6. Structured output — actual validation interface, with confidential fields obscured where necessary.*
 
-## 7. Scientific output
+### Scientific output
 
 | Output | Purpose |
 | --- | --- |
@@ -71,7 +78,7 @@ Select **Open output folder** to inspect the four principal outputs. The file-li
 - [Sample scientific results (Excel)](sample-outputs/Sample%20Scientific%20Results.xlsx)
 - [Sample provenance and checksums](sample-outputs/README.md)
 
-## 8. Research interpretation and confidentiality
+### Interpreting the benchmark
 
 WER and CER are raw edit-distance measures, not semantic accuracy measures. RTF excludes loading. System-wide resource peaks are not model-exclusive allocations. The sample represents one recording only. Actual audio coverage and repeatability remain separate validation requirements.
 

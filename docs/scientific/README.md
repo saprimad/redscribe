@@ -12,3 +12,10 @@ The development baseline for this review is d2ab724. The scientific question det
 | What limits the use and sharing of the evidence? | [Integrity, provenance and validation gates](INTEGRITY.md) |
 | How can a reviewer trace a claim or reproduce a check? | [Claim matrix](CLAIMS.md), [audit](AUDIT_AND_GAP_ANALYSIS.md), [editorial review](EDITORIAL.md), [QA and readiness](RELEASE_READINESS.md) |
 | How can another contributor resume? | [State](EXECUTION_STATE.md), [task register](TASK_REGISTER.md), [handover](EXECUTION_HANDOVER.md), [full specification](MASTER_EXECUTION_SPECIFICATION.md) |
+
+## Review and release preparation
+
+- [Supervisor briefing and publication plan](SUPERVISOR_BRIEFING.md)
+- [Technical reference](TECHNICAL_REFERENCE.md) and [requirements verification matrix](REQUIREMENTS_MATRIX.md)
+- [Validation evidence by revision](VALIDATION_EVIDENCE.md)
+- [Draft release notes and Zenodo metadata](RELEASE_PACKAGE.md)

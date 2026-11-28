@@ -1,6 +1,8 @@
 # Validation
 
-**Latest milestone:** [Consolidated development and validation record — 28 November 2026](CONSOLIDATED_DEVELOPMENT_RECORD_2026-11-28.md). Includes the full seven-model P1 runtime, numerical and integrity audit, PR #27/#28 integration, and outstanding release gates.
+For the current regression evidence and physical acceptance gates, see the [readiness assessment](../scientific/RELEASE_READINESS.md) and [Windows GPU procedure](WINDOWS_GPU_ACCEPTANCE.md).
+
+**Historical milestone:** [Consolidated development and validation record — 28 November 2026](CONSOLIDATED_DEVELOPMENT_RECORD_2026-11-28.md). Includes the full seven-model P1 runtime, numerical and integrity audit, PR #27/#28 integration, and outstanding release gates.
 
 Canonical documents remain in their existing locations to preserve citations, relative links and history.
 

@@ -1,342 +1,70 @@
-# RedScribe — ASR Benchmarking
+# RedScribe
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22941754.svg)](https://doi.org/10.5281/zenodo.22941754)
 
-**Experimental research branch | Local automatic speech recognition (ASR) evaluation**
+RedScribe is a local desktop application for researchers working with recorded interviews. **Transcription** produces an editable Word transcript and an Excel workbook for checking the speech and speaker labels against the recording. **Benchmarking** compares selected automatic speech recognition (ASR) systems against a researcher-approved verbatim reference and reports recognition errors and processing time.
 
-RedScribe Benchmarking extends the desktop transcription application to compare ASR models against researcher-verified verbatim transcripts, with particular interest in Malay and Kelantan dialect speech.
-
-[Stable transcription application](https://github.com/saprimad/redscribe/tree/main) · [Benchmark documentation](docs/benchmark/README.md) · [Implementation status](docs/BENCHMARK_IMPLEMENTATION_STATUS.md) · [Study timeline](docs/REDSCRIBE_BENCHMARK_TIMELINE.md)
-
-## Scientific documentation and review
-
-[Scientific documentation index](docs/scientific/README.md) · [Illustrated user guide](docs/user-guide/README.md) · [Consolidated development and validation record](docs/validation/CONSOLIDATED_DEVELOPMENT_RECORD_2026-11-28.md)
-
-[Historical synthetic regression run](https://github.com/saprimad/redscribe/actions/runs/45642290643) · [Historical dependency run](https://github.com/saprimad/redscribe/actions/runs/45642290408) · [Actual Windows GPU runtime validation](docs/validation/WINDOWS_GPU_RUNTIME_VALIDATION_2026-11-25.md)
-
-## Research documentation
-
-[Research documentation index](docs/README.md) · [Kelantan dialect study](docs/linguistics/README.md) · [Research protocols](docs/research/README.md) · [Validation records](docs/validation/README.md) · [Planning and HOLD decisions](docs/planning/README.md)
-
-## Historical benchmark design figure
-
-[![Experimental RedScribe benchmarking workflow](docs/benchmark/RedScribe_Benchmark_Workflow_Academic_v8.svg)](docs/benchmark/RedScribe_Benchmark_Workflow_Academic_v8.svg)
-
-*Figure 1. Earlier experimental design, including optional analysis stages. For the active structured workflow see [Part II](docs/scientific/part-II-benchmarking/README.md).*
-
-[Full-size SVG](docs/benchmark/RedScribe_Benchmark_Workflow_Academic_v8.svg) · [Editable HTML figure](docs/benchmark/RedScribe_Benchmark_Workflow_Academic_v8.html)
-
-## Experimental capabilities
-
-| Component | Current scope |
+| To… | Start here |
 | --- | --- |
-| Model selection | Eleven candidates; seven selected by default |
-| Reference preparation | DOCX extraction, manual review, approval and frozen reference |
-| Execution | Single-recording desktop workflow with model-major scheduling. Separate modules support dataset and batch processing. |
-| Accuracy | Raw word error rate (WER), character error rate (CER), substitutions, deletions and insertions |
-| Efficiency | Optional resource monitoring and processing-time measurements |
-| Reporting | CSV, JSON, Excel summaries and scientific figures |
-| Speech analysis | Legacy pilot analysis. The structured run measures recording duration and reference counts. |
-
-The [seven-model P1 runtime record](docs/validation/P1_SEVEN_MODEL_GPU_VALIDATION_2026-11-26.md) documents one full-length recording on an RTX 5070. Same-version repeatability, processed audio coverage and the planned multi-recording comparison require additional evidence. Earlier synthetic and dependency checks are recorded against their tested commits.
-
-## Getting started with benchmarking
-
-Clone the experimental branch, rather than the default branch:
-
-```bash
-git clone --branch redscribe-benchmark-timeline https://github.com/saprimad/redscribe.git
-cd redscribe
-```
-
-Follow the platform-specific installation instructions below, then install the benchmark dependencies:
-
-```bash
-python -m pip install -r requirements-benchmark.txt
-python redscribe_gpu.py
-```
-
-Open Benchmarking from the desktop application, select the models, pair one recording with its reference DOCX, review the extracted text and approve it before starting the benchmark. Optional model dependencies are described in the [multi-model setup guide](docs/MULTI_MODEL_ASR.md).
-
-## Benchmark source and protocols
-
-Benchmark implementations are grouped under `redscribe/benchmark/` and `redscribe/ui/`. Root-level benchmark modules are compatibility entry points for existing scripts and tests. The desktop application and shared ASR modules remain at the repository root during this staged refactor.
-
-[Architecture and migration notes](docs/benchmark/ARCHITECTURE.md)
-
-| Area | Source or documentation |
-| --- | --- |
-| Configuration and interface | [benchmark_config.py](redscribe/benchmark/benchmark_config.py), [benchmark_ui.py](redscribe/ui/benchmark_ui.py) |
-| Reference preparation | [benchmark_ground_truth.py](redscribe/benchmark/benchmark_ground_truth.py), [benchmark_reference.py](redscribe/benchmark/benchmark_reference.py) |
-| Structured execution | [Structured runner](redscribe/benchmark/benchmark_structured_output.py) |
-| Legacy execution | [benchmark_pilot.py](redscribe/benchmark/benchmark_pilot.py), [benchmark_batch.py](redscribe/benchmark/benchmark_batch.py) |
-| Structured scoring | [RapidFuzz scorer](redscribe/benchmark/benchmark_fast_metrics.py) |
-| Legacy scoring | [benchmark_metrics.py](redscribe/benchmark/benchmark_metrics.py) |
-| Resource and speech analysis | [benchmark_resources.py](redscribe/benchmark/benchmark_resources.py), [benchmark_speech.py](redscribe/benchmark/benchmark_speech.py) |
-| Reporting | [benchmark_reporting.py](redscribe/benchmark/benchmark_reporting.py), [benchmark_excel.py](redscribe/benchmark/benchmark_excel.py) |
-| Validation | [Tests](tests/), [Code audits and protocols](docs/benchmark/README.md) |
-| Dialect considerations | [Kelantan dialect benchmark](docs/KELANTAN_DIALECT_BENCHMARK.md) |
-
----
-
-## Base transcription application
-
-RedScribe is a Windows and macOS desktop application for transcribing research interviews and other recorded speech. Version 2.0 uses Faster-Whisper by default, with optional local ASR adapters for additional models and can optionally use pyannote.audio to distinguish between speakers. Each completed run takes one recording and exports an Excel workbook and an editable Word report for researcher-led verification and qualitative analysis.
-
-## Current source version
-
-**Version 2.0.0**
-
-No tagged GitHub Release has been published yet. The repository includes the changes listed under **Unreleased** in [CHANGELOG.md](CHANGELOG.md); the version number shown in the application has not been changed for those additions. A [RedScribe Zenodo record](https://doi.org/10.5281/zenodo.22941754) is available separately; this does not imply that a tagged GitHub Release has been archived.
-
-The primary application is [`redscribe_gpu.py`](redscribe_gpu.py). The earlier Qwen/Ollama prototype, [`whisper_gui.py`](whisper_gui.py), is deprecated and retained only for historical reference. It is not supported or recommended for research use.
-
-## Current features
-
-- Selectable ASR models, including optional Mesolitica, MMS, Qwen3-ASR and BuzzASR backends (see [multi-model setup](docs/MULTI_MODEL_ASR.md))
-- Full English ASR model names: seven study candidates first, followed by OpenAI Whisper Medium, Small, Base and Tiny labelled `(Legacy)`
-- Existing saved model choices remain compatible; full display names do not change model checkpoints or output folders
-- Faster-Whisper tries NVIDIA CUDA FP16 first with CPU INT8 fallback; optional ASR backends require CUDA FP16
-- Spoken-language choice: Auto detect (default), Bahasa Melayu or English; transcription does not translate the recording
-- Optional speaker diarisation using `pyannote/speaker-diarization-community-1`
-- Optional expected-speaker count
-- Hugging Face token controls: masked entry, Show/Hide, Save Token, Remove Saved and a local Check Token button; saved tokens use the system credential store through `keyring`
-- Live timestamped transcript, detected-language notice, progress and estimated remaining time
-- Local per-run performance records in `output/performance/`: stage timings, actual device/precision and completed-ASR RTF/speed, including failed/cancelled run records
-- Live diarisation activity in English, with an animated indicator, elapsed time and stage progress where pyannote reports it; a speaker timeline preview appears before transcription
-- Speaker assignment and estimated sentence timestamps derived from Whisper segments
-- Excel export with study metadata, an utterance-level verification worksheet, speaker counts, approximate speech/silence durations, five-minute utterance density and token frequency
-- Editable Microsoft Word (`.docx`) report with the early report tables and charts, top tokens, and adjacent utterances grouped by speaker
-- Numbered Excel/Word filenames on repeated runs to preserve previous reports
-- Bottom controls that remain visible as the live transcript area resizes
-- Red Stop button to cancel a run before report export begins
-
-RedScribe produces an automated draft. Sentence timestamps are estimates; speech/silence figures use Whisper segment spans, and token counts are simple text frequencies rather than validated linguistic analysis. Researchers remain responsible for checking the transcript, speaker labels and analytical outputs against the original recording.
-
-## Workflow
-
-One recording (MP3, WAV, M4A or MP4) produces two files. The Word report groups adjacent utterances by speaker for reading. The Excel workbook retains individual utterances and verification columns for checking against the recording.
-
-[![RedScribe workflow showing the ASR choices, optional speaker diarisation and the Word and Excel outputs](docs/images/RedScribe_Workflow-full.png)](docs/images/RedScribe_Workflow.svg)
-
-*Figure 2. Base transcription workflow.* [Download the standalone HTML diagram](https://raw.githubusercontent.com/saprimad/redscribe/main/docs/RedScribe_Workflow.html).
-
-Select a recording, language and ASR model, then configure optional speaker diarisation. When enabled, diarisation runs before transcription. A broken diarisation runtime blocks processing with repair instructions; a later model-access/inference failure is explicitly recorded and transcription can continue without speaker labels. RedScribe subsequently prepares timestamped utterances, descriptive summaries, and Excel and Word reports for researcher verification.
-
-During diarisation, the Live Transcript area logs the current processing stage. An animated activity line displays elapsed time even while model loading or grouping speakers provides no numerical progress. When pyannote reports completed/total work, the percentage applies only to that stage, not the whole recording or transcription run. Once diarisation finishes, RedScribe shows the speaker-label count and a preview of the first 20 speaker turns with timestamps, then begins transcription. These are automated speaker labels, not identified people; they still require researcher verification. No provisional speaker identities are displayed during segmentation or embedding extraction.
-
-## Requirements
-
-- Windows 10 or 11, or macOS
-- Python 3.10 or 3.11 recommended
-- FFmpeg available in `PATH`
-- Windows: NVIDIA GPU recommended; CPU mode is supported but slower
-- macOS: Apple Silicon is supported; the current version uses optimised CPU processing rather than NVIDIA CUDA
-- A Hugging Face account and accepted model conditions when speaker diarisation is enabled
+| Install the desktop application | [Installation](#installation) |
+| Transcribe an interview or run a benchmark | [Illustrated user guide](docs/user-guide/README.md) |
+| Choose models and install optional adapters | [Model setup](docs/MULTI_MODEL_ASR.md) |
+| Understand how outputs are generated and scored | [Scientific documentation](docs/scientific/README.md) |
+| Assess the release candidate or prepare a study | [Readiness assessment](docs/scientific/RELEASE_READINESS.md) |
 
 ## Installation
 
-### Windows 10 or 11
+These instructions use the development branch for v2.1.0. The [main branch](https://github.com/saprimad/redscribe/tree/main) contains the stable transcription application. For formal workstation acceptance use the [pinned Windows GPU procedure](docs/validation/WINDOWS_GPU_ACCEPTANCE.md).
 
-1. Clone the repository and enter its folder:
+### Windows
 
-   ```powershell
-   git clone --branch redscribe-benchmark-timeline https://github.com/saprimad/redscribe.git
-   cd redscribe
-   ```
+Install Git, Python 3.11 with Tkinter, and FFmpeg. In PowerShell, create a dedicated environment.
 
-2. Create and activate a virtual environment:
+```powershell
+git clone --branch redscribe-benchmark-timeline https://github.com/saprimad/redscribe.git
+cd redscribe
+py -3.11 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+```
 
-   ```powershell
-   py -3.11 -m venv .venv
-   .\.venv\Scripts\Activate.ps1
-   python -m pip install --upgrade pip
-   ```
-
-3. If using an NVIDIA GPU, install the appropriate PyTorch build for the CUDA version shown by your driver. Use the command provided by the [PyTorch installation selector](https://pytorch.org/get-started/locally/).
-
-4. Install RedScribe dependencies:
-
-   ```powershell
-   pip install -r requirements.txt
-   ```
-
-5. Install FFmpeg if it is not already available:
-
-   ```powershell
-   winget install Gyan.FFmpeg
-   ```
-
-   Close and reopen PowerShell after installation, then verify it with `ffmpeg -version`.
+If FFmpeg is missing, install it with `winget install Gyan.FFmpeg`, reopen PowerShell and reactivate the environment. For NVIDIA acceleration, install a compatible PyTorch build in this environment before installing the application dependencies. [PyTorch installation selector](https://pytorch.org/get-started/locally/)
 
 ### macOS
 
-RedScribe has been tested successfully on a Mac mini with an Apple M4 chip and 24 GB of unified memory. The current version runs transcription and speaker diarisation through CPU processing on Mac; NVIDIA CUDA instructions do not apply. Modern Apple Silicon can nevertheless provide strong local transcription performance.
+The transcription application can use Faster-Whisper on CPU. The five optional ASR adapters require NVIDIA CUDA with FP16. With Homebrew installed, run the following in Terminal.
 
-1. Install [Homebrew](https://brew.sh/) if it is not already installed.
-
-2. Install Git, Python 3.11 with Tkinter support, and FFmpeg:
-
-   ```bash
-   brew install git python@3.11 python-tk@3.11 ffmpeg
-   ```
-
-3. Clone the repository and enter its folder:
-
-   ```bash
-   git clone --branch redscribe-benchmark-timeline https://github.com/saprimad/redscribe.git
-   cd redscribe
-   ```
-
-4. Create and activate a virtual environment:
-
-   ```bash
-   "$(brew --prefix python@3.11)/bin/python3.11" -m venv .venv
-   source .venv/bin/activate
-   python -m pip install --upgrade pip
-   ```
-
-5. Install RedScribe dependencies:
-
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-6. Verify the installation and start RedScribe:
-
-   ```bash
-   ffmpeg -version
-   python redscribe_gpu.py
-   ```
-
-The first launch may take longer while the selected Whisper model is downloaded. On a modern Apple Silicon Mac, use `large-v3` when prioritising transcription accuracy or `turbo` when prioritising faster processing. The `small` and `base` models remain useful for older Macs or systems with limited memory. If macOS asks for permission to access a folder containing the selected recording, allow access so RedScribe can read the file and save its reports.
-
-## Diarisation dependency repair
-
-If importing pyannote reports `cannot import name '_ExtendedAttributes' from 'opentelemetry.util.types'`, the failure is in its Python dependency stack, before any model download. RedScribe distinguishes this from pyannote itself being missing. With diarisation enabled, the runtime import check must pass before processing starts.
-
-Close RedScribe, open PowerShell in the project folder, and use the same project virtual environment explicitly:
-
-```powershell
-.\.venv\Scripts\python.exe -c "import sys; print(sys.executable)"
-.\.venv\Scripts\python.exe -m pip install --upgrade opentelemetry-api opentelemetry-sdk opentelemetry-exporter-otlp
-.\.venv\Scripts\python.exe -m pip check
-.\.venv\Scripts\python.exe -c "from pyannote.audio import Pipeline; print('pyannote import OK')"
-.\.venv\Scripts\python.exe redscribe_gpu.py
+```bash
+brew install git python@3.11 python-tk@3.11 ffmpeg
+git clone --branch redscribe-benchmark-timeline https://github.com/saprimad/redscribe.git
+cd redscribe
+"$(brew --prefix python@3.11)/bin/python3.11" -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
 ```
 
-These commands assume the existing `.venv` contains your RedScribe/CUDA dependencies. A global `Python311/Lib/site-packages` path in a traceback can indicate a different interpreter or an environment exposing global packages; check VS Code's selected interpreter. If `pip check` or the import still fails, resolve the reported version conflicts before retrying. Upgrading the OpenTelemetry packages together lets pip resolve their compatibility, but it is not a guarantee that unrelated package constraints are satisfied. The app does not install packages automatically.
+### Install and launch
 
-## Speaker diarisation setup
+With the environment active, install the desktop dependencies and check FFmpeg.
 
-Settings now offers **Community-1 (Recommended)** and **3.1 (Legacy / comparison)**. Community-1 remains the default, and diarisation stays on by default. The selected model is remembered separately from the ASR model and recorded in both reports. Both choices use the existing local pyannote runtime; no WSL or extra diarisation engine is added. The 3.1 option still needs a real inference/compatibility test on the current installation.
-
-For **3.1**, also accept the conditions for [`pyannote/speaker-diarization-3.1`](https://huggingface.co/pyannote/speaker-diarization-3.1) and [`pyannote/segmentation-3.0`](https://huggingface.co/pyannote/segmentation-3.0) using the same Hugging Face account/token. Selecting a model does not download it; loading starts with a transcription run. A failed model is reported rather than silently replaced with the other choice. For Community-1, follow these steps:
-
-1. Open the model page for [`pyannote/speaker-diarization-community-1`](https://huggingface.co/pyannote/speaker-diarization-community-1) and accept any required conditions.
-2. Create a Hugging Face token with read access.
-3. Start RedScribe and click **Settings** in the header or **Diarisation settings** in the Speakers panel. Paste the token into **Enter or replace token** in the Settings window. It is masked by default; **Show/Hide** toggles visibility for the typed token.
-4. Click **Save Token** to remember it on this computer, then **Done** to return to transcription. The field clears after confirmed storage. Leave it blank on future launches: RedScribe retrieves its saved token automatically when diarisation starts.
-
-**Save Token** uses `keyring` with Windows Credential Manager, macOS Keychain or a supported Linux desktop credential store (Secret Service, KWallet or libsecret). It never writes tokens to RedScribe's JSON settings or another application configuration file. Plaintext and third-party fallback backends are rejected. An operating-system prompt may ask you to unlock or allow access to the store. If the store is missing, locked or unavailable, the app shows a warning; you can still paste a token for the current session without saving it. Existing installations should run `pip install -r requirements.txt` to add the dependency.
-
-The Speakers panel shows only a token summary (**Token saved**, **Session token**, **Token available** or **Token not configured**). Diarisation is enabled by default at each app launch. Its enable checkbox and expected-speaker count are inside Settings, and the main Speakers panel reflects those choices. Model selection stays on the main window. Token entry, Show/Hide, Save Token, Remove Saved and Check Token are inside **Settings**; closing Settings keeps any unsaved token for the current app session and reopening masks it again.
-
-**Check Token** reports local availability and the source that will be used. It does not display the token, contact Hugging Face or validate model access. The priority is: typed session token → RedScribe's saved keyring token → `HF_TOKEN` / `HUGGINGFACE_HUB_TOKEN` environment variable → existing Hugging Face login. A saved token is not copied back into the visible entry field.
-
-**Remove Saved** deletes only RedScribe's keyring entry. It preserves a typed session token, environment variables and any separate Hugging Face login, and does not revoke the token on Hugging Face. Check the status afterwards to see if another source is still available. Saving a new token replaces RedScribe's previous entry.
-
-An existing Hugging Face login remains supported. If you prefer that route, run:
-
-```powershell
-python -c "from huggingface_hub import interpreter_login; interpreter_login()"
+```bash
+python -m pip install -r requirements.txt
+ffmpeg -version
 ```
 
-Enter the token at the hidden prompt and answer `n` when asked **Add token as git credential?**. This separate Hugging Face login manages its own local cache; **Remove Saved** does not delete it. There is no automatic migration of an existing login into RedScribe's keyring.
+For benchmarking, also run `python -m pip install -r requirements-benchmark.txt`. If using optional models, follow the [adapter installation instructions](docs/MULTI_MODEL_ASR.md). Model weights may download on first use. Start either mode from the same application.
 
-Token availability does not guarantee diarisation access: accept the model conditions and ensure the token has read access. Never commit a token, participant recording or identifiable transcript to GitHub.
-
-## Desktop workspace
-
-![RedScribe desktop workspace](<docs/images/new UI.png>)
-
-*RedScribe v2.0.0 on Windows, showing automated transcription of Podcast Ubat atau Tabu, Episode 12. Automated output requires verification against the recording. Fonts and window decorations vary by operating system.*
-
-The workspace uses a white and maroon theme. **Study details** is a compact panel in the left column, directly below **Audio file** and above **Transcription**. It is open by default for entering the study name, researcher, audio label and reporting period, and can be collapsed afterwards. The right-hand transcript retains the full workspace height. The left column scrolls when more space is needed, while the live transcript and bottom actions remain visible.
-
-Model downloads can show per-file percentage and downloaded/total size in Live Transcript when the installed Hugging Face HTTP/Xet runtime exposes byte progress. Parallel files get separate updating lines; unknown sizes keep an elapsed/bytes-only notice. These are file percentages, separate from transcription progress.
-
-The right panel uses larger transcript text with tighter spacing and shows English processing notices, diarisation activity and elapsed time, the speaker timeline preview, and timestamped transcription with consistent speaker colours. Consecutive segments from the same speaker append to one live paragraph, with the starting timestamp and coloured speaker label shown once inline. A speaker change starts a new paragraph. This display grouping preserves the underlying segment timestamps and existing Word and Excel exports. The bottom bar retains progress, status/ETA, **Open output folder**, **Stop** and **Start transcription**. During diarisation, percentages refer only to supported processing stages, not to completion of the entire recording.
-
-**Settings** opens the diarisation and Hugging Face controls in a separate window. A session's settings changes apply to the next run; the current run uses the choices captured when Start was pressed. Token availability is separate from model download or model access. Settings and the left column can be scrolled on smaller screens.
-
-![RedScribe diarisation settings](docs/images/redscribe-settings.png)
-
-## Running RedScribe
-
-```text
+```bash
 python redscribe_gpu.py
 ```
 
-Select an audio or video file, complete the optional study metadata, choose whether to enable speaker diarisation, and start transcription. **Transcription Language** defaults to Auto detect; select Bahasa Melayu or English when detection is inaccurate. Whisper-based choices use the transcription task rather than translation; optional backends use their own decoders. The description below ASR model explains each choice's language, precision and timestamp behaviour. A background requirements check runs before downloading models or starting diarisation; missing optional runtimes show an installation instruction. Mixed-language speech still needs checking against the recording. Matching `.xlsx` and `.docx` files are written to `output/YYYY-MM/<model>/`; both filenames also include the model name. Repeated runs create a numbered file pair rather than overwriting an earlier result. The Word file begins with the Excel `Early_Report` information and charts, followed by a transcript that combines adjacent utterances from the same speaker into one editable paragraph, labelled with the first start and last end time. The Excel workbook retains each utterance separately, along with verification columns. Speaker labels use the same colours in the live UI, Word transcript and speaker summary, and Excel Speaker cells and speaker summary. Word transcript text retains its normal colour; Excel Speaker cells have a pale matching fill. Colours are derived from the automatic label ID, not its order of appearance; UNKNOWN is grey. There are eight accent colours, so colours repeat after eight numeric IDs and do not establish a person’s identity across recordings. If a run stops with an unexpected Python error, details are written locally to `output/redscribe_error.log`; review the log before sharing it because paths may identify research files.
+## Validation and interpretation
 
-With Auto detect, the detected language appears in the live transcript area before the first segment. If it is wrong (for example, Welsh for a Malay recording), click **Stop**, choose Bahasa Melayu or English under Transcription Language, and start again. Stop waits for the current model-loading, diarisation or transcription step to finish; it cannot interrupt a library call instantly. A stopped run does not save a partial Word or Excel report. Once report saving begins, Stop is disabled until both exports finish. Previously completed reports are preserved.
-
-**Whisper Model** defaults to `large-v3`. Use `small` or `base` for a CPU-only laptop, or try `turbo` for faster processing on a capable GPU; check each transcript against the audio. The selection is remembered on that computer in `%APPDATA%\RedScribe\settings.json` (or `~/.config/RedScribe/settings.json` if `APPDATA` is unavailable). This settings file contains only the model name, never a Hugging Face token or study details. The selected model and actual CPU/GPU mode are recorded in both outputs. The first use of another model downloads it from the Hugging Face Hub and needs an internet connection.
-
-When transcription runs on CPU, RedScribe uses at most 70% of the detected logical processor count as Faster-Whisper worker threads, with a budget at least two below the total when available. This is a thread budget, **not a guaranteed 70% CPU-utilisation limit**; diarisation, other libraries and other applications have separate CPU activity. It does not prevent memory exhaustion. On a laptop, choose `small` or `base` if `large-v3` is slow or memory is limited.
-
-Repeated runs with the same study details receive numbered filenames (for example, `_2.xlsx` and `_2.docx`) so an earlier report is preserved even while it is open.
-
-Supported input formats shown in the interface are MP3, WAV, M4A and MP4. FFmpeg may support additional formats, but they are not currently exposed by the file picker.
-
-## Processing and privacy
-
-Audio transcription and diarisation run on the user's computer. Internet access may still be required initially to download model files and authenticate with Hugging Face. After the required models are cached, processing can generally occur locally.
-
-The repository's `.gitignore` excludes common audio, video, spreadsheet, transcript, data, credential and output files. This is a safeguard, not a substitute for checking every commit before pushing research material.
-
-## GPU acceleration and CPU fallback
-
-The [pre-merge trial record](docs/PRE_MERGE_TEST_LOG.md) documents user-reported runs, the MMS Malay adapter correction and unresolved quality checks.
-
-The optional ASR backends require NVIDIA CUDA FP16 and never fall back silently to CPU or another precision. See [multi-model setup](docs/MULTI_MODEL_ASR.md) for installation, timing limitations and model dependencies.
-
-On Windows, RedScribe attempts to load the original Faster-Whisper choices with CUDA and `float16`. If CUDA is unavailable or loading fails, it falls back to CPU with `int8`. On macOS, the current version uses CPU mode with `int8`. Speaker diarisation is sent to CUDA only when CUDA is available; otherwise it runs on CPU. A diarisation failure does not stop transcription.
-
-## Troubleshooting
-
-- **`ffmpeg` not found:** install FFmpeg, reopen the terminal and confirm `ffmpeg -version` works.
-- **Tkinter is missing on macOS:** run `brew install python-tk@3.11`, recreate the virtual environment with the Homebrew Python 3.11 command above, and reinstall the dependencies.
-- **Hugging Face access error:** accept the model conditions and check that the token has read access.
-- **CUDA or DLL error:** confirm that the NVIDIA driver, PyTorch build and CUDA runtime are compatible.
-- **Diarisation fails but transcription continues:** review the warning shown in the application and inspect the generated Excel metadata.
-- **Slow processing:** on Windows with an NVIDIA GPU, confirm that the status bar reports `CUDA`. On Apple Silicon, try `turbo` for faster processing; reserve `small` or `base` for older Macs or systems with limited memory. CPU transcription with `large-v3` may be slower on older hardware.
-
-## Repository files
-
-- `redscribe_gpu.py` — current RedScribe v2 application
-- `whisper_gui.py` — deprecated Qwen/Ollama prototype retained for historical reference
-- `token_store.py` — system credential storage and token-source selection
-- `speaker_styles.py` — shared speaker colours for the UI, Excel and Word
-- `requirements.txt` — Python dependencies
-- `CITATION.cff` — software citation metadata
-- `CHANGELOG.md` — release history
-- `LICENSE` — PolyForm Noncommercial 1.0.0 terms for the original RedScribe code and documentation
+A historical RTX 5070 run processed one full-length recording with seven models. The paired outputs provide an example of error counts and efficiency measurements for that recording. The current readiness assessment identifies the workstation checks and study approvals still required for a larger comparison. [Historical runtime record](docs/validation/P1_SEVEN_MODEL_GPU_VALIDATION_2026-11-26.md) · [Current validation and release gates](docs/scientific/RELEASE_READINESS.md)
 
 ## Citation
 
-If RedScribe supports a study, cite the software using its Zenodo DOI. The record is separate from any future tagged GitHub Release.
-
-### APA
-
-Tumiran, M. S., Abd Wahab, M. S., Jamal, J. A., & Othman, N. (2026). *RedScribe: Research Speech Transcription System* (Version 2.0.0) [Computer software]. Zenodo. https://doi.org/10.5281/zenodo.22941754
-
-### IEEE
-
-M. S. Tumiran, M. S. Abd Wahab, J. A. Jamal, and N. Othman, “RedScribe: Research Speech Transcription System,” ver. 2.0.0, Zenodo, 2026, doi: 10.5281/zenodo.22941754. [Online]. Available: https://doi.org/10.5281/zenodo.22941754
-
-Machine-readable citation metadata are provided in [`CITATION.cff`](CITATION.cff).
+When citing the archived transcription software, use the recorded version 2.0.0 and DOI. For a study using the development branch, also identify the exact Git commit and effective model configurations. [Citation metadata](CITATION.cff) · [Zenodo record](https://doi.org/10.5281/zenodo.22941754) · [Change history](CHANGELOG.md)
 
 ## Authors
 

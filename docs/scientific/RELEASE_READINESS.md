@@ -2,6 +2,8 @@
 
 ## Current corrective validation
 
+The [central validation evidence summary](VALIDATION_EVIDENCE.md) links seven verified jobs at final PR head 61a9acb, identifies the earlier tested revision and records the evidential scope of the merge.
+
 The full Linux suite on an isolated checkout of 5da7f53 ran 228 tests with zero failures, errors or skips. All nine real Tk cases ran, including the added switch from transcription to benchmarking and back. The test launcher fails on an empty discovery or any skip. The ten completion tests and eleven token UI tests also passed independently. Additional targeted modules passed for operation exclusion (1), session lifecycle (2), reference handling (10), fast scoring (3), resume (1), publication (1), ground-truth integrity (3), export integrity (1) and matrix checkpoint persistence (1). These are subsets of discovery. Cancellation, model cleanup and completion are covered by the same suite. The 175-cell stress fixture uses injected sessions and synthetic inputs.
 
 An exploratory run during a changing checkout rejected a resume identity. The benchmark records Git revision and worktree state in the checkpoint identity. The clean detached rerun passed with the guard intact. All six published synthetic WER/CER examples retained the expected word and character edit distances. Rechecking the two archived sample hashes ties this review to the numerical record already on file. The workflow checks paths, numbered claims and citations, model labels, vector sources, captions and sample digests. Bibliographic interpretation and empirical validity still depend on the documented evidence.

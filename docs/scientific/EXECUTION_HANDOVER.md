@@ -7,3 +7,5 @@ The public PDF and workbook arithmetic was checked for seven models. See [exact 
 PR #29 received authorisation for fixture and validation changes. Consult the [current QA decision](RELEASE_READINESS.md) and [pinned workstation protocol](../validation/WINDOWS_GPU_ACCEPTANCE.md) before resuming. Archive physical acceptance evidence privately. The custodian must confirm secondary-use and dissemination scope before the corresponding research use. Obtain independent human review before making comparative publication claims.
 
 For consolidation, compare documentation commits after 24cafc03. Preserve the published CFF and DOI, avoid copying private runtime material and use the public pilot record for the supervisor briefing. Resume any outstanding writing from the actual branch tree.
+
+The consolidated index now links the supervisor briefing, technical reference, requirements matrix, validation evidence and draft release package. Next, complete the private workstation acceptance record and resolve the research and deposit decisions identified in the briefing.

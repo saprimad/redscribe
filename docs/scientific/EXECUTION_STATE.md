@@ -9,3 +9,5 @@ Checkpoint 5da7f53 produced 228 full regression passes on each of Windows and Ub
 ## Documentation consolidation
 
 The integrated application baseline is 24cafc03effd13d88f61b2167216cf358d90ce18. PR #29 merged and the post-merge regression and documentation jobs succeeded. Preserve this revision as the software comparator for subsequent editorial changes. [Post-merge checks](https://github.com/saprimad/redscribe/actions/runs/46078817753)
+
+Consolidation delivered for review: navigation, supervisory and publication briefing, subsystem traceability, technical reference, candidate CI evidence, release draft and operator checklist. Physical acceptance, author and rights confirmation, research authorisation and independent human review remain outstanding. [Index](README.md)
